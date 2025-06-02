@@ -20,8 +20,25 @@ use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState};
+use std::sync::mpsc;
+use std::thread;
 
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
+    // Use a channel to get the result from the GUI thread
+    let (tx, rx) = mpsc::channel();
+    
+    // Spawn a new thread for each popup
+    thread::spawn(move || {
+        let result = render_popup_thread(definition);
+        tx.send(result).ok();
+    });
+    
+    // Wait for the result
+    rx.recv()
+        .map_err(|_| anyhow::anyhow!("Failed to receive popup result"))?
+}
+
+fn render_popup_thread(definition: PopupDefinition) -> Result<PopupResult> {
 
     // Create event loop and window
     let event_loop = EventLoop::new()?;

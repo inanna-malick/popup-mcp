@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "popup-mcp": {
+      "command": "/Users/inannamalick/claude_accessible/popup-mcp/target/debug/stdio_direct",
+      "args": [],
+      "env": {}
+    }
+  }
+}
