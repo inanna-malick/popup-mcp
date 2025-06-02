@@ -144,35 +144,45 @@ fn main() -> Result<()> {
                                         }
                                     });
                                 
-                                // Escape the DSL for shell
-                                let escaped_dsl = dsl.replace("'", "'\\'''");
-                                
-                                // Use sh -c with echo to pipe DSL
-                                let popup_cmd = if let Some(binary_path) = popup_path {
-                                    log::info!("Using binary path: {:?}", binary_path);
-                                    format!("echo '{}' | {}", escaped_dsl, binary_path.to_string_lossy())
+                                // Spawn popup binary directly without shell
+                                let mut child = if let Some(binary_path) = popup_path {
+                                    log::info!("Spawning popup binary directly: {:?}", binary_path);
+                                    std::process::Command::new(binary_path)
+                                        .stdin(std::process::Stdio::piped())
+                                        .stdout(std::process::Stdio::piped())
+                                        .stderr(std::process::Stdio::piped())
+                                        .spawn()
+                                        .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
                                 } else {
-                                    log::info!("Using cargo run fallback");
-                                    format!("cd {} && echo '{}' | cargo run --release --bin popup-mcp --quiet", 
-                                        env!("CARGO_MANIFEST_DIR"), escaped_dsl)
+                                    // Fallback to cargo run for development
+                                    log::info!("Falling back to cargo run for popup");
+                                    std::process::Command::new("cargo")
+                                        .args(&["run", "--release", "--bin", "popup-mcp", "--quiet"])
+                                        .current_dir(env!("CARGO_MANIFEST_DIR"))
+                                        .stdin(std::process::Stdio::piped())
+                                        .stdout(std::process::Stdio::piped())
+                                        .stderr(std::process::Stdio::piped())
+                                        .spawn()
+                                        .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
                                 };
-                                
-                                log::info!("Spawning popup with shell command: {}", popup_cmd);
-                                
-                                let mut child = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(&popup_cmd)
-                                    .stdout(std::process::Stdio::piped())
-                                    .stderr(std::process::Stdio::piped())
-                                    .spawn()
-                                    .map_err(|e| format!("Failed to spawn popup subprocess: {}", e));
                                 
                                 match child {
                                     Ok(mut child) => {
                                         log::info!("Subprocess spawned with PID: {:?}", child.id());
-                                        // No need to write to stdin - echo handles it
-                                        // Wait for result
-                                        match child.wait_with_output() {
+                                        
+                                        // Write DSL to stdin
+                                        match child.stdin.take() {
+                                            Some(mut stdin) => {
+                                                use std::io::Write;
+                                                log::info!("Writing DSL to subprocess stdin...");
+                                                match stdin.write_all(dsl.as_bytes()) {
+                                                    Ok(_) => {
+                                                        // Close stdin to signal EOF
+                                                        drop(stdin);
+                                                        log::info!("DSL written successfully");
+                                                        
+                                                        // Wait for result
+                                                        match child.wait_with_output() {
                                                     Ok(output) => {
                                                         let stdout_str = String::from_utf8_lossy(&output.stdout);
                                                         let stderr_str = String::from_utf8_lossy(&output.stderr);
@@ -197,6 +207,12 @@ fn main() -> Result<()> {
                                                         }
                                             }
                                             Err(e) => error(format!("Failed to wait for popup: {}", e))
+                                        }
+                                                    }
+                                                    Err(e) => error(format!("Failed to write DSL to subprocess: {}", e))
+                                                }
+                                            }
+                                            None => error("Failed to get subprocess stdin")
                                         }
                                     }
                                     Err(e) => error(e)
