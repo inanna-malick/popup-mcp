@@ -17,7 +17,12 @@ pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("No popup found"))?;
     
-    parse_popup(pair)
+    let mut definition = parse_popup(pair)?;
+    
+    // Ensure every popup has an exit path
+    ensure_exit_button(&mut definition);
+    
+    Ok(definition)
 }
 
 fn parse_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefinition> {
@@ -226,4 +231,36 @@ fn parse_comparison_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp
         "==" => Ok(ComparisonOp::Equal),
         _ => Err(anyhow::anyhow!("Unknown comparison operator: {}", pair.as_str()))
     }
+}
+
+/// Ensures that every popup has at least one button for user interaction.
+/// If no buttons exist anywhere in the popup (including nested elements),
+/// a default "Continue" button is added.
+fn ensure_exit_button(definition: &mut PopupDefinition) {
+    // Check if buttons exist anywhere in the element tree
+    if !has_buttons_recursive(&definition.elements) {
+        // Warn about the automatic addition
+        eprintln!(
+            "Warning: Popup '{}' had no buttons defined. Adding default 'Continue' button.",
+            definition.title
+        );
+        
+        // Add a sensible default button
+        definition.elements.push(Element::Buttons(vec!["Continue".to_string()]));
+    }
+}
+
+/// Recursively checks if any buttons exist in the element tree.
+/// This includes buttons in groups and conditional sections.
+fn has_buttons_recursive(elements: &[Element]) -> bool {
+    elements.iter().any(|element| match element {
+        Element::Buttons(_) => true,
+        Element::Group { elements, .. } => has_buttons_recursive(elements),
+        Element::Conditional { elements, .. } => {
+            // For conditionals, we check if buttons exist in the conditional content
+            // This ensures that even conditionally-shown buttons count
+            has_buttons_recursive(elements)
+        }
+        _ => false,
+    })
 }
