@@ -53,7 +53,7 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     
     // Configure fonts
     let hidpi_factor = window.scale_factor();
-    let font_size = (13.0 * hidpi_factor) as f32; // Smaller base font size
+    let font_size = (10.0 * hidpi_factor) as f32; // Much smaller font for density
     
     imgui.fonts().add_font(&[FontSource::DefaultFontData {
         config: Some(FontConfig {
@@ -128,12 +128,12 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                     // Fill the entire window with the popup
                     let window_size = ui.io().display_size;
                     
-                    // Style adjustments for Spike theme
-                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([16.0, 12.0])); // Reduced padding
-                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(8.0));
+                    // Style adjustments for Spike theme - ULTRA DENSE
+                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([8.0, 6.0])); // Minimal padding
+                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(4.0));
                     let _border = ui.push_style_var(imgui::StyleVar::WindowBorderSize(1.0));
-                    let _frame_padding = ui.push_style_var(imgui::StyleVar::FramePadding([10.0, 5.0])); // Smaller frames
-                    let _item_spacing = ui.push_style_var(imgui::StyleVar::ItemSpacing([6.0, 6.0])); // Tighter spacing
+                    let _frame_padding = ui.push_style_var(imgui::StyleVar::FramePadding([6.0, 2.0])); // Very tight frames
+                    let _item_spacing = ui.push_style_var(imgui::StyleVar::ItemSpacing([4.0, 2.0])); // Minimal spacing
                     
                     if show_popup {
                         ui.window(&title)
@@ -297,8 +297,8 @@ fn render_elements_with_context(ui: &imgui::Ui, elements: &[Element], state: &mu
                 ui.separator();
                 ui.spacing(); // Just one spacing before buttons
                 
-                let button_width = 110.0; // Smaller buttons
-                let button_height = 28.0; // Reduced height
+                let button_width = 80.0; // Compact buttons
+                let button_height = 22.0; // Minimal height
                 let total_width = buttons.len() as f32 * (button_width + 8.0);
                 let start_x = (ui.window_size()[0] - total_width) / 2.0;
                 
@@ -424,20 +424,20 @@ fn create_gl_context(
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 50.0; // Title bar + padding
-    let mut max_width: f32 = 400.0; // Minimum width
+    let mut height: f32 = 35.0; // Smaller title bar
+    let mut max_width: f32 = 350.0; // Smaller minimum
     
     // Calculate the maximum possible size (all conditionals shown)
     calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
     
-    // Add bottom padding
-    height += 20.0;
+    // Add minimal bottom padding
+    height += 10.0;
     
     // Set reasonable bounds
-    max_width = max_width.min(650.0).max(400.0);
+    max_width = max_width.min(550.0).max(350.0);
     
-    // Add a small buffer to prevent scrollbars from appearing
-    height += 10.0;
+    // Add tiny buffer
+    height += 5.0;
     
     // Cap at screen-friendly maximum
     let max_height = 800.0;
@@ -451,32 +451,32 @@ fn calculate_elements_size(elements: &[Element], height: &mut f32, max_width: &m
     for element in elements {
         match element {
             Element::Text(text) => {
-                *height += 20.0;
-                *max_width = max_width.max(text.len() as f32 * 7.0 + 40.0 + (depth as f32 * 15.0));
+                *height += 14.0; // Tighter text
+                *max_width = max_width.max(text.len() as f32 * 5.5 + 20.0 + (depth as f32 * 10.0));
             }
             Element::Slider { label, .. } => {
-                *height += 35.0;
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 240.0 + (depth as f32 * 15.0));
+                *height += 22.0; // Much tighter sliders
+                *max_width = max_width.max(label.len() as f32 * 5.5 + 200.0 + (depth as f32 * 10.0));
             }
             Element::Checkbox { label, .. } => {
-                *height += 24.0;
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 80.0 + (depth as f32 * 15.0));
+                *height += 16.0; // Tighter checkboxes
+                *max_width = max_width.max(label.len() as f32 * 5.5 + 60.0 + (depth as f32 * 10.0));
             }
             Element::Textbox { label, rows, .. } => {
                 *height += 20.0 + 30.0 * (rows.unwrap_or(1) as f32);
                 *max_width = max_width.max(380.0 + (depth as f32 * 15.0));
             }
             Element::Choice { label, options } => {
-                *height += 20.0; // Label
-                *height += 24.0 * options.len() as f32; // Options
+                *height += 14.0; // Label
+                *height += 16.0 * options.len() as f32; // Tighter options
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 7.0 + 80.0 + (depth as f32 * 15.0));
+                *max_width = max_width.max((longest as f32) * 5.5 + 60.0 + (depth as f32 * 10.0));
             }
             Element::Multiselect { label, options } => {
-                *height += 20.0; // Label
-                *height += 24.0 * options.len() as f32; // Options
+                *height += 14.0; // Label
+                *height += 16.0 * options.len() as f32; // Tighter options
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 7.0 + 80.0 + (depth as f32 * 15.0));
+                *max_width = max_width.max((longest as f32) * 5.5 + 60.0 + (depth as f32 * 10.0));
             }
             Element::Group { label, elements } => {
                 *height += 25.0; // Group label
@@ -499,32 +499,32 @@ fn calculate_elements_size(elements: &[Element], height: &mut f32, max_width: &m
                 }
             }
             Element::Buttons(buttons) => {
-                *height += 50.0; // Separator + buttons + spacing
-                let button_width = buttons.len() as f32 * 120.0 + 40.0;
+                *height += 32.0; // Much less space for buttons
+                let button_width = buttons.len() as f32 * 90.0 + 20.0;
                 *max_width = max_width.max(button_width);
             }
         }
-        *height += 5.0; // Item spacing
+        *height += 2.0; // Minimal item spacing
     }
 }
 
 fn apply_spike_theme(imgui: &mut ImContext) {
     let style = imgui.style_mut();
     
-    // Window styling
-    style.window_rounding = 8.0;
+    // Window styling - ULTRA DENSE
+    style.window_rounding = 4.0;
     style.window_border_size = 1.0;
-    style.window_padding = [16.0, 12.0];  // Reduced from 24,20
+    style.window_padding = [8.0, 6.0];  // Minimal padding
     style.window_title_align = [0.5, 0.5]; // Center title
     
-    // Frame styling
-    style.frame_rounding = 6.0;  // Smaller rounding
+    // Frame styling - ULTRA DENSE
+    style.frame_rounding = 3.0;  // Minimal rounding
     style.frame_border_size = 1.0;
-    style.frame_padding = [10.0, 4.0];  // Much smaller vertical padding
+    style.frame_padding = [6.0, 2.0];  // Extremely tight
     
-    // Item styling
-    style.item_spacing = [6.0, 6.0];  // Much tighter spacing
-    style.item_inner_spacing = [6.0, 4.0];
+    // Item styling - ULTRA DENSE
+    style.item_spacing = [4.0, 2.0];  // Minimal spacing
+    style.item_inner_spacing = [4.0, 2.0];
     
     // Button styling
     style.button_text_align = [0.5, 0.5];
