@@ -6,7 +6,7 @@ use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SurfaceAttributesBuilder, SwapInterval, WindowSurface};
 use glutin_winit::DisplayBuilder;
-use imgui::{Context as ImContext, FontConfig, FontSource, Textures};
+use imgui::{Context as ImContext, FontConfig, FontSource, Textures, StyleColor};
 use imgui_glow_renderer::glow::Context as GlowContext;
 use imgui_glow_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -20,6 +20,13 @@ use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState};
+
+// Spike color palette
+const NEURAL_BLUE: [f32; 4] = [0.039, 0.518, 1.0, 1.0];    // #0A84FF
+const SUBSTRATE_DARK: [f32; 4] = [0.11, 0.11, 0.118, 1.0]; // #1C1C1E
+const GHOST_WHITE: [f32; 4] = [0.949, 0.949, 0.969, 1.0];  // #F2F2F7
+const MUTED_GRAY: [f32; 4] = [0.557, 0.557, 0.576, 1.0];   // #8E8E93
+const TISSUE_PINK: [f32; 4] = [1.0, 0.216, 0.373, 1.0];    // #FF375F
 
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     // Calculate approximate window size based on content
@@ -41,9 +48,14 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     let mut imgui = ImContext::create();
     imgui.set_ini_filename(None);
     
+    // Apply Spike neural interface theme
+    apply_spike_theme(&mut imgui);
+    
     // Configure fonts
     let hidpi_factor = window.scale_factor();
-    let font_size = (13.0 * hidpi_factor) as f32;
+    let font_size = (14.0 * hidpi_factor) as f32; // Slightly larger for readability
+    
+    // Try to load monospace font first
     imgui.fonts().add_font(&[FontSource::DefaultFontData {
         config: Some(FontConfig {
             size_pixels: font_size,
@@ -105,8 +117,8 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                 ..
             } => {
                 unsafe {
-                    // Match imgui window background color (dark theme)
-                    gl.clear_color(0.06, 0.06, 0.06, 1.0);
+                    // Spike substrate dark background
+                    gl.clear_color(SUBSTRATE_DARK[0], SUBSTRATE_DARK[1], SUBSTRATE_DARK[2], 1.0);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
                 
@@ -117,10 +129,12 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                     // Fill the entire window with the popup
                     let window_size = ui.io().display_size;
                     
-                    // Style adjustments
-                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([20.0, 20.0]));
-                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(0.0));
-                    let _border = ui.push_style_var(imgui::StyleVar::WindowBorderSize(0.0));
+                    // Style adjustments for Spike theme
+                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([24.0, 20.0]));
+                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(12.0));
+                    let _border = ui.push_style_var(imgui::StyleVar::WindowBorderSize(1.0));
+                    let _frame_padding = ui.push_style_var(imgui::StyleVar::FramePadding([12.0, 8.0]));
+                    let _item_spacing = ui.push_style_var(imgui::StyleVar::ItemSpacing([8.0, 12.0]));
                     
                     if show_popup {
                         ui.window(&title)
@@ -162,10 +176,23 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
 }
 
 fn render_elements(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState) -> bool {
-    for element in elements {
+    // First, check if there's a title-like text at the beginning
+    let mut element_iter = elements.iter().peekable();
+    let mut is_first = true;
+    
+    while let Some(element) = element_iter.next() {
         match element {
             Element::Text(text) => {
-                ui.text(text);
+                if is_first && text.to_uppercase() == *text {
+                    // This looks like a header - style it specially
+                    let _color = ui.push_style_color(StyleColor::Text, NEURAL_BLUE);
+                    ui.text(text);
+                    ui.separator();
+                    ui.spacing();
+                } else {
+                    ui.text(text);
+                }
+                is_first = false;
             }
             
             Element::Slider { label, min, max, .. } => {
@@ -230,15 +257,22 @@ fn render_elements(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState)
             Element::Buttons(buttons) => {
                 ui.separator();
                 ui.spacing();
+                ui.spacing(); // Extra spacing before buttons
                 
-                let button_width = 120.0;
+                let button_width = 140.0; // Wider buttons
+                let button_height = 36.0; // Taller buttons
                 let total_width = buttons.len() as f32 * (button_width + 10.0);
                 let start_x = (ui.window_size()[0] - total_width) / 2.0;
                 
                 ui.set_cursor_pos([start_x, ui.cursor_pos()[1]]);
                 
+                // Style buttons with neural blue
+                let _button_color = ui.push_style_color(StyleColor::Button, NEURAL_BLUE);
+                let _button_hover = ui.push_style_color(StyleColor::ButtonHovered, [NEURAL_BLUE[0], NEURAL_BLUE[1] * 0.9, NEURAL_BLUE[2], 1.0]);
+                let _button_active = ui.push_style_color(StyleColor::ButtonActive, [NEURAL_BLUE[0], NEURAL_BLUE[1] * 0.8, NEURAL_BLUE[2], 1.0]);
+                
                 for (i, button) in buttons.iter().enumerate() {
-                    if ui.button_with_size(button, [button_width, 30.0]) {
+                    if ui.button_with_size(button, [button_width, button_height]) {
                         state.button_clicked = Some(button.clone());
                         return false;
                     }
@@ -353,8 +387,8 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
                 }
             }
             Element::Buttons(buttons) => {
-                height += 50.0; // Separator + buttons + bottom padding
-                let button_width = buttons.len() as f32 * 130.0;
+                height += 60.0; // More space for taller buttons
+                let button_width = buttons.len() as f32 * 150.0; // Match wider buttons
                 max_width = max_width.max(button_width);
             }
         }
@@ -365,4 +399,81 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     max_width = max_width.min(600.0); // Cap maximum width
     
     (max_width, height)
+}
+
+fn apply_spike_theme(imgui: &mut ImContext) {
+    let style = imgui.style_mut();
+    
+    // Window styling
+    style.window_rounding = 12.0;
+    style.window_border_size = 1.0;
+    style.window_padding = [24.0, 20.0];
+    style.window_title_align = [0.5, 0.5]; // Center title
+    
+    // Frame styling
+    style.frame_rounding = 8.0;
+    style.frame_border_size = 1.0;
+    style.frame_padding = [12.0, 6.0];
+    
+    // Item styling
+    style.item_spacing = [8.0, 12.0];
+    style.item_inner_spacing = [8.0, 6.0];
+    
+    // Button styling
+    style.button_text_align = [0.5, 0.5];
+    
+    // Scrollbar styling
+    style.scrollbar_size = 14.0;
+    style.scrollbar_rounding = 9.0;
+    
+    // Grab (slider) styling
+    style.grab_min_size = 12.0;
+    style.grab_rounding = 12.0;
+    
+    // Colors
+    style[StyleColor::Text] = GHOST_WHITE;
+    style[StyleColor::TextDisabled] = MUTED_GRAY;
+    
+    // Window colors
+    style[StyleColor::WindowBg] = SUBSTRATE_DARK;
+    style[StyleColor::ChildBg] = SUBSTRATE_DARK;
+    style[StyleColor::PopupBg] = [SUBSTRATE_DARK[0] + 0.05, SUBSTRATE_DARK[1] + 0.05, SUBSTRATE_DARK[2] + 0.05, 1.0];
+    style[StyleColor::Border] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.3];
+    style[StyleColor::BorderShadow] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.1];
+    
+    // Frame colors (inputs, sliders)
+    style[StyleColor::FrameBg] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.08];
+    style[StyleColor::FrameBgHovered] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.08];
+    style[StyleColor::FrameBgActive] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.15];
+    
+    // Title
+    style[StyleColor::TitleBg] = SUBSTRATE_DARK;
+    style[StyleColor::TitleBgActive] = [SUBSTRATE_DARK[0] + 0.05, SUBSTRATE_DARK[1] + 0.05, SUBSTRATE_DARK[2] + 0.05, 1.0];
+    style[StyleColor::TitleBgCollapsed] = SUBSTRATE_DARK;
+    
+    // Button colors
+    style[StyleColor::Button] = NEURAL_BLUE;
+    style[StyleColor::ButtonHovered] = [NEURAL_BLUE[0], NEURAL_BLUE[1] * 0.9, NEURAL_BLUE[2], 1.0];
+    style[StyleColor::ButtonActive] = [NEURAL_BLUE[0], NEURAL_BLUE[1] * 0.8, NEURAL_BLUE[2], 1.0];
+    
+    // Check mark
+    style[StyleColor::CheckMark] = NEURAL_BLUE;
+    
+    // Slider
+    style[StyleColor::SliderGrab] = NEURAL_BLUE;
+    style[StyleColor::SliderGrabActive] = [NEURAL_BLUE[0], NEURAL_BLUE[1] * 0.8, NEURAL_BLUE[2], 1.0];
+    
+    // Separator
+    style[StyleColor::Separator] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.2];
+    style[StyleColor::SeparatorHovered] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.3];
+    style[StyleColor::SeparatorActive] = NEURAL_BLUE;
+    
+    // Text selection
+    style[StyleColor::TextSelectedBg] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.35];
+    
+    // Scrollbar
+    style[StyleColor::ScrollbarBg] = [SUBSTRATE_DARK[0], SUBSTRATE_DARK[1], SUBSTRATE_DARK[2], 0.0];
+    style[StyleColor::ScrollbarGrab] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.3];
+    style[StyleColor::ScrollbarGrabHovered] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.5];
+    style[StyleColor::ScrollbarGrabActive] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.6];
 }
