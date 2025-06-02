@@ -12,8 +12,10 @@ element = {
     checkbox |
     textbox |
     choice |
+    multiselect |
     group |
-    buttons
+    buttons |
+    conditional
 }
 
 // Basic elements
@@ -41,6 +43,12 @@ choice = {
     "]"
 }
 
+multiselect = {
+    "multiselect" ~ string ~ "[" ~
+    string ~ ("," ~ string)* ~
+    "]"
+}
+
 group = { 
     "group" ~ string ~ "[" ~ 
     element* ~ 
@@ -52,6 +60,33 @@ buttons = {
     string ~ ("," ~ string)* ~ 
     "]"
 }
+
+// Conditional elements
+conditional = {
+    "if" ~ condition ~ "[" ~
+    element* ~
+    "]"
+}
+
+condition = {
+    checked_condition |
+    selected_condition |
+    count_condition
+}
+
+checked_condition = {
+    "checked" ~ "(" ~ string ~ ")"
+}
+
+selected_condition = {
+    "selected" ~ "(" ~ string ~ "," ~ string ~ ")"
+}
+
+count_condition = {
+    "count" ~ "(" ~ string ~ ")" ~ comparison_op ~ number
+}
+
+comparison_op = { ">" | "<" | ">=" | "<=" | "==" }
 
 // Primitives
 string = { 

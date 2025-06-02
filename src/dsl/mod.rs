@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use pest::Parser;
 use pest_derive::Parser;
 
-use crate::models::{Element, PopupDefinition};
+use crate::models::{Element, PopupDefinition, Condition, ComparisonOp};
 
 #[derive(Parser)]
 #[grammar = "popup.pest"]
@@ -114,6 +114,20 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
             Ok(Element::Choice { label, options })
         }
         
+        Rule::multiselect => {
+            let mut inner = inner_pair.into_inner();
+            let label = parse_string(inner.next().unwrap())?;
+            
+            let mut options = Vec::new();
+            for pair in inner {
+                if pair.as_rule() == Rule::string {
+                    options.push(parse_string(pair)?);
+                }
+            }
+            
+            Ok(Element::Multiselect { label, options })
+        }
+        
         Rule::group => {
             let mut inner = inner_pair.into_inner();
             let label = parse_string(inner.next().unwrap())?;
@@ -141,6 +155,21 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
             Ok(Element::Buttons(buttons))
         }
         
+        Rule::conditional => {
+            let mut inner = inner_pair.into_inner();
+            let condition_pair = inner.next().unwrap();
+            let condition = parse_condition(condition_pair)?;
+            
+            let mut elements = Vec::new();
+            for pair in inner {
+                if let Ok(element) = parse_element(pair) {
+                    elements.push(element);
+                }
+            }
+            
+            Ok(Element::Conditional { condition, elements })
+        }
+        
         Rule::EOI => {
             // End of input marker, skip it
             Err(anyhow::anyhow!("EOI is not an element"))
@@ -152,4 +181,49 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 
 fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
     Ok(pair.into_inner().next().unwrap().as_str().to_string())
+}
+
+fn parse_condition(pair: pest::iterators::Pair<Rule>) -> Result<Condition> {
+    let inner_pair = if pair.as_rule() == Rule::condition {
+        pair.into_inner().next().unwrap()
+    } else {
+        pair
+    };
+    
+    match inner_pair.as_rule() {
+        Rule::checked_condition => {
+            let mut inner = inner_pair.into_inner();
+            let name = parse_string(inner.next().unwrap())?;
+            Ok(Condition::Checked(name))
+        }
+        
+        Rule::selected_condition => {
+            let mut inner = inner_pair.into_inner();
+            let name = parse_string(inner.next().unwrap())?;
+            let value = parse_string(inner.next().unwrap())?;
+            Ok(Condition::Selected(name, value))
+        }
+        
+        Rule::count_condition => {
+            let mut inner = inner_pair.into_inner();
+            let name = parse_string(inner.next().unwrap())?;
+            let op_pair = inner.next().unwrap();
+            let op = parse_comparison_op(op_pair)?;
+            let value = inner.next().unwrap().as_str().parse::<i32>()?;
+            Ok(Condition::Count(name, op, value))
+        }
+        
+        _ => Err(anyhow::anyhow!("Unknown condition type: {:?}", inner_pair.as_rule()))
+    }
+}
+
+fn parse_comparison_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp> {
+    match pair.as_str() {
+        ">" => Ok(ComparisonOp::Greater),
+        "<" => Ok(ComparisonOp::Less),
+        ">=" => Ok(ComparisonOp::GreaterEqual),
+        "<=" => Ok(ComparisonOp::LessEqual),
+        "==" => Ok(ComparisonOp::Equal),
+        _ => Err(anyhow::anyhow!("Unknown comparison operator: {}", pair.as_str()))
+    }
 }

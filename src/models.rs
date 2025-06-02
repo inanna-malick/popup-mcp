@@ -30,11 +30,35 @@ pub enum Element {
         label: String,
         options: Vec<String>,
     },
+    Multiselect {
+        label: String,
+        options: Vec<String>,
+    },
     Group {
         label: String,
         elements: Vec<Element>,
     },
     Buttons(Vec<String>),
+    Conditional {
+        condition: Condition,
+        elements: Vec<Element>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum Condition {
+    Checked(String),
+    Selected(String, String),
+    Count(String, ComparisonOp, i32),
+}
+
+#[derive(Debug, Clone)]
+pub enum ComparisonOp {
+    Greater,
+    Less,
+    GreaterEqual,
+    LessEqual,
+    Equal,
 }
 
 /// Runtime state of the popup
@@ -44,6 +68,7 @@ pub struct PopupState {
     pub checkboxes: HashMap<String, bool>,
     pub textboxes: HashMap<String, String>,
     pub choices: HashMap<String, usize>,
+    pub multiselects: HashMap<String, Vec<bool>>,
     pub button_clicked: Option<String>,
 }
 
@@ -71,7 +96,14 @@ impl PopupState {
                 Element::Choice { label, .. } => {
                     self.choices.insert(label.clone(), 0);
                 }
+                Element::Multiselect { label, options } => {
+                    self.multiselects.insert(label.clone(), vec![false; options.len()]);
+                }
                 Element::Group { elements, .. } => {
+                    self.init_elements(elements);
+                }
+                Element::Conditional { elements, .. } => {
+                    // Initialize nested elements too
                     self.init_elements(elements);
                 }
                 _ => {}
@@ -109,6 +141,16 @@ impl PopupResult {
         
         for (key, value) in &state.choices {
             values.insert(key.clone(), json!(*value));
+        }
+        
+        for (key, selections) in &state.multiselects {
+            // Convert Vec<bool> to indices of selected items
+            let selected_indices: Vec<usize> = selections
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &selected)| if selected { Some(i) } else { None })
+                .collect();
+            values.insert(key.clone(), json!(selected_indices));
         }
         
         PopupResult {

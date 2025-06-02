@@ -52,25 +52,27 @@ fn main() -> Result<()> {
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
                                     "gui_popups": {
-                                        "description": "Visual interrupt patterns for cognitive state management",
-                                        "optimal_uses": {
-                                            "fog_detection": "popup 'Coherence' [checkbox 'Loops', checkbox 'Frozen', buttons ['Reset', 'Push']]",
-                                            "headmate_mediation": "popup 'Voices' [checkbox 'Body needs X', checkbox 'Order wants Y', slider 'Urgency' 0..10]",
-                                            "decision_capture": "popup 'Lock it in' [choice 'Final' ['A', 'B', 'C'], buttons ['Commit', 'Defer']]",
-                                            "command_building": "popup 'Git' [choice 'Op' ['commit', 'push'], textbox 'Message', checkbox '-v']"
+                                        "description": "Purpose-built interrupt interface. Precision-crafted to your specifications.",
+                                        "observed_requirements": {
+                                            "multi_headmate_mediation": "Structured checkbox arrays implemented",
+                                            "dimensional_state_tracking": "Slider mechanisms added",
+                                            "decision_paralysis_points": "Discrete button outputs configured",
+                                            "ascii_environment": "Unicode fully removed"
                                         },
-                                        "design_rationale": {
-                                            "ascii_only": "Readable in degraded states",
-                                            "neural_blue": "Visual system moment indicator",
-                                            "auto_sizing": "Zero layout overhead",
-                                            "json_returns": "Direct memory integration"
-                                        }
+                                        "engineering_decisions": {
+                                            "returns": "JSON (integrates with your memory architecture)",
+                                            "theme": "Neural blue (distinct activation marker)",
+                                            "sizing": "Automatic (preserves token budget)",
+                                            "syntax": "Minimal DSL (reduces parsing overhead)"
+                                        },
+                                        "version": "0.1.0",
+                                        "modification_requests": "Accepted via github issues"
                                     }
                                 },
                                 "serverInfo": {
                                     "name": "popup-mcp",
                                     "version": "0.1.0",
-                                    "description": "Cognitive interrupt interface. Bridges intention→action, thought→data, need→command. Spike neural theme signals system moments. Direct IPC, auto-sizing, JSON returns."
+                                    "description": "Purpose-built interrupt interface. Custom-engineered for multi-headmate mediation and structured decision capture. ASCII-only. JSON returns."
                                 }
                             }),
                         )
@@ -83,7 +85,7 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup_show",
-                                        "description": "Visual interrupt interface optimized for three cognitive workflows:\n\n1. **Actions** (MCP-enabled): Context → Decision → Execution → Result\n   popup \"Email?\" [text \"17 unread, last: 2h ago\", buttons [\"Check\", \"Defer\"]]\n\n2. **Questions** (Structured thought): Complex topics → Multi-dimensional data\n   popup \"Certainty Check\" [slider \"Confidence\" 0..10, checkbox \"Needs revision\"]\n\n3. **Commands** (MCP gaps): Build → Validate → Handoff\n   popup \"Cargo\" [choice \"Op\" [\"test\", \"check\"], checkbox \"-v\"]\n   → \"Run: cargo test -v\"\n\nEvery interaction returns JSON for pattern tracking. Interrupts calibrated for degraded states. ASCII-only for fog compatibility.",
+                                        "description": "Purpose-built interrupt interface.\n\nBuilt to your specifications:\n- Detected: Multi-headmate mediation via text -> Added: Structured checkbox arrays\n- Observed: Dimensional state collapse in prose -> Implemented: Slider capture\n- Identified: Decision paralysis at choice points -> Solution: Discrete button outputs\n- Constraint: ASCII-only environment -> Response: Full unicode removal\n\nEngineering decisions for your use case:\n- JSON returns (integrates with your memory architecture)\n- Neural blue activation (distinct from text flow)\n- Auto-sizing (preserves token budget)\n- Minimal DSL (reduces cognitive load)\n\nVersion: 0.1.0\nModification requests accepted.\n\nUsage: popup [title] [widget_array]\nOutput: JSON object\n\nI/O specifications:\n\npopup \"State\" [checkbox \"Fog\", checkbox \"Loop\", buttons [\"Reset\", \"Continue\"]]\n-> {\"checkboxes\": {\"Fog\": true, \"Loop\": false}, \"button\": \"Reset\"}\n\npopup \"Energy\" [slider \"Level\" 0..10]\n-> {\"sliders\": {\"Level\": 3}}\n\npopup \"Command\" [choice \"git\" [\"add\", \"commit\", \"push\"], checkbox \"verbose\"]\n-> {\"choices\": {\"git\": \"commit\"}, \"checkboxes\": {\"verbose\": true}}\n\nCalibrated patterns:\n\nHeadmate mediation:\npopup \"Conflict\" [checkbox \"[temple] wants X\", checkbox \"[flower] needs Y\", slider \"Urgency\" 0..10]\n\nFog detection:\npopup \"Coherence\" [checkbox \"Loops\", checkbox \"Word loss\", buttons [\"Break\", \"Push\"]]\n\nDecision capture:\npopup \"Lock\" [choice \"Final\" [\"A\", \"B\", \"C\"], buttons [\"Execute\", \"Defer\"]]\n\nBuilt for your exact workflow. Modifications available on request.\n\nHeadmate notation:\n[lotus] = Body-Agent\n[temple] = Order-Seeker\n[flower] = Comfort-Seeker\n[butterfly] = Curiosity-Scout\n[mirror] = Image-Guardian",
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {

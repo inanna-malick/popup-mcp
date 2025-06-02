@@ -19,7 +19,7 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use crate::models::{Element, PopupDefinition, PopupResult, PopupState};
+use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition, ComparisonOp};
 
 // Spike color palette
 const NEURAL_BLUE: [f32; 4] = [0.039, 0.518, 1.0, 1.0];    // #0A84FF
@@ -145,7 +145,7 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                             .collapsible(false)
                             .title_bar(true)
                             .build(|| {
-                                show_popup = render_elements(&ui, &elements, &mut state);
+                                show_popup = render_elements_with_context(&ui, &elements, &mut state, &elements);
                             });
                     }
                     
@@ -175,7 +175,26 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     result.ok_or_else(|| anyhow::anyhow!("Popup closed without result"))
 }
 
-fn render_elements(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState) -> bool {
+// Helper to find the selected option text for a choice
+fn find_selected_option(elements: &[Element], choice_name: &str, selected_idx: usize) -> Option<String> {
+    for element in elements {
+        match element {
+            Element::Choice { label, options } if label == choice_name => {
+                return options.get(selected_idx).cloned();
+            }
+            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
+                if let Some(found) = find_selected_option(elements, choice_name, selected_idx) {
+                    return Some(found);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+// Modified render_elements to pass the full elements list for selected() evaluation
+fn render_elements_with_context(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState, all_elements: &[Element]) -> bool {
     // First, check if there's a title-like text at the beginning
     let mut element_iter = elements.iter().peekable();
     let mut is_first = true;
@@ -244,13 +263,33 @@ fn render_elements(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState)
                 }
             }
             
+            Element::Multiselect { label, options } => {
+                ui.text(label);
+                if let Some(selections) = state.multiselects.get_mut(label) {
+                    for (i, option) in options.iter().enumerate() {
+                        if i < selections.len() {
+                            ui.checkbox(option, &mut selections[i]);
+                        }
+                    }
+                }
+            }
+            
             Element::Group { label, elements } => {
                 ui.text(label);
                 ui.indent();
-                let keep_open = render_elements(ui, elements, state);
+                let keep_open = render_elements_with_context(ui, elements, state, all_elements);
                 ui.unindent();
                 if !keep_open {
                     return false;
+                }
+            }
+            
+            Element::Conditional { condition, elements } => {
+                if evaluate_condition_with_context(condition, state, all_elements) {
+                    let keep_open = render_elements_with_context(ui, elements, state, all_elements);
+                    if !keep_open {
+                        return false;
+                    }
                 }
             }
             
@@ -287,6 +326,39 @@ fn render_elements(ui: &imgui::Ui, elements: &[Element], state: &mut PopupState)
     }
     
     true
+}
+
+fn evaluate_condition_with_context(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
+    match condition {
+        Condition::Checked(name) => {
+            state.checkboxes.get(name).copied().unwrap_or(false)
+        }
+        Condition::Selected(name, expected_value) => {
+            if let Some(&selected_idx) = state.choices.get(name) {
+                if let Some(actual_value) = find_selected_option(all_elements, name, selected_idx) {
+                    actual_value == *expected_value
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        Condition::Count(name, op, value) => {
+            if let Some(selections) = state.multiselects.get(name) {
+                let count = selections.iter().filter(|&&x| x).count() as i32;
+                match op {
+                    ComparisonOp::Greater => count > *value,
+                    ComparisonOp::Less => count < *value,
+                    ComparisonOp::GreaterEqual => count >= *value,
+                    ComparisonOp::LessEqual => count <= *value,
+                    ComparisonOp::Equal => count == *value,
+                }
+            } else {
+                false
+            }
+        }
+    }
 }
 
 fn create_gl_context(
@@ -392,8 +464,20 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
                 let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
                 max_width = max_width.max((longest_option as f32) * 8.0 + 100.0);
             }
+            Element::Multiselect { label, options } => {
+                height += 25.0; // Label
+                height += 30.0 * options.len() as f32; // Each checkbox option
+                let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
+                max_width = max_width.max((longest_option as f32) * 8.0 + 100.0);
+            }
             Element::Group { elements, .. } => {
                 height += 25.0; // Group label
+                for _sub_element in elements {
+                    height += 30.0;
+                }
+            }
+            Element::Conditional { elements, .. } => {
+                // Assume conditional content might be shown
                 for _sub_element in elements {
                     height += 30.0;
                 }

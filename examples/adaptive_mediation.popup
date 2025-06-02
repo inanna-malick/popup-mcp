@@ -1,0 +1,68 @@
+popup ">>> ADAPTIVE MEDIATION INTERFACE <<<" [
+    text "System state recognition protocol"
+    text ""
+    
+    choice "Current state:" [
+        "Stuck - no movement possible",
+        "Conflicted - internal negotiation needed",
+        "Exploring - multiple paths available"
+    ]
+    
+    if selected("Current state:", "Stuck - no movement possible") [
+        text ""
+        text "=== MICRO-MOVEMENT PROTOCOL ==="
+        text "Physical action breaks cognitive loops"
+        text ""
+        checkbox "Can stand up?"
+        checkbox "Can get water?"
+        checkbox "Can move to different room?"
+        checkbox "Can stretch arms?"
+        
+        if checked("Can stand up?") [
+            text ""
+            text "> Stand confirmed. Next: one more tiny action."
+        ]
+    ]
+    
+    if selected("Current state:", "Conflicted - internal negotiation needed") [
+        text ""
+        text "=== HEADMATE MEDIATION ==="
+        multiselect "Active headmates:" [
+            "[lotus] Body-Agent",
+            "[temple] Order-Seeker",
+            "[flower] Comfort-Seeker",
+            "[butterfly] Curiosity-Scout",
+            "[mirror] Image-Guardian"
+        ]
+        
+        if count("Active headmates:") > 2 [
+            text ""
+            text "/!\\ HIGH COMPLEXITY STATE DETECTED /!\\"
+            text "Multiple perspectives require careful synthesis"
+        ]
+        
+        text ""
+        slider "Tension level" 0..10 default=5
+        
+        if count("Active headmates:") > 0 [
+            text ""
+            textbox "Primary conflict:" placeholder="What are they disagreeing about?"
+        ]
+    ]
+    
+    if selected("Current state:", "Exploring - multiple paths available") [
+        text ""
+        text "=== EXPLORATION SUPPORT ==="
+        checkbox "Analysis paralysis?"
+        checkbox "All options seem good?"
+        checkbox "Fear of wrong choice?"
+        
+        if checked("Analysis paralysis?") [
+            text ""
+            text ">> Recommendation: Set 10min timer, pick first viable option <<"
+        ]
+    ]
+    
+    text ""
+    buttons ["Execute Protocol", "Different Approach", "Defer"]
+]
