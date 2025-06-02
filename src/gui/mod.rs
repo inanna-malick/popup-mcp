@@ -22,13 +22,16 @@ use winit::window::WindowBuilder;
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState};
 
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
+    // Calculate approximate window size based on content
+    let (width, height) = calculate_window_size(&definition);
 
     // Create event loop and window
     let event_loop = EventLoop::new()?;
     
     let window_builder = WindowBuilder::new()
         .with_title(&definition.title)
-        .with_inner_size(LogicalSize::new(800.0, 600.0))
+        .with_inner_size(LogicalSize::new(width, height))
+        .with_resizable(false) // Prevent user resizing
         .with_visible(false);
 
     // Create OpenGL context
@@ -102,39 +105,45 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                 ..
             } => {
                 unsafe {
-                    gl.clear_color(0.1, 0.1, 0.1, 1.0);
+                    // Match imgui window background color (dark theme)
+                    gl.clear_color(0.06, 0.06, 0.06, 1.0);
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
                 
-                let ui = imgui.frame();
-                
-                // Center the popup
-                let window_size = ui.io().display_size;
-                let center = [window_size[0] / 2.0, window_size[1] / 2.0];
-                
-                // Create window
-                let token = ui.push_style_var(imgui::StyleVar::WindowRounding(5.0));
-                if show_popup {
-                    ui.window(&title)
-                        .position(center, imgui::Condition::FirstUseEver)
-                        .position_pivot([0.5, 0.5])
-                        .size([500.0, 400.0], imgui::Condition::FirstUseEver)
-                        .resizable(false)
-                        .collapsible(false)
-                        .menu_bar(false)
-                        .build(|| {
-                            show_popup = render_elements(&ui, &elements, &mut state);
-                        });
+                // Build UI in a scope to drop the borrow before rendering
+                {
+                    let ui = imgui.frame();
+                    
+                    // Fill the entire window with the popup
+                    let window_size = ui.io().display_size;
+                    
+                    // Style adjustments
+                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([20.0, 20.0]));
+                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(0.0));
+                    let _border = ui.push_style_var(imgui::StyleVar::WindowBorderSize(0.0));
+                    
+                    if show_popup {
+                        ui.window(&title)
+                            .position([0.0, 0.0], imgui::Condition::Always)
+                            .size(window_size, imgui::Condition::Always)
+                            .resizable(false)
+                            .movable(false)
+                            .collapsible(false)
+                            .title_bar(true)
+                            .build(|| {
+                                show_popup = render_elements(&ui, &elements, &mut state);
+                            });
+                    }
+                    
+                    // If popup was closed, exit
+                    if !show_popup || state.button_clicked.is_some() {
+                        result = Some(PopupResult::from_state(&state));
+                        window_target.exit();
+                    }
+                    
+                    platform.prepare_render(&ui, &window);
                 }
-                token.pop();
                 
-                // If popup was closed, exit
-                if !show_popup || state.button_clicked.is_some() {
-                    result = Some(PopupResult::from_state(&state));
-                    window_target.exit();
-                }
-                
-                platform.prepare_render(&ui, &window);
                 let draw_data = imgui.render();
                 
                 if draw_data.draw_lists().count() > 0 {
@@ -307,4 +316,53 @@ fn create_gl_context(
     };
 
     Ok((window, gl_context, gl_surface, gl))
+}
+
+fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
+    let mut height: f32 = 60.0; // Title bar + top padding
+    let mut max_width: f32 = 300.0; // Minimum width
+    
+    // Estimate size for each element
+    for element in &definition.elements {
+        match element {
+            Element::Text(text) => {
+                height += 20.0;
+                max_width = max_width.max(text.len() as f32 * 7.0 + 40.0);
+            }
+            Element::Slider { label, .. } => {
+                height += 25.0;
+                max_width = max_width.max(label.len() as f32 * 7.0 + 200.0);
+            }
+            Element::Checkbox { label, .. } => {
+                height += 25.0;
+                max_width = max_width.max(label.len() as f32 * 7.0 + 60.0);
+            }
+            Element::Textbox { label, rows, .. } => {
+                height += 25.0 + 25.0 * (rows.unwrap_or(1) as f32);
+                max_width = max_width.max(400.0);
+            }
+            Element::Choice { label, options } => {
+                height += 25.0 + 20.0 * options.len() as f32;
+                let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
+                max_width = max_width.max((longest_option as f32 + label.len() as f32) * 7.0 + 60.0);
+            }
+            Element::Group { elements, .. } => {
+                for sub_element in elements {
+                    // Simplified calculation for groups
+                    height += 25.0;
+                }
+            }
+            Element::Buttons(buttons) => {
+                height += 50.0; // Separator + buttons + bottom padding
+                let button_width = buttons.len() as f32 * 130.0;
+                max_width = max_width.max(button_width);
+            }
+        }
+        height += 5.0; // Spacing between elements
+    }
+    
+    height += 20.0; // Bottom padding
+    max_width = max_width.min(600.0); // Cap maximum width
+    
+    (max_width, height)
 }
