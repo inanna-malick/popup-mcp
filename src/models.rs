@@ -94,7 +94,7 @@ impl PopupState {
                     self.textboxes.insert(label.clone(), String::new());
                 }
                 Element::Choice { label, .. } => {
-                    self.choices.insert(label.clone(), 0);
+                    self.choices.insert(label.clone(), 0); // First option selected by default
                 }
                 Element::Multiselect { label, options } => {
                     self.multiselects.insert(label.clone(), vec![false; options.len()]);

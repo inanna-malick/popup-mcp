@@ -1,0 +1,45 @@
+popup "All Features Test" [
+    text "This popup tests proper sizing"
+    
+    choice "Select mode:" [
+        "Mode A",
+        "Mode B", 
+        "Mode C"
+    ]
+    
+    if selected("Select mode:", "Mode A") [
+        text "Mode A selected"
+        slider "Value" 0..100
+        checkbox "Enable feature X"
+        
+        if checked("Enable feature X") [
+            text "Feature X is active!"
+            textbox "Notes:" placeholder="Add notes..." rows=2
+        ]
+    ]
+    
+    if selected("Select mode:", "Mode B") [
+        text "Mode B selected"
+        multiselect "Options:" [
+            "Option 1",
+            "Option 2",
+            "Option 3",
+            "Option 4"
+        ]
+        
+        if count("Options:") > 0 [
+            text "You selected some options"
+        ]
+    ]
+    
+    if selected("Select mode:", "Mode C") [
+        text "Mode C selected"
+        group "Settings" [
+            checkbox "Setting 1"
+            checkbox "Setting 2"
+            slider "Level" 0..10
+        ]
+    ]
+    
+    buttons ["Apply", "Cancel"]
+]

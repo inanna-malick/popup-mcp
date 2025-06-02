@@ -53,9 +53,8 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     
     // Configure fonts
     let hidpi_factor = window.scale_factor();
-    let font_size = (14.0 * hidpi_factor) as f32; // Slightly larger for readability
+    let font_size = (13.0 * hidpi_factor) as f32; // Smaller base font size
     
-    // Try to load monospace font first
     imgui.fonts().add_font(&[FontSource::DefaultFontData {
         config: Some(FontConfig {
             size_pixels: font_size,
@@ -130,11 +129,11 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                     let window_size = ui.io().display_size;
                     
                     // Style adjustments for Spike theme
-                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([24.0, 20.0]));
-                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(12.0));
+                    let _padding = ui.push_style_var(imgui::StyleVar::WindowPadding([16.0, 12.0])); // Reduced padding
+                    let _rounding = ui.push_style_var(imgui::StyleVar::WindowRounding(8.0));
                     let _border = ui.push_style_var(imgui::StyleVar::WindowBorderSize(1.0));
-                    let _frame_padding = ui.push_style_var(imgui::StyleVar::FramePadding([12.0, 8.0]));
-                    let _item_spacing = ui.push_style_var(imgui::StyleVar::ItemSpacing([8.0, 12.0]));
+                    let _frame_padding = ui.push_style_var(imgui::StyleVar::FramePadding([10.0, 5.0])); // Smaller frames
+                    let _item_spacing = ui.push_style_var(imgui::StyleVar::ItemSpacing([6.0, 6.0])); // Tighter spacing
                     
                     if show_popup {
                         ui.window(&title)
@@ -144,6 +143,8 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
                             .movable(false)
                             .collapsible(false)
                             .title_bar(true)
+                            .menu_bar(false)
+                            .scroll_bar(false)  // Disable scrollbar - window should fit content
                             .build(|| {
                                 show_popup = render_elements_with_context(&ui, &elements, &mut state, &elements);
                             });
@@ -205,11 +206,10 @@ fn render_elements_with_context(ui: &imgui::Ui, elements: &[Element], state: &mu
                 if is_first && text.to_uppercase() == *text {
                     // This looks like a header - style it specially
                     let _color = ui.push_style_color(StyleColor::Text, NEURAL_BLUE);
-                    ui.text(text);
+                    ui.text_wrapped(text);
                     ui.separator();
-                    ui.spacing();
                 } else {
-                    ui.text(text);
+                    ui.text_wrapped(text);
                 }
                 is_first = false;
             }
@@ -295,12 +295,11 @@ fn render_elements_with_context(ui: &imgui::Ui, elements: &[Element], state: &mu
             
             Element::Buttons(buttons) => {
                 ui.separator();
-                ui.spacing();
-                ui.spacing(); // Extra spacing before buttons
+                ui.spacing(); // Just one spacing before buttons
                 
-                let button_width = 140.0; // Wider buttons
-                let button_height = 36.0; // Taller buttons
-                let total_width = buttons.len() as f32 * (button_width + 10.0);
+                let button_width = 110.0; // Smaller buttons
+                let button_height = 28.0; // Reduced height
+                let total_width = buttons.len() as f32 * (button_width + 8.0);
                 let start_x = (ui.window_size()[0] - total_width) / 2.0;
                 
                 ui.set_cursor_pos([start_x, ui.cursor_pos()[1]]);
@@ -322,7 +321,7 @@ fn render_elements_with_context(ui: &imgui::Ui, elements: &[Element], state: &mu
             }
         }
         
-        ui.spacing();
+        // Remove automatic spacing between all elements
     }
     
     true
@@ -425,111 +424,118 @@ fn create_gl_context(
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 60.0; // Title bar + window chrome
-    let mut max_width: f32 = 400.0; // Increased minimum width to prevent cutoff
+    let mut height: f32 = 50.0; // Title bar + padding
+    let mut max_width: f32 = 400.0; // Minimum width
     
-    // Account for special header styling
-    let mut has_header = false;
+    // Calculate the maximum possible size (all conditionals shown)
+    calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
     
-    // Estimate size for each element
-    for (i, element) in definition.elements.iter().enumerate() {
+    // Add bottom padding
+    height += 20.0;
+    
+    // Set reasonable bounds
+    max_width = max_width.min(650.0).max(400.0);
+    
+    // Add a small buffer to prevent scrollbars from appearing
+    height += 10.0;
+    
+    // Cap at screen-friendly maximum
+    let max_height = 800.0;
+    height = height.min(max_height);
+    
+    (max_width, height)
+}
+
+// Calculate size for elements, optionally including all conditional content
+fn calculate_elements_size(elements: &[Element], height: &mut f32, max_width: &mut f32, depth: usize, include_conditionals: bool) {
+    for element in elements {
         match element {
             Element::Text(text) => {
-                if i == 0 && text.to_uppercase() == *text {
-                    // Header text gets extra space for separator
-                    height += 30.0; // Text + separator + extra spacing
-                    has_header = true;
-                } else {
-                    height += 25.0;
-                }
-                max_width = max_width.max(text.len() as f32 * 8.0 + 50.0);
+                *height += 20.0;
+                *max_width = max_width.max(text.len() as f32 * 7.0 + 40.0 + (depth as f32 * 15.0));
             }
             Element::Slider { label, .. } => {
-                height += 45.0; // Label + slider + spacing
-                // Need more width for slider label + value display + slider itself
-                max_width = max_width.max(label.len() as f32 * 8.0 + 280.0);
+                *height += 35.0;
+                *max_width = max_width.max(label.len() as f32 * 7.0 + 240.0 + (depth as f32 * 15.0));
             }
             Element::Checkbox { label, .. } => {
-                height += 30.0;
-                max_width = max_width.max(label.len() as f32 * 8.0 + 100.0);
+                *height += 24.0;
+                *max_width = max_width.max(label.len() as f32 * 7.0 + 80.0 + (depth as f32 * 15.0));
             }
             Element::Textbox { label, rows, .. } => {
-                height += 25.0; // Label
-                height += 40.0 * (rows.unwrap_or(1) as f32); // Input field with padding
-                max_width = max_width.max(400.0);
+                *height += 20.0 + 30.0 * (rows.unwrap_or(1) as f32);
+                *max_width = max_width.max(380.0 + (depth as f32 * 15.0));
             }
             Element::Choice { label, options } => {
-                height += 25.0; // Label
-                height += 30.0 * options.len() as f32; // Each radio option
-                let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                max_width = max_width.max((longest_option as f32) * 8.0 + 100.0);
+                *height += 20.0; // Label
+                *height += 24.0 * options.len() as f32; // Options
+                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
+                *max_width = max_width.max((longest as f32) * 7.0 + 80.0 + (depth as f32 * 15.0));
             }
             Element::Multiselect { label, options } => {
-                height += 25.0; // Label
-                height += 30.0 * options.len() as f32; // Each checkbox option
-                let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                max_width = max_width.max((longest_option as f32) * 8.0 + 100.0);
+                *height += 20.0; // Label
+                *height += 24.0 * options.len() as f32; // Options
+                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
+                *max_width = max_width.max((longest as f32) * 7.0 + 80.0 + (depth as f32 * 15.0));
             }
-            Element::Group { elements, .. } => {
-                height += 25.0; // Group label
-                for _sub_element in elements {
-                    height += 30.0;
-                }
+            Element::Group { label, elements } => {
+                *height += 25.0; // Group label
+                calculate_elements_size(elements, height, max_width, depth + 1, include_conditionals);
             }
-            Element::Conditional { elements, .. } => {
-                // Assume conditional content might be shown
-                for _sub_element in elements {
-                    height += 30.0;
+            Element::Conditional { elements, condition } => {
+                if include_conditionals {
+                    // For window sizing, assume some conditionals will be shown
+                    // Use a heuristic based on condition type
+                    let probability = match condition {
+                        Condition::Selected(_, _) => 0.7, // 70% - first option usually selected
+                        Condition::Checked(_) => 0.3,     // 30% chance checkbox is checked
+                        Condition::Count(_, _, _) => 0.2, // 20% chance count condition is met
+                    };
+                    
+                    let start_height = *height;
+                    calculate_elements_size(elements, height, max_width, depth, include_conditionals);
+                    let added_height = *height - start_height;
+                    *height = start_height + (added_height * probability);
                 }
             }
             Element::Buttons(buttons) => {
-                height += 20.0; // Extra spacing before buttons
-                height += 15.0; // Separator
-                height += 40.0; // Button height with padding
-                height += 25.0; // Bottom padding
-                let button_width = buttons.len() as f32 * 160.0 + 20.0; // Extra padding
-                max_width = max_width.max(button_width);
+                *height += 50.0; // Separator + buttons + spacing
+                let button_width = buttons.len() as f32 * 120.0 + 40.0;
+                *max_width = max_width.max(button_width);
             }
         }
-        height += 12.0; // Item spacing between elements
+        *height += 5.0; // Item spacing
     }
-    
-    // Add window padding (top and bottom) - more generous
-    height += 50.0; // Extra padding for window chrome and safety margin
-    
-    max_width = max_width.min(600.0); // Cap maximum width
-    
-    (max_width, height)
 }
 
 fn apply_spike_theme(imgui: &mut ImContext) {
     let style = imgui.style_mut();
     
     // Window styling
-    style.window_rounding = 12.0;
+    style.window_rounding = 8.0;
     style.window_border_size = 1.0;
-    style.window_padding = [24.0, 20.0];
+    style.window_padding = [16.0, 12.0];  // Reduced from 24,20
     style.window_title_align = [0.5, 0.5]; // Center title
     
     // Frame styling
-    style.frame_rounding = 8.0;
+    style.frame_rounding = 6.0;  // Smaller rounding
     style.frame_border_size = 1.0;
-    style.frame_padding = [12.0, 6.0];
+    style.frame_padding = [10.0, 4.0];  // Much smaller vertical padding
     
     // Item styling
-    style.item_spacing = [8.0, 12.0];
-    style.item_inner_spacing = [8.0, 6.0];
+    style.item_spacing = [6.0, 6.0];  // Much tighter spacing
+    style.item_inner_spacing = [6.0, 4.0];
     
     // Button styling
     style.button_text_align = [0.5, 0.5];
     
     // Scrollbar styling
-    style.scrollbar_size = 14.0;
-    style.scrollbar_rounding = 9.0;
+    style.scrollbar_size = 10.0;  // Thinner scrollbar
+    style.scrollbar_rounding = 5.0;
     
     // Grab (slider) styling
-    style.grab_min_size = 12.0;
-    style.grab_rounding = 12.0;
+    style.grab_min_size = 8.0;  // Smaller grab handle
+    style.grab_rounding = 8.0;
     
     // Colors
     style[StyleColor::Text] = GHOST_WHITE;
@@ -572,9 +578,9 @@ fn apply_spike_theme(imgui: &mut ImContext) {
     // Text selection
     style[StyleColor::TextSelectedBg] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.35];
     
-    // Scrollbar
-    style[StyleColor::ScrollbarBg] = [SUBSTRATE_DARK[0], SUBSTRATE_DARK[1], SUBSTRATE_DARK[2], 0.0];
-    style[StyleColor::ScrollbarGrab] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.3];
-    style[StyleColor::ScrollbarGrabHovered] = [MUTED_GRAY[0], MUTED_GRAY[1], MUTED_GRAY[2], 0.5];
+    // Scrollbar - subtle neural theme
+    style[StyleColor::ScrollbarBg] = [0.0, 0.0, 0.0, 0.0];  // Transparent background
+    style[StyleColor::ScrollbarGrab] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.2];
+    style[StyleColor::ScrollbarGrabHovered] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.4];
     style[StyleColor::ScrollbarGrabActive] = [NEURAL_BLUE[0], NEURAL_BLUE[1], NEURAL_BLUE[2], 0.6];
 }

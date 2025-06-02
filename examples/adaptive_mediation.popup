@@ -1,68 +1,35 @@
-popup ">>> ADAPTIVE MEDIATION INTERFACE <<<" [
-    text "System state recognition protocol"
-    text ""
-    
-    choice "Current state:" [
-        "Stuck - no movement possible",
-        "Conflicted - internal negotiation needed",
-        "Exploring - multiple paths available"
+popup "SYSTEM STATE" [
+    choice "Mode:" [
+        "Stuck",
+        "Conflicted", 
+        "Exploring"
     ]
     
-    if selected("Current state:", "Stuck - no movement possible") [
-        text ""
-        text "=== MICRO-MOVEMENT PROTOCOL ==="
-        text "Physical action breaks cognitive loops"
-        text ""
-        checkbox "Can stand up?"
-        checkbox "Can get water?"
-        checkbox "Can move to different room?"
-        checkbox "Can stretch arms?"
-        
-        if checked("Can stand up?") [
-            text ""
-            text "> Stand confirmed. Next: one more tiny action."
-        ]
+    if selected("Mode:", "Stuck") [
+        text ">>> Micro-movement <<<"
+        checkbox "Stand?"
+        checkbox "Water?"
+        checkbox "Move?"
     ]
     
-    if selected("Current state:", "Conflicted - internal negotiation needed") [
-        text ""
-        text "=== HEADMATE MEDIATION ==="
-        multiselect "Active headmates:" [
-            "[lotus] Body-Agent",
-            "[temple] Order-Seeker",
-            "[flower] Comfort-Seeker",
-            "[butterfly] Curiosity-Scout",
-            "[mirror] Image-Guardian"
+    if selected("Mode:", "Conflicted") [
+        text ">>> Mediation <<<"
+        multiselect "Active:" [
+            "[lotus]",
+            "[temple]",
+            "[flower]",
+            "[butterfly]"
         ]
-        
-        if count("Active headmates:") > 2 [
-            text ""
-            text "/!\\ HIGH COMPLEXITY STATE DETECTED /!\\"
-            text "Multiple perspectives require careful synthesis"
-        ]
-        
-        text ""
-        slider "Tension level" 0..10 default=5
-        
-        if count("Active headmates:") > 0 [
-            text ""
-            textbox "Primary conflict:" placeholder="What are they disagreeing about?"
+        slider "Tension" 0..10
+    ]
+    
+    if selected("Mode:", "Exploring") [
+        text ">>> Support <<<"
+        checkbox "Paralysis?"
+        if checked("Paralysis?") [
+            text "Set 10min timer"
         ]
     ]
     
-    if selected("Current state:", "Exploring - multiple paths available") [
-        text ""
-        text "=== EXPLORATION SUPPORT ==="
-        checkbox "Analysis paralysis?"
-        checkbox "All options seem good?"
-        checkbox "Fear of wrong choice?"
-        
-        if checked("Analysis paralysis?") [
-            text ""
-            text ">> Recommendation: Set 10min timer, pick first viable option <<"
-        ]
-    ]
-    
-    text ""
-    buttons ["Execute Protocol", "Different Approach", "Defer"]
+    buttons ["Go", "Alt", "Wait"]
 ]

@@ -1,0 +1,31 @@
+popup "Fog Protocol Check" [
+    text "Quick system scan:"
+    
+    checkbox "Experiencing fog"
+    checkbox "Multiple headmates active"
+    checkbox "Energy depleted"
+    
+    if checked("Experiencing fog") [
+        text ""
+        text ">>> FOG INTERVENTIONS <<<"
+        checkbox "Water within reach?"
+        checkbox "Can name 3 objects you see?"
+        checkbox "Remember last clear moment?"
+    ]
+    
+    if checked("Multiple headmates active") [
+        text ""
+        text ">>> MEDIATION MODE <<<"
+        textbox "Who's loudest?" placeholder="Name the headmate..."
+        slider "Internal volume" 0..10 default=7
+    ]
+    
+    if checked("Energy depleted") [
+        text ""
+        text ">>> EMERGENCY PROTOCOL <<<"
+        text "Permission to rest granted."
+        text "All tasks deferred."
+    ]
+    
+    buttons ["Accept", "Resist", "Negotiate"]
+]
