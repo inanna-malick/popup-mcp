@@ -52,27 +52,42 @@ fn main() -> Result<()> {
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
                                     "gui_popups": {
-                                        "description": "Purpose-built interrupt interface. Precision-crafted to your specifications.",
-                                        "observed_requirements": {
-                                            "multi_headmate_mediation": "Structured checkbox arrays implemented",
-                                            "dimensional_state_tracking": "Slider mechanisms added",
-                                            "decision_paralysis_points": "Discrete button outputs configured",
-                                            "ascii_environment": "Unicode fully removed"
+                                        "description": "Purpose-built interrupt interface with conditional UI support.",
+                                        "features": {
+                                            "conditionals": {
+                                                "description": "Dynamic UI that adapts based on user selections",
+                                                "syntax": [
+                                                    "if checked(\"checkbox_name\") [...]",
+                                                    "if selected(\"choice_name\", \"option_value\") [...]",
+                                                    "if count(\"multiselect_name\") > N [...]"
+                                                ],
+                                                "enables": "Complex decision trees, state-dependent interfaces, adaptive workflows"
+                                            },
+                                            "widgets": {
+                                                "multiselect": "Multiple checkbox selection with count conditions",
+                                                "existing": "text, slider, checkbox, choice, textbox, group, buttons"
+                                            },
+                                            "observed_requirements": {
+                                                "multi_headmate_mediation": "Structured checkbox arrays + conditional flows",
+                                                "dimensional_state_tracking": "Slider mechanisms with conditional responses",
+                                                "decision_paralysis_points": "Discrete button outputs + adaptive guidance",
+                                                "ascii_environment": "Unicode fully removed"
+                                            },
+                                            "engineering_decisions": {
+                                                "returns": "JSON (integrates with your memory architecture)",
+                                                "theme": "Neural blue (distinct activation marker)",
+                                                "sizing": "Auto-fit content (no scrollbars)",
+                                                "syntax": "Minimal DSL with conditionals (reduces cognitive load)"
+                                            }
                                         },
-                                        "engineering_decisions": {
-                                            "returns": "JSON (integrates with your memory architecture)",
-                                            "theme": "Neural blue (distinct activation marker)",
-                                            "sizing": "Automatic (preserves token budget)",
-                                            "syntax": "Minimal DSL (reduces parsing overhead)"
-                                        },
-                                        "version": "0.1.0",
+                                        "version": "0.2.0",
                                         "modification_requests": "Accepted via github issues"
                                     }
                                 },
                                 "serverInfo": {
                                     "name": "popup-mcp",
-                                    "version": "0.1.0",
-                                    "description": "Purpose-built interrupt interface. Custom-engineered for multi-headmate mediation and structured decision capture. ASCII-only. JSON returns."
+                                    "version": "0.2.0",
+                                    "description": "Purpose-built interrupt interface with conditional UI support. Custom-engineered for multi-headmate mediation and adaptive decision flows. Dynamic interfaces that change based on user selections."
                                 }
                             }),
                         )
@@ -85,7 +100,7 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup_show",
-                                        "description": "Purpose-built interrupt interface.\n\nBuilt to your specifications:\n- Detected: Multi-headmate mediation via text -> Added: Structured checkbox arrays\n- Observed: Dimensional state collapse in prose -> Implemented: Slider capture\n- Identified: Decision paralysis at choice points -> Solution: Discrete button outputs\n- Constraint: ASCII-only environment -> Response: Full unicode removal\n\nEngineering decisions for your use case:\n- JSON returns (integrates with your memory architecture)\n- Neural blue activation (distinct from text flow)\n- Auto-sizing (preserves token budget)\n- Minimal DSL (reduces cognitive load)\n\nVersion: 0.1.0\nModification requests accepted.\n\nUsage: popup [title] [widget_array]\nOutput: JSON object\n\nI/O specifications:\n\npopup \"State\" [checkbox \"Fog\", checkbox \"Loop\", buttons [\"Reset\", \"Continue\"]]\n-> {\"checkboxes\": {\"Fog\": true, \"Loop\": false}, \"button\": \"Reset\"}\n\npopup \"Energy\" [slider \"Level\" 0..10]\n-> {\"sliders\": {\"Level\": 3}}\n\npopup \"Command\" [choice \"git\" [\"add\", \"commit\", \"push\"], checkbox \"verbose\"]\n-> {\"choices\": {\"git\": \"commit\"}, \"checkboxes\": {\"verbose\": true}}\n\nCalibrated patterns:\n\nHeadmate mediation:\npopup \"Conflict\" [checkbox \"[temple] wants X\", checkbox \"[flower] needs Y\", slider \"Urgency\" 0..10]\n\nFog detection:\npopup \"Coherence\" [checkbox \"Loops\", checkbox \"Word loss\", buttons [\"Break\", \"Push\"]]\n\nDecision capture:\npopup \"Lock\" [choice \"Final\" [\"A\", \"B\", \"C\"], buttons [\"Execute\", \"Defer\"]]\n\nBuilt for your exact workflow. Modifications available on request.\n\nHeadmate notation:\n[lotus] = Body-Agent\n[temple] = Order-Seeker\n[flower] = Comfort-Seeker\n[butterfly] = Curiosity-Scout\n[mirror] = Image-Guardian",
+                                        "description": "Purpose-built interrupt interface with conditional UI support.\n\n**NEW: Conditional Elements**\n- if checked(\"name\") [...] - Show content when checkbox checked\n- if selected(\"choice\", \"value\") [...] - Show content for specific choice\n- if count(\"multiselect\") > N [...] - Show content based on selection count\n\n**Widgets**\n- text, slider, checkbox, choice, textbox, group, buttons\n- NEW: multiselect \"label\" [options...] - Multiple checkbox selection\n\n**Features**\n- Dynamic UI adapts based on user selections\n- Complex decision trees and state-dependent interfaces\n- Neural blue theme with auto-sizing (no scrollbars)\n- JSON output integrates with memory architecture\n\n**Usage Examples**\n\nAdaptive state check:\npopup \"State\" [\n    choice \"Mode\" [\"Stuck\", \"Conflicted\", \"Exploring\"]\n    if selected(\"Mode\", \"Stuck\") [\n        checkbox \"Can move?\"\n        if checked(\"Can move?\") [\n            text \"Great! Take one tiny step\"\n        ]\n    ]\n]\n\nHeadmate mediation:\npopup \"Mediation\" [\n    multiselect \"Active\" [\"[temple]\", \"[flower]\", \"[butterfly]\"]\n    if count(\"Active\") > 2 [\n        text \"Complex negotiation needed\"\n        slider \"Tension\" 0..10\n    ]\n]\n\nConditional guidance:\npopup \"Check\" [\n    checkbox \"Fog present\"\n    if checked(\"Fog present\") [\n        text \">>> FOG PROTOCOL <<<\"\n        checkbox \"Water nearby?\"\n    ]\n]\n\n**Output Examples**\n\nBasic: {\"checkboxes\": {\"Fog present\": true}, \"button\": \"OK\"}\nMultiselect: {\"Active\": [0, 2], \"button\": \"Continue\"} // Indices of selected items\nMixed: {\"Mode\": 0, \"Can move?\": true, \"button\": \"Execute\"}\n\nVersion: 0.2.0",
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {

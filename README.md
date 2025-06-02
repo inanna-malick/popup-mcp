@@ -1,12 +1,16 @@
 # popup-mcp
 
-An MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using a simple domain-specific language (DSL).
+An MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows with conditional UI support using a simple domain-specific language (DSL).
 
 ## Features
 
-- **Simple DSL** for defining popup layouts
+- **Conditional UI Elements** (NEW!)
+  - `if checked("name")` - Show content when checkbox is checked
+  - `if selected("name", "value")` - Show content for specific choice selection
+  - `if count("name") > N` - Show content based on multiselect count
+- **Rich controls**: text, sliders, checkboxes, radio buttons, text inputs, groups, multiselect
+- **Simple DSL** for defining popup layouts with conditional logic
 - **Native GUI** using imgui-rs (immediate mode, cyberpunk aesthetic)
-- **Rich controls**: text, sliders, checkboxes, radio buttons, text inputs, groups
 - **JSON output** of user selections
 - **MCP integration** for use with Claude Desktop and other AI assistants
 
@@ -24,6 +28,23 @@ popup "Title" [
         "Option A",
         "Option B", 
         "Option C"
+    ]
+    
+    # NEW: Conditional elements
+    if selected("Select option:", "Option A") [
+        text "You selected A!"
+        checkbox "A-specific setting"
+    ]
+    
+    # NEW: Multiselect widget
+    multiselect "Active components:" [
+        "Component 1",
+        "Component 2",
+        "Component 3"
+    ]
+    
+    if count("Active components:") > 1 [
+        text "Multiple components selected!"
     ]
     
     textbox "Your name:" placeholder="Enter name..."
@@ -78,6 +99,45 @@ echo 'popup "Test" [text "Hello!" buttons ["OK"]]' | cargo run
 ## Examples
 
 See the `examples/` directory for sample popup definitions.
+
+### Conditional UI Example
+
+```
+popup "Adaptive Interface" [
+    choice "State:" ["Stuck", "Conflicted", "Exploring"]
+    
+    if selected("State:", "Stuck") [
+        text ">>> MICRO-MOVEMENT PROTOCOL <<<"
+        checkbox "Can stand up?"
+        checkbox "Can get water?"
+        
+        if checked("Can stand up?") [
+            text "Great! Next step: move to a different room"
+        ]
+    ]
+    
+    if selected("State:", "Conflicted") [
+        multiselect "Active headmates:" [
+            "[lotus] Body-Agent",
+            "[temple] Order-Seeker",
+            "[flower] Comfort-Seeker"
+        ]
+        
+        if count("Active headmates:") > 2 [
+            text "Complex negotiation needed"
+            slider "Tension level" 0..10
+        ]
+    ]
+    
+    buttons ["Execute", "Defer"]
+]
+```
+
+This creates a dynamic interface that changes based on user selections, perfect for:
+- Multi-step wizards
+- Contextual help systems
+- Adaptive questionnaires
+- State-dependent workflows
 
 ## Architecture
 
