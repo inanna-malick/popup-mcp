@@ -2,7 +2,6 @@
 
 use anyhow::{Context, Result};
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
-use popup_mcp::{parse_popup_dsl, render_popup};
 use serde::Serialize;
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
@@ -119,16 +118,88 @@ fn main() -> Result<()> {
                                 
                                 log::info!("Showing popup with DSL: {}", dsl);
                                 
-                                match parse_popup_dsl(dsl) {
-                                    Ok(definition) => {
-                                        match render_popup(definition) {
-                                            Ok(popup_result) => {
-                                                serde_json::to_value(&popup_result).unwrap()
+                                // Just spawn the popup-mcp binary and pipe the DSL
+                                // First try to find popup-mcp in the same directory as this binary
+                                let popup_path = std::env::current_exe()
+                                    .ok()
+                                    .and_then(|path| {
+                                        log::info!("Current exe: {:?}", path);
+                                        let dir = path.parent()?;
+                                        log::info!("Parent dir: {:?}", dir);
+                                        let popup = dir.join("popup-mcp");
+                                        log::info!("Looking for popup binary at: {:?}", popup);
+                                        if popup.exists() {
+                                            log::info!("Found popup binary!");
+                                            Some(popup)
+                                        } else {
+                                            log::warn!("Popup binary not found at {:?}", popup);
+                                            // Try absolute path as fallback
+                                            let fallback = std::path::PathBuf::from("/Users/inannamalick/claude_accessible/popup-mcp/target/release/popup-mcp");
+                                            if fallback.exists() {
+                                                log::info!("Using fallback path: {:?}", fallback);
+                                                Some(fallback)
+                                            } else {
+                                                None
                                             }
-                                            Err(e) => error(format!("Failed to render popup: {}", e))
+                                        }
+                                    });
+                                
+                                // Escape the DSL for shell
+                                let escaped_dsl = dsl.replace("'", "'\\'''");
+                                
+                                // Use sh -c with echo to pipe DSL
+                                let popup_cmd = if let Some(binary_path) = popup_path {
+                                    log::info!("Using binary path: {:?}", binary_path);
+                                    format!("echo '{}' | {}", escaped_dsl, binary_path.to_string_lossy())
+                                } else {
+                                    log::info!("Using cargo run fallback");
+                                    format!("cd {} && echo '{}' | cargo run --release --bin popup-mcp --quiet", 
+                                        env!("CARGO_MANIFEST_DIR"), escaped_dsl)
+                                };
+                                
+                                log::info!("Spawning popup with shell command: {}", popup_cmd);
+                                
+                                let mut child = std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(&popup_cmd)
+                                    .stdout(std::process::Stdio::piped())
+                                    .stderr(std::process::Stdio::piped())
+                                    .spawn()
+                                    .map_err(|e| format!("Failed to spawn popup subprocess: {}", e));
+                                
+                                match child {
+                                    Ok(mut child) => {
+                                        log::info!("Subprocess spawned with PID: {:?}", child.id());
+                                        // No need to write to stdin - echo handles it
+                                        // Wait for result
+                                        match child.wait_with_output() {
+                                                    Ok(output) => {
+                                                        let stdout_str = String::from_utf8_lossy(&output.stdout);
+                                                        let stderr_str = String::from_utf8_lossy(&output.stderr);
+                                                        
+                                                        log::info!("Subprocess stdout: {}", stdout_str);
+                                                        if !stderr_str.is_empty() {
+                                                            log::info!("Subprocess stderr: {}", stderr_str);
+                                                        }
+                                                        
+                                                        // Add small delay to ensure window system cleanup
+                                                        std::thread::sleep(std::time::Duration::from_millis(100));
+                                                        
+                                                        if output.status.success() || !stdout_str.trim().is_empty() {
+                                                            // Try to parse JSON even if exit code is non-zero
+                                                            // (popup-mcp might exit with error code but still output JSON)
+                                                            match serde_json::from_str::<Value>(&stdout_str) {
+                                                                Ok(popup_result) => popup_result,
+                                                                Err(e) => error(format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
+                                                            }
+                                                        } else {
+                                                            error(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
+                                                        }
+                                            }
+                                            Err(e) => error(format!("Failed to wait for popup: {}", e))
                                         }
                                     }
-                                    Err(e) => error(format!("Failed to parse DSL: {}", e))
+                                    Err(e) => error(e)
                                 }
                             }
                             _ => error(format!("Unknown tool: {}", tool_name)),
