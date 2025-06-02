@@ -353,49 +353,65 @@ fn create_gl_context(
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 60.0; // Title bar + top padding
-    let mut max_width: f32 = 300.0; // Minimum width
+    let mut height: f32 = 60.0; // Title bar + window chrome
+    let mut max_width: f32 = 350.0; // Minimum width
+    
+    // Account for special header styling
+    let mut has_header = false;
     
     // Estimate size for each element
-    for element in &definition.elements {
+    for (i, element) in definition.elements.iter().enumerate() {
         match element {
             Element::Text(text) => {
-                height += 20.0;
+                if i == 0 && text.to_uppercase() == *text {
+                    // Header text gets extra space for separator
+                    height += 30.0; // Text + separator + extra spacing
+                    has_header = true;
+                } else {
+                    height += 25.0;
+                }
                 max_width = max_width.max(text.len() as f32 * 7.0 + 40.0);
             }
             Element::Slider { label, .. } => {
-                height += 25.0;
-                max_width = max_width.max(label.len() as f32 * 7.0 + 200.0);
+                height += 45.0; // Label + slider + spacing
+                max_width = max_width.max(label.len() as f32 * 7.0 + 220.0);
             }
             Element::Checkbox { label, .. } => {
-                height += 25.0;
-                max_width = max_width.max(label.len() as f32 * 7.0 + 60.0);
+                height += 30.0;
+                max_width = max_width.max(label.len() as f32 * 7.0 + 80.0);
             }
             Element::Textbox { label, rows, .. } => {
-                height += 25.0 + 25.0 * (rows.unwrap_or(1) as f32);
+                height += 25.0; // Label
+                height += 40.0 * (rows.unwrap_or(1) as f32); // Input field with padding
                 max_width = max_width.max(400.0);
             }
             Element::Choice { label, options } => {
-                height += 25.0 + 20.0 * options.len() as f32;
+                height += 25.0; // Label
+                height += 30.0 * options.len() as f32; // Each radio option
                 let longest_option = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                max_width = max_width.max((longest_option as f32 + label.len() as f32) * 7.0 + 60.0);
+                max_width = max_width.max((longest_option as f32) * 8.0 + 100.0);
             }
             Element::Group { elements, .. } => {
-                for sub_element in elements {
-                    // Simplified calculation for groups
-                    height += 25.0;
+                height += 25.0; // Group label
+                for _sub_element in elements {
+                    height += 30.0;
                 }
             }
             Element::Buttons(buttons) => {
-                height += 60.0; // More space for taller buttons
-                let button_width = buttons.len() as f32 * 150.0; // Match wider buttons
+                height += 20.0; // Extra spacing before buttons
+                height += 15.0; // Separator
+                height += 40.0; // Button height with padding
+                height += 25.0; // Bottom padding
+                let button_width = buttons.len() as f32 * 160.0;
                 max_width = max_width.max(button_width);
             }
         }
-        height += 5.0; // Spacing between elements
+        height += 12.0; // Item spacing between elements
     }
     
-    height += 20.0; // Bottom padding
+    // Add window padding (top and bottom) - more generous
+    height += 50.0; // Extra padding for window chrome and safety margin
+    
     max_width = max_width.min(600.0); // Cap maximum width
     
     (max_width, height)
