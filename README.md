@@ -12,6 +12,7 @@ An MCP (Model Context Protocol) server that enables AI assistants to create nati
 - **Simple DSL** for defining popup layouts with conditional logic
 - **Native GUI** using imgui-rs (immediate mode, cyberpunk aesthetic)
 - **JSON output** of user selections
+- **Automatic button validation** - ensures every popup has at least one button
 - **MCP integration** for use with Claude Desktop and other AI assistants
 
 ## DSL Syntax
@@ -56,7 +57,32 @@ popup "Title" [
         checkbox "Mute"
     ]
     
+    # REQUIRED: Every popup must have at least one button
     buttons ["OK", "Cancel", "Help"]
+]
+```
+
+### Button Requirement
+
+**Important**: Every popup MUST include at least one button to provide users with an exit path. If no buttons are defined, the parser automatically adds a "Continue" button with a warning message.
+
+```
+# This popup will get an automatic "Continue" button:
+popup "Info" [
+    text "System ready"
+    # Warning: no buttons defined!
+]
+
+# Better - explicit button:
+popup "Info" [
+    text "System ready"
+    buttons ["OK"]
+]
+
+# Best - meaningful action:
+popup "Confirm" [
+    text "Delete this file?"
+    buttons ["Delete", "Cancel"]
 ]
 ```
 
@@ -132,6 +158,14 @@ popup "Adaptive Interface" [
     buttons ["Execute", "Defer"]
 ]
 ```
+
+### Button Best Practices
+
+1. **Always include explicit buttons** - Don't rely on the automatic fallback
+2. **Use meaningful labels** - "Save"/"Cancel" instead of "OK"/"Cancel"
+3. **Consider the context** - "Continue" for wizards, "Apply" for settings, "Done" for info
+4. **Order matters** - Primary action first, then secondary, then cancel/abort
+5. **Conditional buttons are risky** - If all buttons are in conditionals, add a root-level fallback
 
 This creates a dynamic interface that changes based on user selections, perfect for:
 - Multi-step wizards
