@@ -1,0 +1,11 @@
+popup "Quick Decision" [
+    text "What would you like to do next?"
+    
+    choice "Choose one:" [
+        "Continue working",
+        "Take a break",
+        "Switch tasks"
+    ]
+    
+    buttons ["Go", "Cancel"]
+]

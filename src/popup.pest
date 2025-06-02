@@ -1,0 +1,69 @@
+// Popup DSL Grammar
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+// Main rule
+popup = { SOI ~ "popup" ~ string ~ "[" ~ element* ~ "]" ~ EOI }
+
+// Elements that can appear in a popup
+element = {
+    text |
+    slider |
+    checkbox |
+    textbox |
+    choice |
+    group |
+    buttons
+}
+
+// Basic elements
+text = { "text" ~ string }
+
+slider = { 
+    "slider" ~ string ~ number ~ ".." ~ number ~ 
+    ("default" ~ "=" ~ number)?
+}
+
+checkbox = { 
+    "checkbox" ~ string ~ 
+    ("default" ~ "=" ~ boolean)?
+}
+
+textbox = { 
+    "textbox" ~ string ~ 
+    ("placeholder" ~ "=" ~ string)? ~ 
+    ("rows" ~ "=" ~ number)?
+}
+
+choice = { 
+    "choice" ~ string ~ "[" ~ 
+    string ~ ("," ~ string)* ~ 
+    "]"
+}
+
+group = { 
+    "group" ~ string ~ "[" ~ 
+    element* ~ 
+    "]"
+}
+
+buttons = { 
+    "buttons" ~ "[" ~ 
+    string ~ ("," ~ string)* ~ 
+    "]"
+}
+
+// Primitives
+string = { 
+    "\"" ~ string_content ~ "\"" 
+}
+
+string_content = @{ (!"\"" ~ ANY)* }
+
+number = @{ 
+    "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?
+}
+
+boolean = { 
+    "true" | "false"
+}
