@@ -354,7 +354,7 @@ fn create_gl_context(
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 60.0; // Title bar + window chrome
-    let mut max_width: f32 = 350.0; // Minimum width
+    let mut max_width: f32 = 400.0; // Increased minimum width to prevent cutoff
     
     // Account for special header styling
     let mut has_header = false;
@@ -370,15 +370,16 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
                 } else {
                     height += 25.0;
                 }
-                max_width = max_width.max(text.len() as f32 * 7.0 + 40.0);
+                max_width = max_width.max(text.len() as f32 * 8.0 + 50.0);
             }
             Element::Slider { label, .. } => {
                 height += 45.0; // Label + slider + spacing
-                max_width = max_width.max(label.len() as f32 * 7.0 + 220.0);
+                // Need more width for slider label + value display + slider itself
+                max_width = max_width.max(label.len() as f32 * 8.0 + 280.0);
             }
             Element::Checkbox { label, .. } => {
                 height += 30.0;
-                max_width = max_width.max(label.len() as f32 * 7.0 + 80.0);
+                max_width = max_width.max(label.len() as f32 * 8.0 + 100.0);
             }
             Element::Textbox { label, rows, .. } => {
                 height += 25.0; // Label
@@ -402,7 +403,7 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
                 height += 15.0; // Separator
                 height += 40.0; // Button height with padding
                 height += 25.0; // Bottom padding
-                let button_width = buttons.len() as f32 * 160.0;
+                let button_width = buttons.len() as f32 * 160.0 + 20.0; // Extra padding
                 max_width = max_width.max(button_width);
             }
         }
