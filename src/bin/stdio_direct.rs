@@ -1,6 +1,6 @@
 //! MCP server for popup-mcp - enables AI assistants to create GUI popups
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
 use serde::Serialize;
 use serde_json::Value;
@@ -174,7 +174,7 @@ fn main() -> Result<()> {
                                     });
                                 
                                 // Spawn popup binary directly without shell
-                                let mut child = if let Some(binary_path) = popup_path {
+                                let child = if let Some(binary_path) = popup_path {
                                     log::info!("Spawning popup binary directly: {:?}", binary_path);
                                     std::process::Command::new(binary_path)
                                         .stdin(std::process::Stdio::piped())

@@ -55,132 +55,122 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     };
     
     match inner_pair.as_rule() {
-        Rule::text => {
-            let text = parse_string(inner_pair.into_inner().next().unwrap())?;
-            Ok(Element::Text(text))
-        }
-        
-        Rule::slider => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            let min = inner.next().unwrap().as_str().parse::<f32>()?;
-            let max = inner.next().unwrap().as_str().parse::<f32>()?;
-            
-            // Default is now required
-            let default = inner.next()
-                .ok_or_else(|| anyhow::anyhow!("Slider '{}' requires a default value", label))?
-                .as_str()
-                .parse::<f32>()?;
-            
-            Ok(Element::Slider { label, min, max, default })
-        }
-        
-        Rule::checkbox => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            
-            // Default is now required
-            let default = inner.next()
-                .ok_or_else(|| anyhow::anyhow!("Checkbox '{}' requires a default value", label))?
-                .as_str() == "true";
-            
-            Ok(Element::Checkbox { label, default })
-        }
-        
-        Rule::textbox => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            let mut placeholder = None;
-            let mut rows = None;
-            
-            for pair in inner {
-                match pair.as_rule() {
-                    Rule::string => placeholder = Some(parse_string(pair)?),
-                    Rule::number => rows = Some(pair.as_str().parse::<u32>()?),
-                    _ => {}
-                }
-            }
-            
-            Ok(Element::Textbox { label, placeholder, rows })
-        }
-        
-        Rule::choice => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            
-            let mut options = Vec::new();
-            for pair in inner {
-                if pair.as_rule() == Rule::string {
-                    options.push(parse_string(pair)?);
-                }
-            }
-            
-            Ok(Element::Choice { label, options })
-        }
-        
-        Rule::multiselect => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            
-            let mut options = Vec::new();
-            for pair in inner {
-                if pair.as_rule() == Rule::string {
-                    options.push(parse_string(pair)?);
-                }
-            }
-            
-            Ok(Element::Multiselect { label, options })
-        }
-        
-        Rule::group => {
-            let mut inner = inner_pair.into_inner();
-            let label = parse_string(inner.next().unwrap())?;
-            
-            let mut elements = Vec::new();
-            for pair in inner {
-                if let Ok(element) = parse_element(pair) {
-                    elements.push(element);
-                }
-            }
-            
-            Ok(Element::Group { label, elements })
-        }
-        
-        Rule::buttons => {
-            let inner = inner_pair.into_inner();
-            let mut buttons = Vec::new();
-            
-            for pair in inner {
-                if pair.as_rule() == Rule::string {
-                    buttons.push(parse_string(pair)?);
-                }
-            }
-            
-            Ok(Element::Buttons(buttons))
-        }
-        
-        Rule::conditional => {
-            let mut inner = inner_pair.into_inner();
-            let condition_pair = inner.next().unwrap();
-            let condition = parse_condition(condition_pair)?;
-            
-            let mut elements = Vec::new();
-            for pair in inner {
-                if let Ok(element) = parse_element(pair) {
-                    elements.push(element);
-                }
-            }
-            
-            Ok(Element::Conditional { condition, elements })
-        }
-        
-        Rule::EOI => {
-            // End of input marker, skip it
-            Err(anyhow::anyhow!("EOI is not an element"))
-        }
-        
+        Rule::text => parse_text(inner_pair),
+        Rule::slider => parse_slider(inner_pair),
+        Rule::checkbox => parse_checkbox(inner_pair),
+        Rule::textbox => parse_textbox(inner_pair),
+        Rule::choice => parse_choice(inner_pair),
+        Rule::multiselect => parse_multiselect(inner_pair),
+        Rule::group => parse_group(inner_pair),
+        Rule::buttons => parse_buttons(inner_pair),
+        Rule::conditional => parse_conditional(inner_pair),
+        Rule::EOI => Err(anyhow::anyhow!("EOI is not an element")),
         _ => Err(anyhow::anyhow!("Unknown element type: {:?}", inner_pair.as_rule()))
     }
+}
+
+fn parse_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let text = parse_string(pair.into_inner().next().unwrap())?;
+    Ok(Element::Text(text))
+}
+
+fn parse_slider(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    let min = inner.next().unwrap().as_str().parse::<f32>()?;
+    let max = inner.next().unwrap().as_str().parse::<f32>()?;
+    
+    // Default is now required
+    let default = inner.next()
+        .ok_or_else(|| anyhow::anyhow!("Slider '{}' requires a default value", label))?
+        .as_str()
+        .parse::<f32>()?;
+    
+    Ok(Element::Slider { label, min, max, default })
+}
+
+fn parse_checkbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    
+    // Default is now required
+    let default = inner.next()
+        .ok_or_else(|| anyhow::anyhow!("Checkbox '{}' requires a default value", label))?
+        .as_str() == "true";
+    
+    Ok(Element::Checkbox { label, default })
+}
+
+fn parse_textbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    let mut placeholder = None;
+    let mut rows = None;
+    
+    for pair in inner {
+        match pair.as_rule() {
+            Rule::string => placeholder = Some(parse_string(pair)?),
+            Rule::number => rows = Some(pair.as_str().parse::<u32>()?),
+            _ => {}
+        }
+    }
+    
+    Ok(Element::Textbox { label, placeholder, rows })
+}
+
+fn parse_choice(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    let options = parse_string_list(inner)?;
+    Ok(Element::Choice { label, options })
+}
+
+fn parse_multiselect(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    let options = parse_string_list(inner)?;
+    Ok(Element::Multiselect { label, options })
+}
+
+fn parse_group(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let label = parse_string(inner.next().unwrap())?;
+    let elements = parse_elements(inner)?;
+    Ok(Element::Group { label, elements })
+}
+
+fn parse_buttons(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let buttons = parse_string_list(pair.into_inner())?;
+    Ok(Element::Buttons(buttons))
+}
+
+fn parse_conditional(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
+    let mut inner = pair.into_inner();
+    let condition_pair = inner.next().unwrap();
+    let condition = parse_condition(condition_pair)?;
+    let elements = parse_elements(inner)?;
+    Ok(Element::Conditional { condition, elements })
+}
+
+// Helper functions to reduce duplication
+fn parse_string_list(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<String>> {
+    let mut strings = Vec::new();
+    for pair in pairs {
+        if pair.as_rule() == Rule::string {
+            strings.push(parse_string(pair)?);
+        }
+    }
+    Ok(strings)
+}
+
+fn parse_elements(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<Element>> {
+    let mut elements = Vec::new();
+    for pair in pairs {
+        if let Ok(element) = parse_element(pair) {
+            elements.push(element);
+        }
+    }
+    Ok(elements)
 }
 
 fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
