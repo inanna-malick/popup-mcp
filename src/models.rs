@@ -15,11 +15,11 @@ pub enum Element {
         label: String,
         min: f32,
         max: f32,
-        default: Option<f32>,
+        default: f32,
     },
     Checkbox {
         label: String,
-        default: Option<bool>,
+        default: bool,
     },
     Textbox {
         label: String,
@@ -85,10 +85,10 @@ impl PopupState {
         for element in elements {
             match element {
                 Element::Slider { label, default, .. } => {
-                    self.sliders.insert(label.clone(), default.unwrap_or(0.0));
+                    self.sliders.insert(label.clone(), *default);
                 }
                 Element::Checkbox { label, default } => {
-                    self.checkboxes.insert(label.clone(), default.unwrap_or(false));
+                    self.checkboxes.insert(label.clone(), *default);
                 }
                 Element::Textbox { label, .. } => {
                     self.textboxes.insert(label.clone(), String::new());

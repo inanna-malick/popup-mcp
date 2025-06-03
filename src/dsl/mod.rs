@@ -66,11 +66,11 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
             let min = inner.next().unwrap().as_str().parse::<f32>()?;
             let max = inner.next().unwrap().as_str().parse::<f32>()?;
             
-            let default = if let Some(default_pair) = inner.next() {
-                Some(default_pair.as_str().parse::<f32>()?)
-            } else {
-                None
-            };
+            // Default is now required
+            let default = inner.next()
+                .ok_or_else(|| anyhow::anyhow!("Slider '{}' requires a default value", label))?
+                .as_str()
+                .parse::<f32>()?;
             
             Ok(Element::Slider { label, min, max, default })
         }
@@ -79,11 +79,10 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
             let mut inner = inner_pair.into_inner();
             let label = parse_string(inner.next().unwrap())?;
             
-            let default = if let Some(default_pair) = inner.next() {
-                Some(default_pair.as_str() == "true")
-            } else {
-                None
-            };
+            // Default is now required
+            let default = inner.next()
+                .ok_or_else(|| anyhow::anyhow!("Checkbox '{}' requires a default value", label))?
+                .as_str() == "true";
             
             Ok(Element::Checkbox { label, default })
         }

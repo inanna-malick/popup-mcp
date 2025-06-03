@@ -23,12 +23,12 @@ text = { "text" ~ string }
 
 slider = { 
     "slider" ~ string ~ number ~ ".." ~ number ~ 
-    ("default" ~ "=" ~ number)?
+    "default" ~ "=" ~ number
 }
 
 checkbox = { 
     "checkbox" ~ string ~ 
-    ("default" ~ "=" ~ boolean)?
+    "default" ~ "=" ~ boolean
 }
 
 textbox = { 
