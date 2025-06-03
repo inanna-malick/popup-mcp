@@ -6,6 +6,9 @@ use serde::Serialize;
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
+// Include the formal grammar specification
+const DSL_GRAMMAR: &str = include_str!("../../src/popup.pest");
+
 #[derive(Serialize)]
 struct ErrorResponse {
     error: String,
@@ -73,6 +76,10 @@ fn main() -> Result<()> {
                                                 "decision_paralysis_points": "Discrete button outputs + adaptive guidance",
                                                 "ascii_environment": "Unicode fully removed"
                                             },
+                                            "expression_language": {
+                                                "format": "pest",
+                                                "schema": DSL_GRAMMAR
+                                            },
                                             "engineering_decisions": {
                                                 "returns": "JSON (integrates with your memory architecture)",
                                                 "theme": "Neural blue (distinct activation marker)",
@@ -100,7 +107,10 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup_show",
-                                        "description": "Purpose-built interrupt interface with conditional UI support.\n\n**NEW: Conditional Elements**\n- if checked(\"name\") [...] - Show content when checkbox checked\n- if selected(\"choice\", \"value\") [...] - Show content for specific choice\n- if count(\"multiselect\") > N [...] - Show content based on selection count\n\n**Widgets**\n- text, slider, checkbox, choice, textbox, group, buttons\n- NEW: multiselect \"label\" [options...] - Multiple checkbox selection\n\n**Features**\n- Dynamic UI adapts based on user selections\n- Complex decision trees and state-dependent interfaces\n- Neural blue theme with auto-sizing (no scrollbars)\n- JSON output integrates with memory architecture\n- **Auto button validation** - Every popup guaranteed to have at least one button\n\n**CRITICAL: Button Requirement**\nEvery popup MUST have at least one button. If no buttons defined, parser automatically adds `buttons [\"Continue\"]` with warning. Always prefer explicit buttons over automatic fallback.\n\n**Usage Examples**\n\nAdaptive state check:\npopup \"State\" [\n    choice \"Mode\" [\"Stuck\", \"Conflicted\", \"Exploring\"]\n    if selected(\"Mode\", \"Stuck\") [\n        checkbox \"Can move?\"\n        if checked(\"Can move?\") [\n            text \"Great! Take one tiny step\"\n        ]\n    ]\n    buttons [\"Execute\", \"Defer\"]  // REQUIRED\n]\n\nHeadmate mediation:\npopup \"Mediation\" [\n    multiselect \"Active\" [\"[temple]\", \"[flower]\", \"[butterfly]\"]\n    if count(\"Active\") > 2 [\n        text \"Complex negotiation needed\"\n        slider \"Tension\" 0..10\n    ]\n    buttons [\"Apply\", \"Cancel\"]  // REQUIRED\n]\n\nConditional guidance:\npopup \"Check\" [\n    checkbox \"Fog present\"\n    if checked(\"Fog present\") [\n        text \">>> FOG PROTOCOL <<<\"\n        checkbox \"Water nearby?\"\n    ]\n    buttons [\"OK\"]  // REQUIRED - even simple popups need buttons\n]\n\n**Output Examples**\n\nBasic: {\"checkboxes\": {\"Fog present\": true}, \"button\": \"OK\"}\nMultiselect: {\"Active\": [0, 2], \"button\": \"Continue\"} // Indices of selected items\nMixed: {\"Mode\": 0, \"Can move?\": true, \"button\": \"Execute\"}\n\nVersion: 0.2.1",
+                                        "description": "Purpose-built interrupt interface with conditional UI support.\n\n**NEW: Conditional Elements**\n- if checked(\"name\") [...] - Show content when checkbox checked\n- if selected(\"choice\", \"value\") [...] - Show content for specific choice\n- if count(\"multiselect\") > N [...] - Show content based on selection count\n\n**Widgets**\n- text, slider, checkbox, choice, textbox, group, buttons\n- NEW: multiselect \"label\" [options...] - Multiple checkbox selection\n\n**Features**\n- Dynamic UI adapts based on user selections\n- Complex decision trees and state-dependent interfaces\n- Neural blue theme with auto-sizing (no scrollbars)\n- JSON output integrates with memory architecture\n- **Auto button validation** - Every popup guaranteed to have at least one button\n\n**CRITICAL: Button Requirement**\nEvery popup MUST have at least one button. If no buttons defined, parser automatically adds `buttons [\"Continue\"]` with warning. Always prefer explicit buttons over automatic fallback.\n\n**Usage Examples**\n\nAdaptive state check:\npopup \"State\" [\n    choice \"Mode\" [\"Stuck\", \"Conflicted\", \"Exploring\"]\n    if selected(\"Mode\", \"Stuck\") [\n        checkbox \"Can move?\" default = false\n        if checked(\"Can move?\") [\n            text \"Great! Take one tiny step\"\n        ]\n    ]\n    buttons [\"Execute\", \"Defer\"]  // REQUIRED\n]\n\nHeadmate mediation:\npopup \"Mediation\" [\n    multiselect \"Active\" [\"[temple]\", \"[flower]\", \"[butterfly]\"]\n    if count(\"Active\") > 2 [\n        text \"Complex negotiation needed\"\n        slider \"Tension\" 0..10 default = 5\n    ]\n    buttons [\"Apply\", \"Cancel\"]  // REQUIRED\n]\n\nConditional guidance:\npopup \"Check\" [\n    checkbox \"Fog present\" default = false\n    if checked(\"Fog present\") [\n        text \">>> FOG PROTOCOL <<<\"\n        checkbox \"Water nearby?\" default = false\n    ]\n    buttons [\"OK\"]  // REQUIRED - even simple popups need buttons\n]\n\n**Output Examples**\n\nBasic: {\"checkboxes\": {\"Fog present\": true}, \"button\": \"OK\"}\nMultiselect: {\"Active\": [0, 2], \"button\": \"Continue\"} // Indices of selected items\nMixed: {\"Mode\": 0, \"Can move?\": true, \"button\": \"Execute\"}\n\nVersion: 0.2.1",
+                                        "expression_language": {
+                                            "schema": DSL_GRAMMAR
+                                        },
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {
