@@ -21,6 +21,10 @@ name = "test_emoji"
 path = "src/bin/test_emoji.rs"
 
 [[bin]]
+name = "demo_cyberpunk"
+path = "src/bin/demo_cyberpunk.rs"
+
+[[bin]]
 name = "spike"
 path = "src/bin/spike.rs"
 

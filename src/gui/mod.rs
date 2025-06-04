@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2};
+use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke};
 use std::sync::{Arc, Mutex};
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition, ComparisonOp};
@@ -69,7 +69,7 @@ impl PopupApp {
         Self {
             definition,
             state,
-            theme: Theme::spike_neural(),
+            theme: Theme::cyberpunk(),
             result,
         }
     }
@@ -125,75 +125,132 @@ fn render_elements_with_context(
         match element {
             Element::Text(text) => {
                 if is_first && text.to_uppercase() == *text {
-                    // Header style
-                    ui.colored_label(theme.neural_blue, RichText::new(text).size(14.0));
+                    // Header style with cyberpunk glow
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.add_space(2.0);
+                        let header_text = RichText::new(format!("▶ {}", text))
+                            .size(16.0)
+                            .color(theme.neon_cyan);
+                        ui.label(header_text);
+                    });
+                    ui.add_space(2.0);
+                    
+                    // Neon separator
                     ui.separator();
+                    ui.add_space(4.0);
                 } else {
-                    ui.label(text);
+                    ui.horizontal(|ui| {
+                        ui.add_space(10.0);
+                        ui.label(RichText::new(text).color(theme.text_secondary));
+                    });
                 }
                 is_first = false;
             }
             
             Element::Slider { label, min, max, default: _ } => {
                 if let Some(value) = state.sliders.get_mut(label) {
-                    ui.horizontal(|ui| {
-                        ui.label(label);
-                        ui.add(egui::Slider::new(value, *min..=*max));
+                    ui.group(|ui| {
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(label).color(theme.text_primary));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace());
+                                });
+                            });
+                            
+                            let slider = egui::Slider::new(value, *min..=*max)
+                                .show_value(false)
+                                .clamp_to_range(true);
+                            ui.add(slider);
+                        });
                     });
                 }
             }
             
             Element::Checkbox { label, default: _ } => {
                 if let Some(value) = state.checkboxes.get_mut(label) {
-                    ui.checkbox(value, label);
+                    ui.horizontal(|ui| {
+                        let checkbox_text = if *value {
+                            RichText::new(format!("☑ {}", label)).color(theme.matrix_green)
+                        } else {
+                            RichText::new(format!("☐ {}", label)).color(theme.text_secondary)
+                        };
+                        if ui.selectable_label(false, checkbox_text).clicked() {
+                            *value = !*value;
+                        }
+                    });
                 }
             }
             
             Element::Textbox { label, placeholder, rows } => {
-                ui.label(label);
-                if let Some(value) = state.textboxes.get_mut(label) {
-                    let height = rows.unwrap_or(1) as f32 * 20.0;
-                    if let Some(hint) = placeholder {
-                        ui.add_sized(
-                            Vec2::new(ui.available_width(), height),
-                            egui::TextEdit::multiline(value).hint_text(hint)
-                        );
-                    } else {
-                        ui.add_sized(
-                            Vec2::new(ui.available_width(), height),
-                            egui::TextEdit::multiline(value)
-                        );
+                ui.group(|ui| {
+                    ui.label(RichText::new(format!("◈ {}", label)).color(theme.electric_blue));
+                    if let Some(value) = state.textboxes.get_mut(label) {
+                        let height = rows.unwrap_or(1) as f32 * 20.0;
+                        let text_edit = egui::TextEdit::multiline(value)
+                            .desired_width(ui.available_width())
+                            .min_size(Vec2::new(ui.available_width(), height));
+                        
+                        if let Some(hint) = placeholder {
+                            ui.add(text_edit.hint_text(hint));
+                        } else {
+                            ui.add(text_edit);
+                        }
                     }
-                }
+                });
             }
             
             Element::Choice { label, options } => {
-                ui.label(label);
-                if let Some(selected) = state.choices.get_mut(label) {
-                    ui.vertical(|ui| {
-                        for (i, option) in options.iter().enumerate() {
-                            ui.radio_value(selected, i, option);
-                        }
-                    });
-                }
+                ui.group(|ui| {
+                    ui.label(RichText::new(format!("◆ {}", label)).color(theme.neon_purple));
+                    if let Some(selected) = state.choices.get_mut(label) {
+                        ui.vertical(|ui| {
+                            for (i, option) in options.iter().enumerate() {
+                                let is_selected = *selected == i;
+                                let option_text = if is_selected {
+                                    RichText::new(format!("▸ {}", option)).color(theme.neon_cyan)
+                                } else {
+                                    RichText::new(format!("  {}", option)).color(theme.text_secondary)
+                                };
+                                if ui.selectable_label(is_selected, option_text).clicked() {
+                                    *selected = i;
+                                }
+                            }
+                        });
+                    }
+                });
             }
             
             Element::Multiselect { label, options } => {
-                ui.label(label);
-                if let Some(selections) = state.multiselects.get_mut(label) {
-                    ui.vertical(|ui| {
-                        for (i, option) in options.iter().enumerate() {
-                            if i < selections.len() {
-                                ui.checkbox(&mut selections[i], option);
+                ui.group(|ui| {
+                    ui.label(RichText::new(format!("◈ {}", label)).color(theme.warning_orange));
+                    if let Some(selections) = state.multiselects.get_mut(label) {
+                        ui.vertical(|ui| {
+                            for (i, option) in options.iter().enumerate() {
+                                if i < selections.len() {
+                                    let checkbox_text = if selections[i] {
+                                        RichText::new(format!("☑ {}", option)).color(theme.matrix_green)
+                                    } else {
+                                        RichText::new(format!("☐ {}", option)).color(theme.text_secondary)
+                                    };
+                                    if ui.selectable_label(false, checkbox_text).clicked() {
+                                        selections[i] = !selections[i];
+                                    }
+                                }
                             }
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             }
             
             Element::Group { label, elements } => {
                 ui.group(|ui| {
-                    ui.label(RichText::new(label).strong());
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("//").color(theme.neon_pink).monospace());
+                        ui.label(RichText::new(label).color(theme.neon_cyan).strong());
+                    });
+                    ui.separator();
                     render_elements_with_context(ui, elements, state, all_elements, theme);
                 });
             }
@@ -218,10 +275,23 @@ fn render_elements_with_context(
                     }
                     
                     for button in buttons {
+                        let button_text = RichText::new(button.to_uppercase())
+                            .size(12.0)
+                            .strong();
+                        
+                        let button_color = if button.contains("Force") || button.contains("Cancel") {
+                            theme.neon_pink
+                        } else if button.contains("Continue") || button.contains("Proceed") {
+                            theme.matrix_green
+                        } else {
+                            theme.electric_blue
+                        };
+                        
                         let response = ui.add_sized(
-                            Vec2::new(button_width, 26.0),
-                            egui::Button::new(button)
-                                .fill(theme.neural_blue)
+                            Vec2::new(button_width, 28.0),
+                            egui::Button::new(button_text)
+                                .fill(button_color.linear_multiply(0.2))
+                                .stroke(Stroke::new(1.0, button_color))
                         );
                         
                         if response.clicked() {
@@ -289,17 +359,17 @@ fn find_selected_option(elements: &[Element], choice_name: &str, selected_idx: u
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 35.0; // Title bar
-    let mut max_width: f32 = 350.0; // Minimum width
+    let mut height: f32 = 50.0; // Title bar + padding for cyberpunk style
+    let mut max_width: f32 = 400.0; // Minimum width for cyberpunk aesthetic
     
     calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
     
-    // Add bottom padding
-    height += 10.0;
+    // Add bottom padding for buttons
+    height += 20.0;
     
-    // Set reasonable bounds
-    max_width = max_width.min(550.0).max(350.0);
-    height = height.min(800.0);
+    // Set reasonable bounds with more width for cyberpunk styling
+    max_width = max_width.min(650.0).max(400.0);
+    height = height.min(900.0);
     
     (max_width, height)
 }
@@ -314,37 +384,37 @@ fn calculate_elements_size(
     for element in elements {
         match element {
             Element::Text(text) => {
-                *height += 20.0;
-                *max_width = max_width.max(text.len() as f32 * 7.0 + 20.0 + (depth as f32 * 10.0));
+                *height += 25.0; // More space for cyberpunk styling
+                *max_width = max_width.max(text.len() as f32 * 8.0 + 40.0 + (depth as f32 * 10.0));
             }
             Element::Slider { label, .. } => {
-                *height += 30.0;
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 200.0 + (depth as f32 * 10.0));
+                *height += 45.0; // Space for label + value display + slider
+                *max_width = max_width.max(label.len() as f32 * 8.0 + 250.0 + (depth as f32 * 10.0));
             }
             Element::Checkbox { label, .. } => {
-                *height += 22.0;
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 60.0 + (depth as f32 * 10.0));
+                *height += 28.0; // More space for cyberpunk checkbox styling
+                *max_width = max_width.max(label.len() as f32 * 8.0 + 80.0 + (depth as f32 * 10.0));
             }
             Element::Textbox { rows, .. } => {
-                *height += 22.0 + 20.0 * (*rows).unwrap_or(1) as f32;
-                *max_width = max_width.max(380.0 + (depth as f32 * 15.0));
+                *height += 35.0 + 22.0 * (*rows).unwrap_or(1) as f32; // Label + textbox
+                *max_width = max_width.max(420.0 + (depth as f32 * 15.0));
             }
             Element::Choice { options, .. } => {
-                *height += 20.0; // Label
-                *height += 22.0 * options.len() as f32; // Options
+                *height += 35.0; // Label with group styling
+                *height += 28.0 * options.len() as f32; // Options with cyberpunk styling
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 7.0 + 60.0 + (depth as f32 * 10.0));
+                *max_width = max_width.max((longest as f32) * 8.0 + 100.0 + (depth as f32 * 10.0));
             }
             Element::Multiselect { options, .. } => {
-                *height += 20.0; // Label
-                *height += 22.0 * options.len() as f32; // Options
+                *height += 35.0; // Label with group styling
+                *height += 28.0 * options.len() as f32; // Options with checkbox styling
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 7.0 + 60.0 + (depth as f32 * 10.0));
+                *max_width = max_width.max((longest as f32) * 8.0 + 100.0 + (depth as f32 * 10.0));
             }
             Element::Group { elements, .. } => {
-                *height += 30.0; // Group header and padding
+                *height += 40.0; // Group header with cyberpunk styling
                 calculate_elements_size(elements, height, max_width, depth + 1, include_conditionals);
-                *height += 10.0; // Bottom padding
+                *height += 15.0; // Bottom padding
             }
             Element::Conditional { elements, condition } => {
                 if include_conditionals {
@@ -362,11 +432,11 @@ fn calculate_elements_size(
                 }
             }
             Element::Buttons(buttons) => {
-                *height += 35.0;
-                let button_width = buttons.len() as f32 * 98.0;
-                *max_width = max_width.max(button_width);
+                *height += 45.0; // More space for cyberpunk button styling
+                let button_width = buttons.len() as f32 * 110.0; // Wider buttons
+                *max_width = max_width.max(button_width + 40.0); // Extra margins
             }
         }
-        *height += 2.0; // Item spacing
+        *height += 4.0; // More item spacing for cyberpunk aesthetic
     }
 }
