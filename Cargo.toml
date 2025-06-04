@@ -20,6 +20,10 @@ path = "src/bin/test_examples.rs"
 name = "test_emoji"
 path = "src/bin/test_emoji.rs"
 
+[[bin]]
+name = "spike"
+path = "src/bin/spike.rs"
+
 [dependencies]
 anyhow = "1.0.98"
 env_logger = "0.11.8"
@@ -31,3 +35,4 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 mcpr = "0.2.3"
 log = "0.4"
+clap = { version = "4.5", features = ["derive"] }

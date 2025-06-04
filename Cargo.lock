@@ -2597,6 +2597,7 @@ name = "popup-mcp"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "clap",
  "eframe",
  "egui",
  "env_logger",
