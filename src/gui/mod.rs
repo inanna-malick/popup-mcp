@@ -8,6 +8,17 @@ use crate::theme::Theme;
 
 mod widget_renderers;
 
+fn setup_custom_fonts(_ctx: &Context) {
+    // Note: egui currently only supports monochrome emoji rendering
+    // Full color emoji would require:
+    // 1. Custom font loading with color emoji support
+    // 2. Platform-specific rendering (e.g., CoreText on macOS)
+    // 3. Or switching to a different text rendering backend
+    
+    // For now, we get monochrome emoji which is better than nothing
+    // and maintains cross-platform compatibility
+}
+
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     use std::sync::{Arc, Mutex};
     
@@ -29,7 +40,10 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     eframe::run_native(
         &title,
         options,
-        Box::new(move |_cc| {
+        Box::new(move |cc| {
+            // Configure fonts for emoji support
+            setup_custom_fonts(&cc.egui_ctx);
+            
             let app = PopupApp::new_with_result(definition, result_clone);
             Box::new(app)
         }),
@@ -59,6 +73,7 @@ impl PopupApp {
             result,
         }
     }
+    
     
     fn send_result_and_close(&mut self, ctx: &Context) {
         let popup_result = PopupResult::from_state(&self.state);

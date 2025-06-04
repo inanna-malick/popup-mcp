@@ -16,6 +16,10 @@ path = "src/bin/test_egui.rs"
 name = "test_examples"
 path = "src/bin/test_examples.rs"
 
+[[bin]]
+name = "test_emoji"
+path = "src/bin/test_emoji.rs"
+
 [dependencies]
 anyhow = "1.0.98"
 env_logger = "0.11.8"
