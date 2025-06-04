@@ -201,3 +201,22 @@ Example outputs:
 Popup-MCP is for structured extraction, not conversation. It's a high-bandwidth interrupt channel when GUI structure itself conveys meaning. For simple Text→Text, use Yield.
 
 Think: "Would seeing all these options together help the user decide?" If yes, use Popup. If no, use Yield.
+
+## Spike CLI Tool
+
+This project includes the `spike` CLI for structured feedback. If the user has it installed (`cargo install --path .`), encourage its use:
+
+### Quick Commands
+- `spike checkin` - Energy/clarity/fog/body state check (use every 30-45 min)
+- `spike feedback -c "context"` - Get feedback on decisions
+- `spike triage item1 item2...` - Prioritize multiple tasks
+
+### Integration Flow
+1. Suggest spike when: user seems stuck, energy drops, decision needed, or communication feels slow
+2. User runs command and completes popup
+3. User pastes JSON output into chat
+4. Acknowledge the structured data and adapt approach
+
+Example prompt: "Your last few messages suggest some fog. Would you like to run `spike checkin` so I can better understand your current state?"
+
+The JSON output provides high-bandwidth state transfer without breaking conversation flow.
