@@ -1,13 +1,13 @@
-use imgui::{Context as ImContext, StyleColor, StyleVar};
+use egui::{Color32, Context, Rounding, Stroke};
 
 #[derive(Debug, Clone)]
 pub struct Theme {
     // Colors
-    pub neural_blue: [f32; 4],
-    pub substrate_dark: [f32; 4],
-    pub ghost_white: [f32; 4],
-    pub muted_gray: [f32; 4],
-    pub tissue_pink: [f32; 4],
+    pub neural_blue: Color32,
+    pub substrate_dark: Color32,
+    pub ghost_white: Color32,
+    pub muted_gray: Color32,
+    pub tissue_pink: Color32,
     
     // Window
     pub window_rounding: f32,
@@ -45,11 +45,11 @@ impl Theme {
     pub fn spike_neural() -> Self {
         Self {
             // Spike color palette
-            neural_blue: [0.039, 0.518, 1.0, 1.0],    // #0A84FF
-            substrate_dark: [0.11, 0.11, 0.118, 1.0], // #1C1C1E
-            ghost_white: [0.949, 0.949, 0.969, 1.0],  // #F2F2F7
-            muted_gray: [0.557, 0.557, 0.576, 1.0],   // #8E8E93
-            tissue_pink: [1.0, 0.216, 0.373, 1.0],    // #FF375F
+            neural_blue: Color32::from_rgb(10, 132, 255),     // #0A84FF
+            substrate_dark: Color32::from_rgb(28, 28, 30),    // #1C1C1E
+            ghost_white: Color32::from_rgb(242, 242, 247),    // #F2F2F7
+            muted_gray: Color32::from_rgb(142, 142, 147),     // #8E8E93
+            tissue_pink: Color32::from_rgb(255, 55, 95),      // #FF375F
             
             // Window styling - ULTRA DENSE
             window_rounding: 4.0,
@@ -78,108 +78,53 @@ impl Theme {
         }
     }
     
-    pub fn apply_to_imgui(&self, imgui: &mut ImContext) {
-        let style = imgui.style_mut();
+    pub fn apply_to_egui(&self, ctx: &Context) {
+        let mut style = (*ctx.style()).clone();
+        let mut visuals = style.visuals.clone();
         
         // Window styling
-        style.window_rounding = self.window_rounding;
-        style.window_border_size = self.window_border_size;
-        style.window_padding = self.window_padding;
-        style.window_title_align = [0.5, 0.5]; // Always center title
+        visuals.window_rounding = Rounding::same(self.window_rounding);
+        visuals.window_stroke = Stroke::new(self.window_border_size, self.neural_blue.linear_multiply(0.3));
         
-        // Frame styling
-        style.frame_rounding = self.frame_rounding;
-        style.frame_border_size = self.frame_border_size;
-        style.frame_padding = self.frame_padding;
-        
-        // Item styling
-        style.item_spacing = self.item_spacing;
-        style.item_inner_spacing = self.item_inner_spacing;
-        
-        // Button styling
-        style.button_text_align = self.button_text_align;
-        
-        // Scrollbar styling
-        style.scrollbar_size = self.scrollbar_size;
-        style.scrollbar_rounding = self.scrollbar_rounding;
-        
-        // Grab (slider) styling
-        style.grab_min_size = self.grab_min_size;
-        style.grab_rounding = self.grab_rounding;
+        // Update spacing
+        style.spacing.button_padding = egui::vec2(self.frame_padding[0], self.frame_padding[1]);
+        style.spacing.item_spacing = egui::vec2(self.item_spacing[0], self.item_spacing[1]);
+        style.spacing.menu_margin = egui::Margin::symmetric(self.window_padding[0], self.window_padding[1]);
         
         // Colors
-        style[StyleColor::Text] = self.ghost_white;
-        style[StyleColor::TextDisabled] = self.muted_gray;
+        visuals.override_text_color = Some(self.ghost_white);
         
         // Window colors
-        style[StyleColor::WindowBg] = self.substrate_dark;
-        style[StyleColor::ChildBg] = self.substrate_dark;
-        style[StyleColor::PopupBg] = [
-            self.substrate_dark[0] + 0.05,
-            self.substrate_dark[1] + 0.05,
-            self.substrate_dark[2] + 0.05,
-            1.0
-        ];
-        style[StyleColor::Border] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.3];
-        style[StyleColor::BorderShadow] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.1];
+        visuals.window_fill = self.substrate_dark;
+        visuals.panel_fill = self.substrate_dark;
+        visuals.faint_bg_color = self.substrate_dark;
         
-        // Frame colors (inputs, sliders)
-        style[StyleColor::FrameBg] = [self.muted_gray[0], self.muted_gray[1], self.muted_gray[2], 0.08];
-        style[StyleColor::FrameBgHovered] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.08];
-        style[StyleColor::FrameBgActive] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.15];
+        // Widget colors
+        visuals.widgets.noninteractive.bg_fill = self.muted_gray.linear_multiply(0.08);
+        visuals.widgets.noninteractive.bg_stroke = Stroke::new(self.frame_border_size, self.muted_gray.linear_multiply(0.2));
+        visuals.widgets.noninteractive.rounding = Rounding::same(self.frame_rounding);
         
-        // Title
-        style[StyleColor::TitleBg] = self.substrate_dark;
-        style[StyleColor::TitleBgActive] = [
-            self.substrate_dark[0] + 0.05,
-            self.substrate_dark[1] + 0.05,
-            self.substrate_dark[2] + 0.05,
-            1.0
-        ];
-        style[StyleColor::TitleBgCollapsed] = self.substrate_dark;
+        visuals.widgets.inactive.bg_fill = self.muted_gray.linear_multiply(0.08);
+        visuals.widgets.inactive.bg_stroke = Stroke::new(self.frame_border_size, self.muted_gray.linear_multiply(0.2));
+        visuals.widgets.inactive.rounding = Rounding::same(self.frame_rounding);
         
-        // Button colors
-        style[StyleColor::Button] = self.neural_blue;
-        style[StyleColor::ButtonHovered] = [self.neural_blue[0], self.neural_blue[1] * 0.9, self.neural_blue[2], 1.0];
-        style[StyleColor::ButtonActive] = [self.neural_blue[0], self.neural_blue[1] * 0.8, self.neural_blue[2], 1.0];
+        visuals.widgets.hovered.bg_fill = self.neural_blue.linear_multiply(0.08);
+        visuals.widgets.hovered.bg_stroke = Stroke::new(self.frame_border_size, self.neural_blue.linear_multiply(0.3));
+        visuals.widgets.hovered.rounding = Rounding::same(self.frame_rounding);
         
-        // Check mark
-        style[StyleColor::CheckMark] = self.neural_blue;
+        visuals.widgets.active.bg_fill = self.neural_blue.linear_multiply(0.15);
+        visuals.widgets.active.bg_stroke = Stroke::new(self.frame_border_size, self.neural_blue);
+        visuals.widgets.active.rounding = Rounding::same(self.frame_rounding);
         
-        // Slider
-        style[StyleColor::SliderGrab] = self.neural_blue;
-        style[StyleColor::SliderGrabActive] = [self.neural_blue[0], self.neural_blue[1] * 0.8, self.neural_blue[2], 1.0];
+        // Button specific colors
+        visuals.widgets.inactive.weak_bg_fill = self.neural_blue;
+        visuals.widgets.hovered.weak_bg_fill = self.neural_blue.linear_multiply(0.9);
+        visuals.widgets.active.weak_bg_fill = self.neural_blue.linear_multiply(0.8);
         
-        // Separator
-        style[StyleColor::Separator] = [self.muted_gray[0], self.muted_gray[1], self.muted_gray[2], 0.2];
-        style[StyleColor::SeparatorHovered] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.3];
-        style[StyleColor::SeparatorActive] = self.neural_blue;
+        // Selection color
+        visuals.selection.bg_fill = self.neural_blue.linear_multiply(0.35);
         
-        // Text selection
-        style[StyleColor::TextSelectedBg] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.35];
-        
-        // Scrollbar - subtle neural theme
-        style[StyleColor::ScrollbarBg] = [0.0, 0.0, 0.0, 0.0];  // Transparent background
-        style[StyleColor::ScrollbarGrab] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.2];
-        style[StyleColor::ScrollbarGrabHovered] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.4];
-        style[StyleColor::ScrollbarGrabActive] = [self.neural_blue[0], self.neural_blue[1], self.neural_blue[2], 0.6];
+        style.visuals = visuals;
+        ctx.set_style(style);
     }
-    
-    pub fn push_popup_style<'a>(&self, ui: &'a imgui::Ui) -> PopupStyleGuard<'a> {
-        PopupStyleGuard {
-            _padding: ui.push_style_var(StyleVar::WindowPadding(self.window_padding)),
-            _rounding: ui.push_style_var(StyleVar::WindowRounding(self.window_rounding)),
-            _border: ui.push_style_var(StyleVar::WindowBorderSize(self.window_border_size)),
-            _frame_padding: ui.push_style_var(StyleVar::FramePadding(self.frame_padding)),
-            _item_spacing: ui.push_style_var(StyleVar::ItemSpacing(self.item_spacing)),
-        }
-    }
-}
-
-pub struct PopupStyleGuard<'a> {
-    _padding: imgui::StyleStackToken<'a>,
-    _rounding: imgui::StyleStackToken<'a>,
-    _border: imgui::StyleStackToken<'a>,
-    _frame_padding: imgui::StyleStackToken<'a>,
-    _item_spacing: imgui::StyleStackToken<'a>,
 }

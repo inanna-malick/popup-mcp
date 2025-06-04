@@ -9,8 +9,8 @@ popup "All Features Test" [
     
     if selected("Select mode:", "Mode A") [
         text "Mode A selected"
-        slider "Value" 0..100
-        checkbox "Enable feature X"
+        slider "Value" 0..100 default = 50
+        checkbox "Enable feature X" default = false
         
         if checked("Enable feature X") [
             text "Feature X is active!"
@@ -35,11 +35,12 @@ popup "All Features Test" [
     if selected("Select mode:", "Mode C") [
         text "Mode C selected"
         group "Settings" [
-            checkbox "Setting 1"
-            checkbox "Setting 2"
-            slider "Level" 0..10
+            checkbox "Setting 1" default = false
+            checkbox "Setting 2" default = false
+            slider "Level" 0..10 default = 5
         ]
     ]
     
-    buttons ["Apply", "Cancel"]
+    textbox "Other observations"
+    buttons ["Apply", "Cancel", "Force Yield"]
 ]

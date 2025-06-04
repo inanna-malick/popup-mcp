@@ -8,20 +8,22 @@ build = "build.rs"
 name = "stdio_direct"
 path = "src/bin/stdio_direct.rs"
 
+[[bin]]
+name = "test_egui"
+path = "src/bin/test_egui.rs"
+
+[[bin]]
+name = "test_examples"
+path = "src/bin/test_examples.rs"
+
 [dependencies]
 anyhow = "1.0.98"
 env_logger = "0.11.8"
-glow = "0.13"
-glutin = "0.31"
-glutin-winit = "0.4"
-imgui = "0.12"
-imgui-glow-renderer = "0.12"
-imgui-winit-support = "0.12"
+eframe = "0.25.0"
+egui = "0.25.0"
 pest = "2.8.0"
 pest_derive = "2.8.0"
-raw-window-handle = "0.5"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-winit = "0.29"
 mcpr = "0.2.3"
 log = "0.4"
