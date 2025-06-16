@@ -11,38 +11,14 @@ pub struct PopupDefinition {
 #[derive(Debug, Clone)]
 pub enum Element {
     Text(String),
-    Slider {
-        label: String,
-        min: f32,
-        max: f32,
-        default: f32,
-    },
-    Checkbox {
-        label: String,
-        default: bool,
-    },
-    Textbox {
-        label: String,
-        placeholder: Option<String>,
-        rows: Option<u32>,
-    },
-    Choice {
-        label: String,
-        options: Vec<String>,
-    },
-    Multiselect {
-        label: String,
-        options: Vec<String>,
-    },
-    Group {
-        label: String,
-        elements: Vec<Element>,
-    },
+    Slider { label: String, min: f32, max: f32, default: f32 },
+    Checkbox { label: String, default: bool },
+    Textbox { label: String, placeholder: Option<String>, rows: Option<u32> },
+    Choice { label: String, options: Vec<String> },
+    Multiselect { label: String, options: Vec<String> },
+    Group { label: String, elements: Vec<Element> },
     Buttons(Vec<String>),
-    Conditional {
-        condition: Condition,
-        elements: Vec<Element>,
-    },
+    Conditional { condition: Condition, elements: Vec<Element> },
 }
 
 #[derive(Debug, Clone)]
@@ -61,22 +37,26 @@ pub enum ComparisonOp {
     Equal,
 }
 
+/// Unified value type for all widget states
+#[derive(Debug, Clone)]
+pub enum ElementValue {
+    Number(f32),
+    Boolean(bool),
+    Text(String),
+    Choice(usize),
+    MultiChoice(Vec<bool>),
+}
+
 /// Runtime state of the popup
 #[derive(Default)]
 pub struct PopupState {
-    pub sliders: HashMap<String, f32>,
-    pub checkboxes: HashMap<String, bool>,
-    pub textboxes: HashMap<String, String>,
-    pub choices: HashMap<String, usize>,
-    pub multiselects: HashMap<String, Vec<bool>>,
+    pub values: HashMap<String, ElementValue>,
     pub button_clicked: Option<String>,
 }
 
 impl PopupState {
     pub fn new(definition: &PopupDefinition) -> Self {
         let mut state = PopupState::default();
-        
-        // Initialize with defaults from definition
         state.init_elements(&definition.elements);
         state
     }
@@ -85,29 +65,82 @@ impl PopupState {
         for element in elements {
             match element {
                 Element::Slider { label, default, .. } => {
-                    self.sliders.insert(label.clone(), *default);
+                    self.values.insert(label.clone(), ElementValue::Number(*default));
                 }
                 Element::Checkbox { label, default } => {
-                    self.checkboxes.insert(label.clone(), *default);
+                    self.values.insert(label.clone(), ElementValue::Boolean(*default));
                 }
                 Element::Textbox { label, .. } => {
-                    self.textboxes.insert(label.clone(), String::new());
+                    self.values.insert(label.clone(), ElementValue::Text(String::new()));
                 }
                 Element::Choice { label, .. } => {
-                    self.choices.insert(label.clone(), 0); // First option selected by default
+                    self.values.insert(label.clone(), ElementValue::Choice(0));
                 }
                 Element::Multiselect { label, options } => {
-                    self.multiselects.insert(label.clone(), vec![false; options.len()]);
+                    self.values.insert(label.clone(), ElementValue::MultiChoice(vec![false; options.len()]));
                 }
-                Element::Group { elements, .. } => {
-                    self.init_elements(elements);
-                }
-                Element::Conditional { elements, .. } => {
-                    // Initialize nested elements too
+                Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                     self.init_elements(elements);
                 }
                 _ => {}
             }
+        }
+    }
+    
+    // Helper methods for GUI access
+    pub fn get_number_mut(&mut self, label: &str) -> Option<&mut f32> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::Number(ref mut n)) => Some(n),
+            _ => None,
+        }
+    }
+    
+    pub fn get_boolean_mut(&mut self, label: &str) -> Option<&mut bool> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::Boolean(ref mut b)) => Some(b),
+            _ => None,
+        }
+    }
+    
+    pub fn get_text_mut(&mut self, label: &str) -> Option<&mut String> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::Text(ref mut s)) => Some(s),
+            _ => None,
+        }
+    }
+    
+    pub fn get_choice_mut(&mut self, label: &str) -> Option<&mut usize> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::Choice(ref mut i)) => Some(i),
+            _ => None,
+        }
+    }
+    
+    pub fn get_multichoice_mut(&mut self, label: &str) -> Option<&mut Vec<bool>> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::MultiChoice(ref mut v)) => Some(v),
+            _ => None,
+        }
+    }
+    
+    pub fn get_boolean(&self, label: &str) -> bool {
+        match self.values.get(label) {
+            Some(ElementValue::Boolean(b)) => *b,
+            _ => false,
+        }
+    }
+    
+    pub fn get_choice(&self, label: &str) -> usize {
+        match self.values.get(label) {
+            Some(ElementValue::Choice(i)) => *i,
+            _ => 0,
+        }
+    }
+    
+    pub fn get_multichoice(&self, label: &str) -> Option<&Vec<bool>> {
+        match self.values.get(label) {
+            Some(ElementValue::MultiChoice(v)) => Some(v),
+            _ => None,
         }
     }
 }
@@ -122,36 +155,25 @@ pub struct PopupResult {
 
 impl PopupResult {
     pub fn from_state(state: &PopupState) -> Self {
-        let mut values = HashMap::new();
-        
-        // Add all values from state
-        for (key, value) in &state.sliders {
-            values.insert(key.clone(), json!(*value as i32));
-        }
-        
-        for (key, value) in &state.checkboxes {
-            values.insert(key.clone(), json!(*value));
-        }
-        
-        for (key, value) in &state.textboxes {
-            if !value.is_empty() {
-                values.insert(key.clone(), json!(value));
-            }
-        }
-        
-        for (key, value) in &state.choices {
-            values.insert(key.clone(), json!(*value));
-        }
-        
-        for (key, selections) in &state.multiselects {
-            // Convert Vec<bool> to indices of selected items
-            let selected_indices: Vec<usize> = selections
-                .iter()
-                .enumerate()
-                .filter_map(|(i, &selected)| if selected { Some(i) } else { None })
-                .collect();
-            values.insert(key.clone(), json!(selected_indices));
-        }
+        let values = state.values.iter()
+            .filter_map(|(key, value)| {
+                let json_value = match value {
+                    ElementValue::Number(n) => json!(*n as i32),
+                    ElementValue::Boolean(b) => json!(*b),
+                    ElementValue::Text(s) if !s.is_empty() => json!(s),
+                    ElementValue::Choice(i) => json!(*i),
+                    ElementValue::MultiChoice(selections) => {
+                        let indices: Vec<usize> = selections.iter()
+                            .enumerate()
+                            .filter_map(|(i, &selected)| selected.then_some(i))
+                            .collect();
+                        json!(indices)
+                    }
+                    _ => return None, // Skip empty text fields
+                };
+                Some((key.clone(), json_value))
+            })
+            .collect();
         
         PopupResult {
             values,

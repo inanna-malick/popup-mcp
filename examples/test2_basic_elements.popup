@@ -1,8 +1,16 @@
-popup "Elements" [
-    text "Sample text"
-    slider "Volume" 0..10
-    checkbox "Mute?"
-    textbox "Name"
-    choice "Mode" ["A", "B", "C"]
-    buttons ["Submit"]
+popup "Feature Demo" [
+    text "This popup demonstrates core DSL features"
+    slider "Energy Level" 0..10 @7
+    checkbox "Need Break" @false
+    textbox "Notes"
+    choice "Priority" ["Low", "Medium", "High", "Urgent"]
+    multiselect "Tasks" ["Email", "Code", "Docs", "Meeting"]
+    group "Advanced" [
+        slider "Risk Tolerance" 0..10 @5
+        if checked("Need Break") [
+            text "Consider taking a 15 minute break"
+            choice "Break Type" ["Walk", "Coffee", "Stretch"]
+        ]
+    ]
+    buttons ["Continue", "Postpone"]
 ]

@@ -54,10 +54,10 @@ fn main() -> Result<()> {
 popup "System Check-in" [
     text "How are you doing right now?"
     
-    slider "Energy" 0..10 default = 5
-    slider "Clarity" 0..10 default = 5
-    checkbox "Fog present" default = false
-    checkbox "Body needs first" default = false
+    slider "Energy" 0..10 @5
+    slider "Clarity" 0..10 @5
+    checkbox "Fog present" @false
+    checkbox "Body needs first" @false
     
     textbox "Other observations"
     
@@ -80,7 +80,7 @@ popup "Feedback Request" [
         "Wrong direction - rethink"
     ]
     
-    slider "Confidence" 0..10 default = 5
+    slider "Confidence" 0..10 @5
     
     textbox "Specific concerns or suggestions" rows=3
     
@@ -113,7 +113,7 @@ popup "Quick Triage" [
         "Need more context"
     ]
     
-    checkbox "Time sensitive" default = false
+    checkbox "Time sensitive" @false
     
     textbox "Other observations"
     
@@ -145,7 +145,7 @@ popup "Spike Feedback" [
     
     textbox "Message" rows=3
     
-    slider "Importance" 0..10 default = 5
+    slider "Importance" 0..10 @5
     
     textbox "Other observations"
     

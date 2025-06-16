@@ -171,7 +171,7 @@ fn render_elements_with_context(
             }
             
             Element::Slider { label, min, max, default: _ } => {
-                if let Some(value) = state.sliders.get_mut(label) {
+                if let Some(value) = state.get_number_mut(label) {
                     ui.group(|ui| {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
@@ -196,7 +196,7 @@ fn render_elements_with_context(
             }
             
             Element::Checkbox { label, default: _ } => {
-                if let Some(value) = state.checkboxes.get_mut(label) {
+                if let Some(value) = state.get_boolean_mut(label) {
                     ui.horizontal(|ui| {
                         
                         let checkbox_text = if *value {
@@ -225,7 +225,7 @@ fn render_elements_with_context(
             Element::Textbox { label, placeholder, rows } => {
                 ui.group(|ui| {
                     ui.label(RichText::new(format!("◈ {}", label)).color(theme.electric_blue));
-                    if let Some(value) = state.textboxes.get_mut(label) {
+                    if let Some(value) = state.get_text_mut(label) {
                         let height = rows.unwrap_or(1) as f32 * 20.0;
                         let text_edit = egui::TextEdit::multiline(value)
                             .desired_width(ui.available_width())
@@ -248,7 +248,7 @@ fn render_elements_with_context(
             Element::Choice { label, options } => {
                 ui.group(|ui| {
                     ui.label(RichText::new(format!("◆ {}", label)).color(theme.neon_purple));
-                    if let Some(selected) = state.choices.get_mut(label) {
+                    if let Some(selected) = state.get_choice_mut(label) {
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
                                 
@@ -281,7 +281,7 @@ fn render_elements_with_context(
             Element::Multiselect { label, options } => {
                 ui.group(|ui| {
                     ui.label(RichText::new(format!("◈ {}", label)).color(theme.warning_orange));
-                    if let Some(selections) = state.multiselects.get_mut(label) {
+                    if let Some(selections) = state.get_multichoice_mut(label) {
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
                                 if i < selections.len() {
@@ -390,21 +390,18 @@ fn evaluate_condition_with_context(
 ) -> bool {
     match condition {
         Condition::Checked(name) => {
-            state.checkboxes.get(name).copied().unwrap_or(false)
+            state.get_boolean(name)
         }
         Condition::Selected(name, expected_value) => {
-            if let Some(&selected_idx) = state.choices.get(name) {
-                if let Some(actual_value) = find_selected_option(all_elements, name, selected_idx) {
-                    actual_value == *expected_value
-                } else {
-                    false
-                }
+            let selected_idx = state.get_choice(name);
+            if let Some(actual_value) = find_selected_option(all_elements, name, selected_idx) {
+                actual_value == *expected_value
             } else {
                 false
             }
         }
         Condition::Count(name, op, value) => {
-            if let Some(selections) = state.multiselects.get(name) {
+            if let Some(selections) = state.get_multichoice(name) {
                 let count = selections.iter().filter(|&&x| x).count() as i32;
                 match op {
                     ComparisonOp::Greater => count > *value,

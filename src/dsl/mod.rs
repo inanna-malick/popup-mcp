@@ -22,11 +22,8 @@ pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     
     let mut definition = parse_popup(pair)?;
     
-    // Ensure every popup has an exit path
-    ensure_exit_button(&mut definition);
-    
-    // Add Force Yield button if not present
-    ensure_force_yield_button(&mut definition);
+    // Ensure popup has buttons and Force Yield safety
+    ensure_button_safety(&mut definition);
     
     Ok(definition)
 }
@@ -75,6 +72,16 @@ fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     }
 }
 
+// Macro to reduce parsing repetition
+macro_rules! parse_with_label {
+    ($pair:expr, $variant:ident) => {{
+        let mut inner = $pair.into_inner();
+        let label = parse_string(inner.next().unwrap())?;
+        let options = parse_string_list_rule(inner.next().unwrap())?;
+        Ok(Element::$variant { label, options })
+    }};
+}
+
 fn parse_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let text = parse_string(pair.into_inner().next().unwrap())?;
     Ok(Element::Text(text))
@@ -85,14 +92,10 @@ fn parse_slider(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let label = parse_string(inner.next().unwrap())?;
     let min = inner.next().unwrap().as_str().parse::<f32>()?;
     let max = inner.next().unwrap().as_str().parse::<f32>()?;
-    
-    // Default is optional with @ syntax
-    let default = if let Some(default_pair) = inner.next() {
-        default_pair.as_str().parse::<f32>()?
-    } else {
-        // Use midpoint as default if not specified
-        (min + max) / 2.0
-    };
+    let default = inner.next()
+        .map(|p| p.as_str().parse::<f32>())
+        .transpose()?
+        .unwrap_or((min + max) / 2.0);
     
     Ok(Element::Slider { label, min, max, default })
 }
@@ -100,13 +103,9 @@ fn parse_slider(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 fn parse_checkbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let label = parse_string(inner.next().unwrap())?;
-    
-    // Default is optional with @ syntax
-    let default = if let Some(default_pair) = inner.next() {
-        default_pair.as_str() == "true"
-    } else {
-        false // Default to unchecked if not specified
-    };
+    let default = inner.next()
+        .map(|p| p.as_str() == "true")
+        .unwrap_or(false);
     
     Ok(Element::Checkbox { label, default })
 }
@@ -129,19 +128,11 @@ fn parse_textbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 }
 
 fn parse_choice(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let string_list_pair = inner.next().unwrap();
-    let options = parse_string_list_rule(string_list_pair)?;
-    Ok(Element::Choice { label, options })
+    parse_with_label!(pair, Choice)
 }
 
 fn parse_multiselect(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let string_list_pair = inner.next().unwrap();
-    let options = parse_string_list_rule(string_list_pair)?;
-    Ok(Element::Multiselect { label, options })
+    parse_with_label!(pair, Multiselect)
 }
 
 fn parse_group(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
@@ -233,67 +224,46 @@ fn parse_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp> {
     }
 }
 
-/// Ensures that every popup has at least one button for user interaction.
-/// If no buttons exist anywhere in the popup (including nested elements),
-/// a default "Continue" button is added.
-fn ensure_exit_button(definition: &mut PopupDefinition) {
-    // Check if buttons exist anywhere in the element tree
+/// Ensures popup safety: adds buttons if missing and includes Force Yield
+fn ensure_button_safety(definition: &mut PopupDefinition) {
+    // Add default buttons if none exist
     if !has_buttons_recursive(&definition.elements) {
-        // Warn about the automatic addition
         eprintln!(
             "Warning: Popup '{}' had no buttons defined. Adding default 'Continue' button.",
             definition.title
         );
-        
-        // Add a sensible default button
         definition.elements.push(Element::Buttons(vec!["Continue".to_string()]));
     }
+    
+    // Add Force Yield to the last button element
+    add_force_yield_to_last_buttons(&mut definition.elements);
 }
 
-/// Recursively checks if any buttons exist in the element tree.
-/// This includes buttons in groups and conditional sections.
 fn has_buttons_recursive(elements: &[Element]) -> bool {
     elements.iter().any(|element| match element {
         Element::Buttons(_) => true,
-        Element::Group { elements, .. } => has_buttons_recursive(elements),
-        Element::Conditional { elements, .. } => {
-            // For conditionals, we check if buttons exist in the conditional content
-            // This ensures that even conditionally-shown buttons count
+        Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
             has_buttons_recursive(elements)
         }
         _ => false,
     })
 }
 
-/// Ensures that every popup has a Force Yield button for emergency exit.
-/// This adds the button to the last button element found in the tree.
-fn ensure_force_yield_button(definition: &mut PopupDefinition) {
-    // Find the last button element and add Force Yield if not present
-    add_force_yield_to_buttons(&mut definition.elements);
-}
-
-/// Recursively searches for button elements and adds Force Yield to the last one found
-fn add_force_yield_to_buttons(elements: &mut [Element]) -> bool {
-    // Process in reverse order to find the last button element
+fn add_force_yield_to_last_buttons(elements: &mut [Element]) -> bool {
     for element in elements.iter_mut().rev() {
         match element {
             Element::Buttons(buttons) => {
-                // Check if Force Yield already exists
                 if !buttons.iter().any(|b| b == "Force Yield") {
                     buttons.push("Force Yield".to_string());
                 }
-                return true; // Found and processed buttons
+                return true;
             }
             Element::Group { elements: nested, .. } => {
-                if add_force_yield_to_buttons(nested) {
-                    return true; // Found buttons in nested elements
+                if add_force_yield_to_last_buttons(nested) {
+                    return true;
                 }
             }
-            Element::Conditional { elements: _nested, .. } => {
-                // Don't add to conditional buttons as they might not always be visible
-                // Continue searching for non-conditional buttons
-                continue;
-            }
+            Element::Conditional { .. } => continue, // Skip conditional buttons
             _ => {}
         }
     }

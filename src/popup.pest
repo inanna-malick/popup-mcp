@@ -1,44 +1,47 @@
+// Popup DSL Grammar
+// Defines syntax for structured GUI popups with widgets and conditional logic
+
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-// Core
+// Root: popup "Title" [elements...]
 popup = { SOI ~ "popup" ~ string ~ "[" ~ element* ~ "]" ~ EOI }
 
-// Elements
+// All supported UI elements
 element = {
-    text |
-    slider |
-    checkbox |
-    textbox |
-    choice |
-    multiselect |
-    group |
-    buttons |
-    conditional
+    text |        // Display text
+    slider |      // Numeric range input
+    checkbox |    // Boolean toggle
+    textbox |     // Text input
+    choice |      // Single selection dropdown
+    multiselect | // Multiple selection
+    group |       // Visual grouping
+    buttons |     // Action buttons
+    conditional   // Conditional display
 }
 
-// Element definitions
+// Widget definitions with labels and options
 text = { "text" ~ string }
-slider = { "slider" ~ string ~ number ~ ".." ~ number ~ ("@" ~ number)? }
-checkbox = { "checkbox" ~ string ~ ("@" ~ boolean)? }
+slider = { "slider" ~ string ~ number ~ ".." ~ number ~ ("@" ~ number)? }  // @ sets default
+checkbox = { "checkbox" ~ string ~ ("@" ~ boolean)? }                     // @ sets default
 textbox = { "textbox" ~ string }
 choice = { "choice" ~ string ~ "[" ~ string_list ~ "]" }
 multiselect = { "multiselect" ~ string ~ "[" ~ string_list ~ "]" }
 group = { "group" ~ string ~ "[" ~ element* ~ "]" }
 buttons = { "buttons" ~ "[" ~ string_list ~ "]" }
 
-// Conditional
+// Conditional UI: if condition [elements...]
 conditional = { "if" ~ condition ~ "[" ~ element* ~ "]" }
 condition = {
-    "checked(" ~ string ~ ")" |
-    "selected(" ~ string ~ "," ~ string ~ ")" |
-    "count(" ~ string ~ ")" ~ op ~ number
+    "checked(" ~ string ~ ")" |                          // if checkbox is checked
+    "selected(" ~ string ~ "," ~ string ~ ")" |          // if choice equals value
+    "count(" ~ string ~ ")" ~ op ~ number                // if multiselect count compares to number
 }
 
-// Utilities
-string_list = { string ~ ("," ~ string)* }
-op = { ">" | "<" | ">=" | "<=" | "==" | "!=" }
+// Helper rules
+string_list = { string ~ ("," ~ string)* }              // Comma-separated strings
+op = { ">" | "<" | ">=" | "<=" | "==" | "!=" }         // Comparison operators
 
-// Primitives
-string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
-boolean = { "true" | "false" }
+// Basic types
+string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }               // Quoted strings
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
+boolean = { "true" | "false" }                          // Boolean values
