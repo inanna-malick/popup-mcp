@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use pest::Parser;
 use pest_derive::Parser;
 
@@ -10,7 +10,10 @@ pub struct PopupParser;
 
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     let pairs = PopupParser::parse(Rule::popup, input)
-        .context("Failed to parse popup DSL")?;
+        .map_err(|e| {
+            // Pest errors include detailed position and expected tokens
+            anyhow::anyhow!("Parse error: {}", e)
+        })?;
     
     let pair = pairs
         .into_iter()
@@ -80,11 +83,13 @@ fn parse_slider(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let min = inner.next().unwrap().as_str().parse::<f32>()?;
     let max = inner.next().unwrap().as_str().parse::<f32>()?;
     
-    // Default is now required
-    let default = inner.next()
-        .ok_or_else(|| anyhow::anyhow!("Slider '{}' requires a default value", label))?
-        .as_str()
-        .parse::<f32>()?;
+    // Default is optional with @ syntax
+    let default = if let Some(default_pair) = inner.next() {
+        default_pair.as_str().parse::<f32>()?
+    } else {
+        // Use midpoint as default if not specified
+        (min + max) / 2.0
+    };
     
     Ok(Element::Slider { label, min, max, default })
 }
@@ -93,10 +98,12 @@ fn parse_checkbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let label = parse_string(inner.next().unwrap())?;
     
-    // Default is now required
-    let default = inner.next()
-        .ok_or_else(|| anyhow::anyhow!("Checkbox '{}' requires a default value", label))?
-        .as_str() == "true";
+    // Default is optional with @ syntax
+    let default = if let Some(default_pair) = inner.next() {
+        default_pair.as_str() == "true"
+    } else {
+        false // Default to unchecked if not specified
+    };
     
     Ok(Element::Checkbox { label, default })
 }
@@ -121,14 +128,16 @@ fn parse_textbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 fn parse_choice(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let label = parse_string(inner.next().unwrap())?;
-    let options = parse_string_list(inner)?;
+    let string_list_pair = inner.next().unwrap();
+    let options = parse_string_list_rule(string_list_pair)?;
     Ok(Element::Choice { label, options })
 }
 
 fn parse_multiselect(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let label = parse_string(inner.next().unwrap())?;
-    let options = parse_string_list(inner)?;
+    let string_list_pair = inner.next().unwrap();
+    let options = parse_string_list_rule(string_list_pair)?;
     Ok(Element::Multiselect { label, options })
 }
 
@@ -140,7 +149,8 @@ fn parse_group(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 }
 
 fn parse_buttons(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let buttons = parse_string_list(pair.into_inner())?;
+    let string_list_pair = pair.into_inner().next().unwrap();
+    let buttons = parse_string_list_rule(string_list_pair)?;
     Ok(Element::Buttons(buttons))
 }
 
@@ -153,11 +163,11 @@ fn parse_conditional(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 }
 
 // Helper functions to reduce duplication
-fn parse_string_list(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<String>> {
+fn parse_string_list_rule(pair: pest::iterators::Pair<Rule>) -> Result<Vec<String>> {
     let mut strings = Vec::new();
-    for pair in pairs {
-        if pair.as_rule() == Rule::string {
-            strings.push(parse_string(pair)?);
+    for inner_pair in pair.into_inner() {
+        if inner_pair.as_rule() == Rule::string {
+            strings.push(parse_string(inner_pair)?);
         }
     }
     Ok(strings)
@@ -174,50 +184,48 @@ fn parse_elements(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<Element>> {
 }
 
 fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
-    Ok(pair.into_inner().next().unwrap().as_str().to_string())
+    // The string rule now includes quotes, so we need to strip them
+    let full_string = pair.as_str();
+    // Remove the surrounding quotes
+    let content = &full_string[1..full_string.len()-1];
+    Ok(content.to_string())
 }
 
 fn parse_condition(pair: pest::iterators::Pair<Rule>) -> Result<Condition> {
-    let inner_pair = if pair.as_rule() == Rule::condition {
-        pair.into_inner().next().unwrap()
-    } else {
-        pair
-    };
+    let condition_str = pair.as_str();
+    let mut inner = pair.into_inner();
     
-    match inner_pair.as_rule() {
-        Rule::checked_condition => {
-            let mut inner = inner_pair.into_inner();
-            let name = parse_string(inner.next().unwrap())?;
-            Ok(Condition::Checked(name))
-        }
-        
-        Rule::selected_condition => {
-            let mut inner = inner_pair.into_inner();
-            let name = parse_string(inner.next().unwrap())?;
-            let value = parse_string(inner.next().unwrap())?;
-            Ok(Condition::Selected(name, value))
-        }
-        
-        Rule::count_condition => {
-            let mut inner = inner_pair.into_inner();
-            let name = parse_string(inner.next().unwrap())?;
-            let op_pair = inner.next().unwrap();
-            let op = parse_comparison_op(op_pair)?;
-            let value = inner.next().unwrap().as_str().parse::<i32>()?;
-            Ok(Condition::Count(name, op, value))
-        }
-        
-        _ => Err(anyhow::anyhow!("Unknown condition type: {:?}", inner_pair.as_rule()))
+    // The condition rule now contains the entire condition string
+    // We need to determine which type based on the pattern
+    if condition_str.starts_with("checked(") {
+        // checked("name")
+        let name = parse_string(inner.next().unwrap())?;
+        Ok(Condition::Checked(name))
+    } else if condition_str.starts_with("selected(") {
+        // selected("name", "value")
+        let name = parse_string(inner.next().unwrap())?;
+        let value = parse_string(inner.next().unwrap())?;
+        Ok(Condition::Selected(name, value))
+    } else if condition_str.starts_with("count(") {
+        // count("name") op value
+        let name = parse_string(inner.next().unwrap())?;
+        let op_pair = inner.next().unwrap();
+        let op = parse_op(op_pair)?;
+        let value = inner.next().unwrap().as_str().parse::<i32>()?;
+        Ok(Condition::Count(name, op, value))
+    } else {
+        Err(anyhow::anyhow!("Unknown condition type: {}", condition_str))
     }
 }
 
-fn parse_comparison_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp> {
+fn parse_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp> {
     match pair.as_str() {
         ">" => Ok(ComparisonOp::Greater),
         "<" => Ok(ComparisonOp::Less),
         ">=" => Ok(ComparisonOp::GreaterEqual),
         "<=" => Ok(ComparisonOp::LessEqual),
         "==" => Ok(ComparisonOp::Equal),
+        "!=" => Err(anyhow::anyhow!("!= operator not yet supported in conditions")),
         _ => Err(anyhow::anyhow!("Unknown comparison operator: {}", pair.as_str()))
     }
 }

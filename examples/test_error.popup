@@ -1,0 +1,4 @@
+popup "Bad Syntax" [
+    slider "Test" 0..10 default = 5
+    buttons ["OK"]
+]

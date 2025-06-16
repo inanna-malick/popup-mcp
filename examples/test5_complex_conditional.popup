@@ -1,0 +1,12 @@
+popup "Complex" [
+    choice "Mode" ["Work", "Rest"]
+    
+    if selected("Mode", "Work") [
+        multiselect "Tasks" ["Email", "Code", "Meetings"]
+        if count("Tasks") > 2 [
+            checkbox "Overwhelmed?" @true
+        ]
+    ]
+    
+    buttons ["Continue", "Reset", "Help"]
+]

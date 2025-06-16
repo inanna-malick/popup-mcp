@@ -1,0 +1,11 @@
+popup "Groups" [
+    group "Physical" [
+        slider "Energy" 0..10
+        slider "Pain" 0..10
+    ]
+    group "Mental" [
+        checkbox "Focused?"
+        choice "Mood" ["Good", "Neutral", "Bad"]
+    ]
+    buttons ["Log"]
+]

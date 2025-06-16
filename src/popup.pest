@@ -1,11 +1,9 @@
-// Popup DSL Grammar
-
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-// Main rule
+// Core
 popup = { SOI ~ "popup" ~ string ~ "[" ~ element* ~ "]" ~ EOI }
 
-// Elements that can appear in a popup
+// Elements
 element = {
     text |
     slider |
@@ -18,87 +16,29 @@ element = {
     conditional
 }
 
-// Basic elements
+// Element definitions
 text = { "text" ~ string }
+slider = { "slider" ~ string ~ number ~ ".." ~ number ~ ("@" ~ number)? }
+checkbox = { "checkbox" ~ string ~ ("@" ~ boolean)? }
+textbox = { "textbox" ~ string }
+choice = { "choice" ~ string ~ "[" ~ string_list ~ "]" }
+multiselect = { "multiselect" ~ string ~ "[" ~ string_list ~ "]" }
+group = { "group" ~ string ~ "[" ~ element* ~ "]" }
+buttons = { "buttons" ~ "[" ~ string_list ~ "]" }
 
-slider = { 
-    "slider" ~ string ~ number ~ ".." ~ number ~ 
-    "default" ~ "=" ~ number
-}
-
-checkbox = { 
-    "checkbox" ~ string ~ 
-    "default" ~ "=" ~ boolean
-}
-
-textbox = { 
-    "textbox" ~ string ~ 
-    ("placeholder" ~ "=" ~ string)? ~ 
-    ("rows" ~ "=" ~ number)?
-}
-
-choice = { 
-    "choice" ~ string ~ "[" ~ 
-    string ~ ("," ~ string)* ~ 
-    "]"
-}
-
-multiselect = {
-    "multiselect" ~ string ~ "[" ~
-    string ~ ("," ~ string)* ~
-    "]"
-}
-
-group = { 
-    "group" ~ string ~ "[" ~ 
-    element* ~ 
-    "]"
-}
-
-buttons = { 
-    "buttons" ~ "[" ~ 
-    string ~ ("," ~ string)* ~ 
-    "]"
-}
-
-// Conditional elements
-conditional = {
-    "if" ~ condition ~ "[" ~
-    element* ~
-    "]"
-}
-
+// Conditional
+conditional = { "if" ~ condition ~ "[" ~ element* ~ "]" }
 condition = {
-    checked_condition |
-    selected_condition |
-    count_condition
+    "checked(" ~ string ~ ")" |
+    "selected(" ~ string ~ "," ~ string ~ ")" |
+    "count(" ~ string ~ ")" ~ op ~ number
 }
 
-checked_condition = {
-    "checked" ~ "(" ~ string ~ ")"
-}
-
-selected_condition = {
-    "selected" ~ "(" ~ string ~ "," ~ string ~ ")"
-}
-
-count_condition = {
-    "count" ~ "(" ~ string ~ ")" ~ comparison_op ~ number
-}
-
-comparison_op = { ">" | "<" | ">=" | "<=" | "==" }
+// Utilities
+string_list = { string ~ ("," ~ string)* }
+op = { ">" | "<" | ">=" | "<=" | "==" | "!=" }
 
 // Primitives
-string = { 
-    "\"" ~ string_content ~ "\"" 
-}
-
-string_content = @{ (!"\"" ~ ANY)* }
-
-number = @{ 
-    "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?
-}
-
-boolean = { 
-    "true" | "false"
-}
+string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+boolean = { "true" | "false" }

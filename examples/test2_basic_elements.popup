@@ -1,0 +1,8 @@
+popup "Elements" [
+    text "Sample text"
+    slider "Volume" 0..10
+    checkbox "Mute?"
+    textbox "Name"
+    choice "Mode" ["A", "B", "C"]
+    buttons ["Submit"]
+]
