@@ -120,7 +120,7 @@ popup "Priority" [
 ```python
 # In your code
 def check_user_state():
-    result = popup_show("""
+    result = popup("""
     popup "Energy Check" [
       slider "Energy" 0..10 default = 5,
       checkbox "Need break",

@@ -1,8 +1,0 @@
-popup "NEURAL INTERFACE v2.0" [
-    text "SYSTEM STATUS",
-    slider "Energy" 0..10 default = 7,
-    checkbox "Enhanced Mode" default = true,
-    choice "Operation" ["Stealth", "Combat", "Recon"],
-    textbox "Other observations",
-    buttons ["Execute", "Abort", "Force Yield"]
-]

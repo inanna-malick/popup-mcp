@@ -9,22 +9,6 @@ name = "stdio_direct"
 path = "src/bin/stdio_direct.rs"
 
 [[bin]]
-name = "test_egui"
-path = "src/bin/test_egui.rs"
-
-[[bin]]
-name = "test_examples"
-path = "src/bin/test_examples.rs"
-
-[[bin]]
-name = "test_emoji"
-path = "src/bin/test_emoji.rs"
-
-[[bin]]
-name = "demo_cyberpunk"
-path = "src/bin/demo_cyberpunk.rs"
-
-[[bin]]
 name = "spike"
 path = "src/bin/spike.rs"
 

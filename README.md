@@ -120,7 +120,7 @@ echo 'popup "Test" [text "Hello!" buttons ["OK"]]' | cargo run
 
 3. Restart Claude Desktop
 
-4. Use the `popup_show` tool in Claude to create popups!
+4. Use the `popup` tool in Claude to create popups!
 
 ## Examples
 

@@ -10,8 +10,8 @@ echo '{"jsonrpc": "2.0", "method": "initialize", "params": {}, "id": 1}' | cargo
 # Test tools/list
 echo '{"jsonrpc": "2.0", "method": "tools/list", "params": {}, "id": 2}' | cargo run --bin stdio_direct 2>/dev/null | jq .
 
-# Test popup_show with simple popup
-echo "Testing popup_show tool..."
+# Test popup with simple popup
+echo "Testing popup tool..."
 DSL='popup "Test Popup" [
     text "This is a test from MCP!"
     choice "Select option:" ["Option A", "Option B"]
@@ -19,6 +19,6 @@ DSL='popup "Test Popup" [
 ]'
 
 JSON_DSL=$(echo "$DSL" | jq -Rs .)
-REQUEST="{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": {\"name\": \"popup_show\", \"arguments\": {\"dsl\": $JSON_DSL}}, \"id\": 3}"
+REQUEST="{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": {\"name\": \"popup\", \"arguments\": {\"dsl\": $JSON_DSL}}, \"id\": 3}"
 
 echo "$REQUEST" | cargo run --bin stdio_direct 2>/dev/null | jq .
