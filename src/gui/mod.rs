@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Modifiers, Id};
+use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Id};
 use std::sync::{Arc, Mutex};
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition, ComparisonOp};
@@ -91,13 +91,6 @@ impl eframe::App for PopupApp {
         // Apply theme
         self.theme.apply_to_egui(ctx);
         
-        // Handle Escape key for Force Yield
-        ctx.input_mut(|i| {
-            if i.consume_key(Modifiers::NONE, Key::Escape) {
-                self.state.button_clicked = Some("Force Yield".to_string());
-            }
-        });
-        
         // Check if we should close
         if self.state.button_clicked.is_some() {
             self.send_result_and_close(ctx);
@@ -108,14 +101,6 @@ impl eframe::App for PopupApp {
             // Add minimal padding
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 2.0);
             ui.spacing_mut().button_padding = Vec2::new(6.0, 2.0);
-            
-            // Add ESC hint in the top right
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_space(8.0);
-                    ui.label(RichText::new("ESC to cancel").size(10.0).color(self.theme.text_secondary));
-                });
-            });
             
             ScrollArea::vertical()
                 .auto_shrink([false, false])

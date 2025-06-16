@@ -4,11 +4,7 @@
 
 Popup-MCP provides structured GUI interrupts for high-bandwidth human→AI communication. Use it when GUI structure adds value beyond simple text exchange.
 
-**CRITICAL**: Every popup MUST include:
-```
-textbox "Other observations"
-buttons [..., "Force Yield"]
-```
+**Note**: "Force Yield" button is automatically added to all popups for emergency exit - no need to specify it.
 
 ## Installation & Setup
 
@@ -34,7 +30,7 @@ popup "Title" [
   element_type "label" [options...],
   if condition [...],
   textbox "Other observations",
-  buttons ["Action1", "Action2", "Force Yield"]
+  buttons ["Action1", "Action2"]
 ]
 ```
 
@@ -80,7 +76,7 @@ popup "System Check" [
   checkbox "Fog present",
   checkbox "Body needs first",
   textbox "Other observations",
-  buttons ["Continue", "Force Yield"]
+  buttons ["Continue"]
 ]
 ```
 
@@ -93,7 +89,7 @@ popup "Approach" [
   ],
   slider "Risk tolerance" 0..10,
   textbox "Other observations",
-  buttons ["Proceed", "Reconsider", "Force Yield"]
+  buttons ["Proceed", "Reconsider"]
 ]
 ```
 
@@ -103,7 +99,7 @@ popup "Action Required" [
   text "Stand up and stretch for 30 seconds",
   checkbox "Completed",
   textbox "Other observations",
-  buttons ["Done", "Skip", "Force Yield"]
+  buttons ["Done", "Skip"]
 ]
 ```
 
@@ -111,7 +107,7 @@ popup "Action Required" [
 ```
 popup "Priority" [
   textbox "Other observations",
-  buttons ["Urgent", "Important", "Delegate", "Delete", "Force Yield"]
+  buttons ["Urgent", "Important", "Delegate", "Delete"]
 ]
 ```
 
@@ -125,7 +121,7 @@ def check_user_state():
       slider "Energy" 0..10 default = 5,
       checkbox "Need break",
       textbox "Other observations",
-      buttons ["Continue", "Pause", "Force Yield"]
+      buttons ["Continue", "Pause"]
     ]
     """)
     
@@ -147,7 +143,7 @@ def check_user_state():
 
 1. **Keep it focused** - One decision per popup
 2. **Use descriptive labels** - Clear what's being measured
-3. **Provide escape hatch** - Always include "Force Yield"
+3. **Force Yield is automatic** - Built-in emergency exit button
 4. **Capture unexpected** - Always include "Other observations"
 5. **Structure adds value** - If not, use Yield instead
 6. **No emoji in text** - Use plain text labels only
@@ -157,8 +153,8 @@ def check_user_state():
 ❌ Too many fields (cognitive overload)
 ❌ Vague labels ("stuff", "things")  
 ❌ Deeply nested conditionals
-❌ Missing Force Yield button
-❌ Missing observations textbox
+❌ Using for simple yes/no (use Yield)
+❌ Using for simple yes/no (use Yield)
 ❌ Using for simple yes/no (use Yield)
 
 ## Error Handling
@@ -194,7 +190,7 @@ Example outputs:
 
 - v0.2.0: Added conditional UI support
 - v0.2.1: Automatic button validation
-- All versions: Must include Force Yield + observations
+- Force Yield button is automatically added to all popups
 
 ## Remember
 

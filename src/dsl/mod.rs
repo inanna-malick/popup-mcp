@@ -25,6 +25,9 @@ pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     // Ensure every popup has an exit path
     ensure_exit_button(&mut definition);
     
+    // Add Force Yield button if not present
+    ensure_force_yield_button(&mut definition);
+    
     Ok(definition)
 }
 
@@ -260,4 +263,39 @@ fn has_buttons_recursive(elements: &[Element]) -> bool {
         }
         _ => false,
     })
+}
+
+/// Ensures that every popup has a Force Yield button for emergency exit.
+/// This adds the button to the last button element found in the tree.
+fn ensure_force_yield_button(definition: &mut PopupDefinition) {
+    // Find the last button element and add Force Yield if not present
+    add_force_yield_to_buttons(&mut definition.elements);
+}
+
+/// Recursively searches for button elements and adds Force Yield to the last one found
+fn add_force_yield_to_buttons(elements: &mut [Element]) -> bool {
+    // Process in reverse order to find the last button element
+    for element in elements.iter_mut().rev() {
+        match element {
+            Element::Buttons(buttons) => {
+                // Check if Force Yield already exists
+                if !buttons.iter().any(|b| b == "Force Yield") {
+                    buttons.push("Force Yield".to_string());
+                }
+                return true; // Found and processed buttons
+            }
+            Element::Group { elements: nested, .. } => {
+                if add_force_yield_to_buttons(nested) {
+                    return true; // Found buttons in nested elements
+                }
+            }
+            Element::Conditional { elements: _nested, .. } => {
+                // Don't add to conditional buttons as they might not always be visible
+                // Continue searching for non-conditional buttons
+                continue;
+            }
+            _ => {}
+        }
+    }
+    false
 }

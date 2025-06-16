@@ -55,7 +55,7 @@ fn main() -> Result<()> {
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
                                     "gui_popups": {
-                                        "description": "Purpose-built interrupt interface with conditional UI support.",
+                                        "description": "Purpose-built interrupt interface with conditional UI support. All popups include a built-in 'Force Yield' button for emergency exit.",
                                         "features": {
                                             "conditionals": {
                                                 "description": "Dynamic UI that adapts based on user selections",
@@ -94,7 +94,7 @@ fn main() -> Result<()> {
                                 "serverInfo": {
                                     "name": "popup-mcp",
                                     "version": "0.2.1",
-                                    "description": "Purpose-built interrupt interface with conditional UI support. Custom-engineered for multi-headmate mediation and adaptive decision flows. Dynamic interfaces that change based on user selections."
+                                    "description": "Purpose-built interrupt interface with conditional UI support. Custom-engineered for multi-headmate mediation and adaptive decision flows. Dynamic interfaces that change based on user selections. All popups include a built-in 'Force Yield' button for emergency exit."
                                 }
                             }),
                         )
@@ -107,7 +107,7 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup",
-                                        "description": "Purpose-built interrupt interface with conditional UI support",
+                                        "description": "Purpose-built interrupt interface with conditional UI support. All popups automatically include a 'Force Yield' button for emergency exit - no need to specify it in the DSL.",
                                         "expression_language": {
                                             "schema": DSL_GRAMMAR
                                         },
