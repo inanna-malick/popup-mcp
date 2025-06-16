@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke};
+use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Modifiers, Id};
 use std::sync::{Arc, Mutex};
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition, ComparisonOp};
@@ -61,6 +61,8 @@ struct PopupApp {
     state: PopupState,
     theme: Theme,
     result: Arc<Mutex<Option<PopupResult>>>,
+    first_interactive_widget_id: Option<Id>,
+    first_widget_focused: bool,
 }
 
 impl PopupApp {
@@ -71,6 +73,8 @@ impl PopupApp {
             state,
             theme: Theme::cyberpunk(),
             result,
+            first_interactive_widget_id: None,
+            first_widget_focused: false,
         }
     }
     
@@ -87,6 +91,13 @@ impl eframe::App for PopupApp {
         // Apply theme
         self.theme.apply_to_egui(ctx);
         
+        // Handle Escape key for Force Yield
+        ctx.input_mut(|i| {
+            if i.consume_key(Modifiers::NONE, Key::Escape) {
+                self.state.button_clicked = Some("Force Yield".to_string());
+            }
+        });
+        
         // Check if we should close
         if self.state.button_clicked.is_some() {
             self.send_result_and_close(ctx);
@@ -98,16 +109,40 @@ impl eframe::App for PopupApp {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 2.0);
             ui.spacing_mut().button_padding = Vec2::new(6.0, 2.0);
             
+            // Add ESC hint in the top right
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new("ESC to cancel").size(10.0).color(self.theme.text_secondary));
+                });
+            });
+            
             ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    render_elements_with_context(ui, &self.definition.elements, &mut self.state, &self.definition.elements, &self.theme);
+                    render_elements_with_context(
+                        ui, 
+                        &self.definition.elements, 
+                        &mut self.state, 
+                        &self.definition.elements, 
+                        &self.theme,
+                        &mut self.first_interactive_widget_id,
+                        self.first_widget_focused
+                    );
                 });
         });
         
         // Check again after rendering in case a button was clicked
         if self.state.button_clicked.is_some() {
             self.send_result_and_close(ctx);
+        }
+        
+        // Request focus on first interactive widget if not already focused
+        if !self.first_widget_focused {
+            if let Some(widget_id) = self.first_interactive_widget_id {
+                ctx.memory_mut(|mem| mem.request_focus(widget_id));
+                self.first_widget_focused = true;
+            }
         }
     }
 }
@@ -118,6 +153,8 @@ fn render_elements_with_context(
     state: &mut PopupState,
     all_elements: &[Element],
     theme: &Theme,
+    first_widget_id: &mut Option<Id>,
+    widget_focused: bool,
 ) {
     let mut is_first = true;
     
@@ -162,7 +199,12 @@ fn render_elements_with_context(
                             let slider = egui::Slider::new(value, *min..=*max)
                                 .show_value(false)
                                 .clamp_to_range(true);
-                            ui.add(slider);
+                            let response = ui.add(slider);
+                            
+                            // Store the response ID for focus
+                            if first_widget_id.is_none() && !widget_focused {
+                                *first_widget_id = Some(response.id);
+                            }
                         });
                     });
                 }
@@ -171,12 +213,24 @@ fn render_elements_with_context(
             Element::Checkbox { label, default: _ } => {
                 if let Some(value) = state.checkboxes.get_mut(label) {
                     ui.horizontal(|ui| {
+                        
                         let checkbox_text = if *value {
                             RichText::new(format!("☑ {}", label)).color(theme.matrix_green)
                         } else {
                             RichText::new(format!("☐ {}", label)).color(theme.text_secondary)
                         };
-                        if ui.selectable_label(false, checkbox_text).clicked() {
+                        let response = ui.selectable_label(false, checkbox_text);
+                        if response.clicked() {
+                            *value = !*value;
+                        }
+                        
+                        // Store the response ID for focus
+                        if first_widget_id.is_none() && !widget_focused {
+                            *first_widget_id = Some(response.id);
+                        }
+                        
+                        // Make checkbox focusable with keyboard
+                        if response.has_focus() && ui.input(|i| i.key_pressed(Key::Space)) {
                             *value = !*value;
                         }
                     });
@@ -192,10 +246,15 @@ fn render_elements_with_context(
                             .desired_width(ui.available_width())
                             .min_size(Vec2::new(ui.available_width(), height));
                         
-                        if let Some(hint) = placeholder {
-                            ui.add(text_edit.hint_text(hint));
+                        let response = if let Some(hint) = placeholder {
+                            ui.add(text_edit.hint_text(hint))
                         } else {
-                            ui.add(text_edit);
+                            ui.add(text_edit)
+                        };
+                        
+                        // Store the response ID for focus
+                        if first_widget_id.is_none() && !widget_focused {
+                            *first_widget_id = Some(response.id);
                         }
                     }
                 });
@@ -207,13 +266,25 @@ fn render_elements_with_context(
                     if let Some(selected) = state.choices.get_mut(label) {
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
+                                
                                 let is_selected = *selected == i;
                                 let option_text = if is_selected {
                                     RichText::new(format!("▸ {}", option)).color(theme.neon_cyan)
                                 } else {
                                     RichText::new(format!("  {}", option)).color(theme.text_secondary)
                                 };
-                                if ui.selectable_label(is_selected, option_text).clicked() {
+                                let response = ui.selectable_label(is_selected, option_text);
+                                if response.clicked() {
+                                    *selected = i;
+                                }
+                                
+                                // Store the response ID for focus (only for first item)
+                                if first_widget_id.is_none() && !widget_focused && i == 0 {
+                                    *first_widget_id = Some(response.id);
+                                }
+                                
+                                // Make selectable with keyboard
+                                if response.has_focus() && ui.input(|i| i.key_pressed(Key::Space) || i.key_pressed(Key::Enter)) {
                                     *selected = i;
                                 }
                             }
@@ -229,12 +300,24 @@ fn render_elements_with_context(
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
                                 if i < selections.len() {
+                                    
                                     let checkbox_text = if selections[i] {
                                         RichText::new(format!("☑ {}", option)).color(theme.matrix_green)
                                     } else {
                                         RichText::new(format!("☐ {}", option)).color(theme.text_secondary)
                                     };
-                                    if ui.selectable_label(false, checkbox_text).clicked() {
+                                    let response = ui.selectable_label(false, checkbox_text);
+                                    if response.clicked() {
+                                        selections[i] = !selections[i];
+                                    }
+                                    
+                                    // Store the response ID for focus (only for first item)
+                                    if first_widget_id.is_none() && !widget_focused && i == 0 {
+                                        *first_widget_id = Some(response.id);
+                                    }
+                                    
+                                    // Make selectable with keyboard
+                                    if response.has_focus() && ui.input(|i| i.key_pressed(Key::Space)) {
                                         selections[i] = !selections[i];
                                     }
                                 }
@@ -251,13 +334,13 @@ fn render_elements_with_context(
                         ui.label(RichText::new(label).color(theme.neon_cyan).strong());
                     });
                     ui.separator();
-                    render_elements_with_context(ui, elements, state, all_elements, theme);
+                    render_elements_with_context(ui, elements, state, all_elements, theme, first_widget_id, widget_focused);
                 });
             }
             
             Element::Conditional { condition, elements } => {
                 if evaluate_condition_with_context(condition, state, all_elements) {
-                    render_elements_with_context(ui, elements, state, all_elements, theme);
+                    render_elements_with_context(ui, elements, state, all_elements, theme, first_widget_id, widget_focused);
                 }
             }
             
@@ -274,7 +357,8 @@ fn render_elements_with_context(
                         ui.add_space((available_width - total_width) / 2.0);
                     }
                     
-                    for button in buttons {
+                    for (i, button) in buttons.iter().enumerate() {
+                        
                         let button_text = RichText::new(button.to_uppercase())
                             .size(12.0)
                             .strong();
@@ -294,7 +378,17 @@ fn render_elements_with_context(
                                 .stroke(Stroke::new(1.0, button_color))
                         );
                         
+                        // Store the response ID for focus (only for first button)
+                        if first_widget_id.is_none() && !widget_focused && i == 0 {
+                            *first_widget_id = Some(response.id);
+                        }
+                        
                         if response.clicked() {
+                            state.button_clicked = Some(button.clone());
+                        }
+                        
+                        // Handle Enter key on focused button
+                        if response.has_focus() && ui.input(|i| i.key_pressed(Key::Enter)) {
                             state.button_clicked = Some(button.clone());
                         }
                     }
