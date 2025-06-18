@@ -20,7 +20,7 @@ element = {
     group |       // Visual grouping
     buttons |     // Action buttons
     conditional | // Conditional display
-    bare_text     // Fallback for unquoted text
+    bare_text     // Fallback for unquoted text (must be last)
 }
 
 // Widget definitions with labels and options
@@ -50,5 +50,5 @@ string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }               // Quoted strings
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
 boolean = { "true" | "false" }                          // Boolean values
 
-// Fallback for bare text - a single line that doesn't start with a keyword
-bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (!("\n" | "\r") ~ ANY)+ }
+// Only match "Label: [widget]" pattern exactly
+bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (ASCII_ALPHANUMERIC | " ")+ ~ ":" ~ " "* ~ "[" ~ ("text" | "textbox" | "checkbox" | "Y/N") ~ "]" }

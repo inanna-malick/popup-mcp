@@ -365,6 +365,104 @@ fn log_parse_error(input: &str, error: &pest::error::Error<Rule>) {
     }
 }
 
+/// Serialize a PopupDefinition back to DSL format for round-trip testing
+pub fn serialize_popup_dsl(definition: &PopupDefinition) -> String {
+    let mut result = format!("popup \"{}\" [\n", definition.title);
+    
+    for element in &definition.elements {
+        result.push_str(&serialize_element(element, 1));
+    }
+    
+    result.push_str("]");
+    result
+}
+
+fn serialize_element(element: &Element, indent_level: usize) -> String {
+    let indent = "    ".repeat(indent_level);
+    
+    match element {
+        Element::Text(text) => format!("{}text \"{}\"\n", indent, text),
+        Element::Slider { label, min, max, default } => {
+            if (min + max) / 2.0 == *default {
+                format!("{}slider \"{}\" {}..{}\n", indent, label, min, max)
+            } else {
+                format!("{}slider \"{}\" {}..{} @{}\n", indent, label, min, max, default)
+            }
+        },
+        Element::Checkbox { label, default } => {
+            if *default {
+                format!("{}checkbox \"{}\" @true\n", indent, label)
+            } else {
+                format!("{}checkbox \"{}\"\n", indent, label)
+            }
+        },
+        Element::Textbox { label, placeholder, rows } => {
+            let mut result = format!("{}textbox \"{}\"", indent, label);
+            if let Some(placeholder) = placeholder {
+                result.push_str(&format!(" \"{}\"", placeholder));
+            }
+            if let Some(rows) = rows {
+                result.push_str(&format!(" rows={}", rows));
+            }
+            result.push('\n');
+            result
+        },
+        Element::Choice { label, options } => {
+            format!("{}choice \"{}\" [{}]\n", 
+                indent, 
+                label, 
+                options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
+            )
+        },
+        Element::Multiselect { label, options } => {
+            format!("{}multiselect \"{}\" [{}]\n", 
+                indent, 
+                label, 
+                options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
+            )
+        },
+        Element::Group { label, elements } => {
+            let mut result = format!("{}group \"{}\" [\n", indent, label);
+            for elem in elements {
+                result.push_str(&serialize_element(elem, indent_level + 1));
+            }
+            result.push_str(&format!("{}]\n", indent));
+            result
+        },
+        Element::Buttons(buttons) => {
+            format!("{}buttons [{}]\n", 
+                indent, 
+                buttons.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
+            )
+        },
+        Element::Conditional { condition, elements } => {
+            let mut result = format!("{}if {} [\n", indent, serialize_condition(condition));
+            for elem in elements {
+                result.push_str(&serialize_element(elem, indent_level + 1));
+            }
+            result.push_str(&format!("{}]\n", indent));
+            result
+        },
+    }
+}
+
+fn serialize_condition(condition: &Condition) -> String {
+    match condition {
+        Condition::Checked(name) => format!("checked(\"{}\")", name),
+        Condition::Selected(name, value) => format!("selected(\"{}\", \"{}\")", name, value),
+        Condition::Count(name, op, value) => {
+            let op_str = match op {
+                ComparisonOp::Greater => ">",
+                ComparisonOp::Less => "<",
+                ComparisonOp::GreaterEqual => ">=",
+                ComparisonOp::LessEqual => "<=",
+                ComparisonOp::Equal => "==",
+            };
+            format!("count(\"{}\") {} {}", name, op_str, value)
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

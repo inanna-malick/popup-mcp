@@ -22,3 +22,58 @@ Error:
   |                                      ^---
   |
   = expected element
+
+--- Parse Error (2025-06-18 02:25:37 UTC) ---
+Input:
+popup "Test" [
+    text "Hello"
+    buttons ["OK"]
+]
+
+
+Error:
+ --> 5:1
+  |
+5 | 
+  | ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-18 02:25:50 UTC) ---
+Input:
+popup "Test" [
+    text "Hello"
+    buttons ["OK"]
+]
+
+Error:
+ --> 4:2
+  |
+4 | ]
+  |  ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-18 02:26:00 UTC) ---
+Input:
+popup "Test" [ text "Hello" buttons ["OK"] ]
+
+Error:
+ --> 1:45
+  |
+1 | popup "Test" [ text "Hello" buttons ["OK"] ]
+  |                                             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-18 02:26:07 UTC) ---
+Input:
+popup "Test" [ buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Test" [ buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
