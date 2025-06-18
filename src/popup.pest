@@ -3,8 +3,11 @@
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-// Root: popup "Title" [elements...]
-popup = { SOI ~ "popup" ~ string ~ "[" ~ element* ~ "]" ~ EOI }
+// Root: popup "Title" [elements...] or [Title: elements...]
+popup = { SOI ~ (classic_popup | simplified_popup) ~ EOI }
+classic_popup = { "popup" ~ string ~ "[" ~ element* ~ "]" }
+simplified_popup = { "[" ~ title_text ~ ":" ~ element* ~ "]" }
+title_text = @{ (!":" ~ ANY)+ }
 
 // All supported UI elements
 element = {
@@ -16,7 +19,8 @@ element = {
     multiselect | // Multiple selection
     group |       // Visual grouping
     buttons |     // Action buttons
-    conditional   // Conditional display
+    conditional | // Conditional display
+    bare_text     // Fallback for unquoted text
 }
 
 // Widget definitions with labels and options
@@ -45,3 +49,6 @@ op = { ">" | "<" | ">=" | "<=" | "==" | "!=" }         // Comparison operators
 string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }               // Quoted strings
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
 boolean = { "true" | "false" }                          // Boolean values
+
+// Fallback for bare text - a single line that doesn't start with a keyword
+bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (!("\n" | "\r") ~ ANY)+ }
