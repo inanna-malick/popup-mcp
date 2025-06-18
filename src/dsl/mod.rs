@@ -1,6 +1,8 @@
 use anyhow::Result;
 use pest::Parser;
 use pest_derive::Parser;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use crate::models::{Element, PopupDefinition, Condition, ComparisonOp};
 
@@ -11,6 +13,9 @@ pub struct PopupParser;
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     let pairs = PopupParser::parse(Rule::popup, input)
         .map_err(|e| {
+            // Log parse errors to file for ergonomics improvement
+            log_parse_error(input, &e);
+            
             // Pest errors include detailed position and expected tokens
             anyhow::anyhow!("Parse error: {}", e)
         })?;
@@ -340,6 +345,23 @@ fn parse_bare_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     } else {
         // No colon, treat as plain text
         Ok(Element::Text(text.to_string()))
+    }
+}
+
+/// Log parse errors to a file for analysis and ergonomics improvements
+fn log_parse_error(input: &str, error: &pest::error::Error<Rule>) {
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("parser_errors.log")
+    {
+        let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
+        let log_entry = format!(
+            "\n--- Parse Error ({}) ---\nInput:\n{}\n\nError:\n{}\n",
+            timestamp, input, error
+        );
+        
+        let _ = file.write_all(log_entry.as_bytes());
     }
 }
 

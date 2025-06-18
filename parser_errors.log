@@ -1,0 +1,24 @@
+
+--- Parse Error (2025-06-18 02:12:21 UTC) ---
+Input:
+[Invalid: bad syntax here
+
+Error:
+ --> 1:26
+  |
+1 | [Invalid: bad syntax here
+  |                          ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-18 02:12:34 UTC) ---
+Input:
+popup "Test" [ invalid_element_here ]
+
+Error:
+ --> 1:38
+  |
+1 | popup "Test" [ invalid_element_here ]
+  |                                      ^---
+  |
+  = expected element
