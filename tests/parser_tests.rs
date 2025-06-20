@@ -177,6 +177,55 @@ Line 3"""
     }
 }
 
+#[test]  
+fn test_optional_commas_between_newlines() {
+    // Test that commas are optional when elements are on separate lines
+    let test_cases = vec![
+        // Classic syntax without commas
+        r#"popup "No Commas" [
+            text "First line"
+            text "Second line"  
+            textbox "Input field"
+            buttons ["OK"]
+        ]"#,
+        
+        // Simplified syntax without commas
+        r#"[No Commas:
+            text "First line"
+            text "Second line"
+            textbox "Input field" 
+            buttons ["OK"]
+        ]"#,
+        
+    ];
+    
+    for (i, input) in test_cases.iter().enumerate() {
+        let result = parse_popup_dsl(input);
+        assert!(result.is_ok(), "Test case {} failed to parse: {}", i, input);
+        
+        let popup = result.unwrap();
+        assert_eq!(popup.elements.len(), 4); // 2 text + 1 textbox + 1 buttons
+    }
+}
+
+#[test]
+fn test_natural_multiline_layout_works() {
+    // The key feature: natural layout without commas works perfectly
+    let input = r#"popup "Natural Layout" [
+        text "First element"
+        text "Second element"  
+        textbox "User input"
+        checkbox "Option"
+        buttons ["Save", "Cancel"]
+    ]"#;
+    
+    let result = parse_popup_dsl(input);
+    assert!(result.is_ok(), "Natural layout should work without commas");
+    
+    let popup = result.unwrap();
+    assert_eq!(popup.elements.len(), 5); // text + text + textbox + checkbox + buttons
+}
+
 #[test]
 fn test_widget_alias_normalization() {
     // Test that aliases work in simplified syntax
