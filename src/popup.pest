@@ -50,5 +50,6 @@ string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }               // Quoted strings
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
 boolean = { "true" | "false" }                          // Boolean values
 
-// Only match "Label: [widget]" pattern exactly
-bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (ASCII_ALPHANUMERIC | " ")+ ~ ":" ~ " "* ~ "[" ~ ("text" | "textbox" | "checkbox" | "Y/N") ~ "]" }
+// Match "Label: [widget]" pattern with flexible widget names that will be normalized
+bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (ASCII_ALPHANUMERIC | " ")+ ~ ":" ~ " "* ~ "[" ~ widget_alias ~ "]" }
+widget_alias = @{ (ASCII_ALPHA | "-" | "_" | "/")+ }

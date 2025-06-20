@@ -648,3 +648,759 @@ Error:
   |         ^---
   |
   = expected element
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:41:43 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:42:12 UTC) ---
+Input:
+popup "Title" [ Name: [textbox] ]
+
+Error:
+ --> 1:34
+  |
+1 | popup "Title" [ Name: [textbox] ]
+  |                                  ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:42:28 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:39 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:48:39 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:31
+  |
+1 | [Title: invalid_widget "test"]
+  |                               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:39 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:39 UTC) ---
+Input:
+popup "Title" [ Name: [textbox] ]
+
+Error:
+ --> 1:34
+  |
+1 | popup "Title" [ Name: [textbox] ]
+  |                                  ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:58 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:48:58 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:58 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:58 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:48:58 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:49:27 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:31
+  |
+1 | [Title: invalid_widget "test"]
+  |                               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:49:45 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:31
+  |
+1 | [Title: invalid_widget "test"]
+  |                               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:50:04 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:50:04 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:06 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:06 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:06 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+[Form: Name: [input], buttons ["OK"]]
+
+Error:
+ --> 1:21
+  |
+1 | [Form: Name: [input], buttons ["OK"]]
+  |                     ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:07 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+popup "Title" [ Name: [textbox], buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Title" [ Name: [textbox], buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:59:52 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+popup "Title" [ Name: [textbox], buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Title" [ Name: [textbox], buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:01:00 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:27 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:27 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:27 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:05:46 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:46 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:46 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+popup "Title" [ Name: [textbox], buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Title" [ Name: [textbox], buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:05:47 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element

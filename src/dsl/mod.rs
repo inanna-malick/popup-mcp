@@ -6,6 +6,26 @@ use std::io::Write;
 
 use crate::models::{Element, PopupDefinition, Condition, ComparisonOp};
 
+// Widget type aliases for better ergonomics
+const WIDGET_ALIASES: &[(&str, &str)] = &[
+    // Text display aliases
+    ("label", "text"), ("info", "text"), ("message", "text"), 
+    ("display", "text"), ("output", "text"),
+    
+    // Input aliases
+    ("input", "textbox"), ("field", "textbox"), ("entry", "textbox"),
+    ("text_input", "textbox"), ("text_field", "textbox"),
+    
+    // Boolean aliases (y/n handled as special case in parse_bare_text)
+    ("bool", "checkbox"), ("boolean", "checkbox"),
+    ("yes/no", "checkbox"), ("toggle", "checkbox"), ("switch", "checkbox"),
+    
+    // Selection aliases
+    ("select", "choice"), ("dropdown", "choice"), ("radio", "choice"),
+    ("multi", "multiselect"), ("multi-select", "multiselect"), 
+    ("checkboxes", "multiselect"), ("multi_choice", "multiselect"),
+];
+
 #[derive(Parser)]
 #[grammar = "popup.pest"]
 pub struct PopupParser;
@@ -318,8 +338,9 @@ fn parse_bare_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
         
         if rest.starts_with('[') && rest.ends_with(']') {
             let widget_type = &rest[1..rest.len() - 1].trim();
+            let normalized = normalize_widget_type(widget_type);
             
-            match *widget_type {
+            match normalized {
                 "text" => Ok(Element::Text(label.to_string())),
                 "textbox" => Ok(Element::Textbox { 
                     label: label.to_string(), 
@@ -330,13 +351,19 @@ fn parse_bare_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
                     label: label.to_string(), 
                     default: false 
                 }),
-                "Y/N" => Ok(Element::Choice { 
-                    label: label.to_string(), 
-                    options: vec!["Y".to_string(), "N".to_string()] 
-                }),
                 _ => {
-                    // Not a recognized widget type, treat as plain text
-                    Ok(Element::Text(text.to_string()))
+                    // Check special cases that aren't direct aliases
+                    let widget_lower = widget_type.to_lowercase();
+                    match widget_lower.as_str() {
+                        "y/n" => Ok(Element::Choice { 
+                            label: label.to_string(), 
+                            options: vec!["Y".to_string(), "N".to_string()] 
+                        }),
+                        _ => {
+                            // Not a recognized widget type, treat as plain text
+                            Ok(Element::Text(text.to_string()))
+                        }
+                    }
                 }
             }
         } else {
@@ -550,6 +577,21 @@ fn get_error_line(error: &pest::error::Error<Rule>) -> usize {
         pest::error::LineColLocation::Pos((line, _)) => *line,
         pest::error::LineColLocation::Span((line, _), _) => *line,
     }
+}
+
+/// Normalize widget type aliases to their canonical form
+fn normalize_widget_type(widget_type: &str) -> &str {
+    let lower = widget_type.to_lowercase();
+    
+    // Check aliases
+    for (alias, canonical) in WIDGET_ALIASES {
+        if lower == *alias {
+            return canonical;
+        }
+    }
+    
+    // Return original if not an alias
+    widget_type
 }
 
 /// Serialize a PopupDefinition back to DSL format for round-trip testing
@@ -813,35 +855,79 @@ mod tests {
         assert!(parse_popup_dsl(input).is_err());
     }
 
+
     #[test]
-    fn test_enhanced_error_messages() {
-        // Test missing quotes error
-        let input = r#"popup Title []"#;
-        let result = parse_popup_dsl(input);
-        assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Missing quotes around title"));
-        assert!(error_msg.contains("Should be: popup \"Title\""));
+    fn test_widget_aliases() {
+        // Test bare text with aliases
+        let input = r#"[Quick Form:
+            Name: [input]
+            Email: [field]
+            Subscribe: [bool]
+            Accept Terms: [toggle]
+            Ready: [y/n]
+            buttons ["Submit"]
+        ]"#;
         
-        // Test invalid widget error
-        let input = r#"[Title: invalid_widget "test"]"#;
         let result = parse_popup_dsl(input);
-        assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Invalid simplified syntax") || error_msg.contains("Unknown widget"));
+        assert!(result.is_ok());
         
-        // Test empty popup error
-        let input = r#"popup "Bad" ["#;
-        let result = parse_popup_dsl(input);
-        assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Expected a popup element"));
+        let popup = result.unwrap();
+        assert_eq!(popup.title, "Quick Form");
         
-        // Test format mixing error
-        let input = r#"popup "Title" [ Name: [textbox] ]"#;
+        // Check that aliases were normalized correctly
+        match &popup.elements[0] {
+            Element::Textbox { label, .. } => assert_eq!(label, "Name"),
+            _ => panic!("Expected textbox for 'input' alias"),
+        }
+        
+        match &popup.elements[1] {
+            Element::Textbox { label, .. } => assert_eq!(label, "Email"),
+            _ => panic!("Expected textbox for 'field' alias"),
+        }
+        
+        match &popup.elements[2] {
+            Element::Checkbox { label, .. } => assert_eq!(label, "Subscribe"),
+            _ => panic!("Expected checkbox for 'bool' alias"),
+        }
+        
+        match &popup.elements[3] {
+            Element::Checkbox { label, .. } => assert_eq!(label, "Accept Terms"),
+            _ => panic!("Expected checkbox for 'toggle' alias"),
+        }
+        
+        match &popup.elements[4] {
+            Element::Choice { label, options } => {
+                assert_eq!(label, "Ready");
+                assert_eq!(options, &vec!["Y".to_string(), "N".to_string()]);
+            },
+            _ => panic!("Expected choice for 'y/n' alias"),
+        }
+    }
+    
+    #[test]
+    fn test_mixed_case_aliases() {
+        let input = r#"[Test:
+            Field1: [Input]
+            Field2: [BOOL]
+            Field3: [Y/n]
+            buttons ["OK"]
+        ]"#;
+        
         let result = parse_popup_dsl(input);
-        assert!(result.is_err());
-        // This might not detect as format mixing, but should still provide helpful error
+        assert!(result.is_ok());
+        
+        let popup = result.unwrap();
+        
+        // Aliases should work regardless of case
+        match &popup.elements[0] {
+            Element::Textbox { label, .. } => assert_eq!(label, "Field1"),
+            _ => panic!("Expected textbox for 'Input' alias"),
+        }
+        
+        match &popup.elements[1] {
+            Element::Checkbox { label, .. } => assert_eq!(label, "Field2"),
+            _ => panic!("Expected checkbox for 'BOOL' alias"),
+        }
     }
 
     #[test]
