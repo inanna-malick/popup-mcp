@@ -31,6 +31,25 @@ const WIDGET_ALIASES: &[(&str, &str)] = &[
 pub struct PopupParser;
 
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
+    // Try original input first
+    match attempt_parse(input) {
+        Ok(definition) => return Ok(definition),
+        Err(original_error) => {
+            // If parsing fails, try format auto-detection and transformation
+            if let Some(transformed) = auto_detect_and_transform_format(input) {
+                match attempt_parse(&transformed) {
+                    Ok(definition) => return Ok(definition),
+                    Err(_) => {} // Fall through to original error
+                }
+            }
+            
+            // Return the original error with helpful formatting
+            Err(original_error)
+        }
+    }
+}
+
+fn attempt_parse(input: &str) -> Result<PopupDefinition> {
     let pairs = PopupParser::parse(Rule::popup, input)
         .map_err(|e| {
             // Log parse errors to file for ergonomics improvement
@@ -726,6 +745,132 @@ fn parse_range_syntax(text: &str) -> Option<(f32, f32, f32)> {
     None
 }
 
+/// Auto-detect popup format and transform input to make it parseable
+fn auto_detect_and_transform_format(input: &str) -> Option<String> {
+    let trimmed = input.trim();
+    
+    // Pattern 1: Classic syntax with bare text elements
+    // Example: popup "Title" [ Name: [textbox], buttons ["OK"] ]
+    if trimmed.starts_with("popup") && contains_bare_text_in_classic_syntax(trimmed) {
+        return transform_classic_with_bare_text(trimmed);
+    }
+    
+    // Pattern 2: Missing quotes around title in classic syntax
+    // Example: popup Title [elements...]
+    if trimmed.starts_with("popup ") && !trimmed.starts_with("popup \"") {
+        return add_missing_quotes_to_title(trimmed);
+    }
+    
+    // Future: Could add more auto-detection patterns here
+    // - Simplified syntax with malformed elements
+    // - Mixed format detection and normalization
+    // - Common typo corrections
+    
+    None
+}
+
+/// Check if classic syntax contains bare text patterns
+fn contains_bare_text_in_classic_syntax(input: &str) -> bool {
+    // Look for patterns like "Name: [widget]" inside popup brackets
+    if let Some(start) = input.find('[') {
+        if let Some(end) = input.rfind(']') {
+            let content = &input[start+1..end];
+            // Check for colon followed by bracketed widget
+            return content.contains(':') && content.contains('[') && content.contains(']');
+        }
+    }
+    false
+}
+
+/// Transform classic syntax with bare text to proper element syntax
+fn transform_classic_with_bare_text(input: &str) -> Option<String> {
+    // Extract title and content
+    if let Some(quote_start) = input[6..].find('"') { // Find first quote after 'popup '
+        let quote_start_abs = 6 + quote_start;
+        if let Some(quote_end) = input[quote_start_abs + 1..].find('"') {
+            let quote_end_abs = quote_start_abs + 1 + quote_end;
+            let title = &input[quote_start_abs + 1..quote_end_abs]; // Extract between quotes
+            
+            if let Some(bracket_start) = input.find('[') {
+                if let Some(bracket_end) = input.rfind(']') {
+                    let content = &input[bracket_start+1..bracket_end].trim();
+                    
+                    // Transform bare text elements to proper syntax
+                    let transformed_content = transform_bare_text_elements(content);
+                    
+                    return Some(format!("popup \"{}\" [\n{}\n]", title, transformed_content));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Transform bare text elements like "Name: [textbox]" to "textbox \"Name\""
+fn transform_bare_text_elements(content: &str) -> String {
+    let mut result = Vec::new();
+    
+    // Split by commas and process each element
+    for element in content.split(',') {
+        let trimmed = element.trim();
+        
+        // Check if this looks like bare text: "Label: [widget]"
+        if let Some(colon_pos) = trimmed.find(':') {
+            let label = trimmed[..colon_pos].trim();
+            let rest = trimmed[colon_pos + 1..].trim();
+            
+            if rest.starts_with('[') && rest.ends_with(']') {
+                let widget_type = &rest[1..rest.len() - 1].trim();
+                let normalized = normalize_widget_type(widget_type);
+                
+                // Convert to proper element syntax
+                match normalized {
+                    "text" => result.push(format!("    text \"{}\"", label)),
+                    "textbox" => result.push(format!("    textbox \"{}\"", label)),
+                    "checkbox" => result.push(format!("    checkbox \"{}\"", label)),
+                    "slider" => result.push(format!("    slider \"{}\" 0..10", label)),
+                    "choice" => result.push(format!("    choice \"{}\" [\"Option 1\", \"Option 2\"]", label)),
+                    "multiselect" => result.push(format!("    multiselect \"{}\" [\"Option 1\", \"Option 2\"]", label)),
+                    _ => {
+                        // Handle special cases
+                        let widget_lower = widget_type.to_lowercase();
+                        match widget_lower.as_str() {
+                            "y/n" | "yes/no" => result.push(format!("    choice \"{}\" [\"Y\", \"N\"]", label)),
+                            _ => result.push(format!("    text \"{}\"", trimmed)), // Fallback
+                        }
+                    }
+                }
+                continue;
+            }
+        }
+        
+        // If not bare text, pass through as-is (with proper indentation)
+        if !trimmed.is_empty() {
+            result.push(format!("    {}", trimmed));
+        }
+    }
+    
+    result.join("\n")
+}
+
+/// Add missing quotes around popup title
+fn add_missing_quotes_to_title(input: &str) -> Option<String> {
+    // Find the title (word after "popup ")
+    let after_popup = &input[6..].trim_start();
+    
+    if let Some(space_pos) = after_popup.find(' ') {
+        let title = &after_popup[..space_pos];
+        let rest = &after_popup[space_pos..];
+        
+        // Only add quotes if title doesn't already have them
+        if !title.starts_with('"') {
+            return Some(format!("popup \"{}\" {}", title, rest.trim_start()));
+        }
+    }
+    
+    None
+}
+
 /// Serialize a PopupDefinition back to DSL format for round-trip testing
 pub fn serialize_popup_dsl(definition: &PopupDefinition) -> String {
     let mut result = format!("popup \"{}\" [\n", definition.title);
@@ -988,8 +1133,8 @@ mod tests {
         let input = r#"[Title: invalid_widget "test"]"#;
         assert!(parse_popup_dsl(input).is_err());
         
-        // Missing quotes in classic syntax
-        let input = r#"popup Title []"#;
+        // Completely malformed syntax that auto-detection can't fix
+        let input = r#"invalid_popup_syntax"#;
         assert!(parse_popup_dsl(input).is_err());
     }
 

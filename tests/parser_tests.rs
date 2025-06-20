@@ -59,11 +59,11 @@ fn test_mixed_case_widget_aliases() {
 
 #[test]
 fn test_enhanced_error_messages() {
-    // Missing quotes
-    let result = parse_popup_dsl("popup Title []");
+    // Completely malformed syntax that auto-detection can't fix
+    let result = parse_popup_dsl("not_a_popup_at_all");
     assert!(result.is_err());
     let error = result.unwrap_err().to_string();
-    assert!(error.contains("Missing quotes") || error.contains("expected string"));
+    assert!(error.contains("expected popup"));
     
     // Empty popup
     let result = parse_popup_dsl("popup \"Test\" [");
@@ -316,6 +316,38 @@ fn test_natural_language_labels() {
     match &popup.elements[1] {
         Element::Textbox { label, .. } => assert_eq!(label, "Email (required)"),
         _ => panic!("Expected textbox"),
+    }
+}
+
+#[test]
+fn test_format_auto_detection() {
+    // Test auto-detection and transformation of problematic formats
+    let test_cases = vec![
+        // Classic syntax with bare text elements (should be auto-transformed)
+        (r#"popup "Test" [ Name: [textbox], buttons ["OK"] ]"#, 2),
+        
+        // Missing quotes around title (should be auto-fixed) - use multiline to avoid comma issues
+        (r#"popup Title [ 
+            text "Hello"
+            buttons ["OK"] 
+        ]"#, 2),
+        
+        // Mixed bare text and proper elements
+        (r#"popup "Form" [ Name: [textbox], text "Instructions", buttons ["Submit"] ]"#, 3),
+    ];
+    
+    for (i, (input, expected_elements)) in test_cases.iter().enumerate() {
+        let result = parse_popup_dsl(input);
+        match result {
+            Ok(popup) => {
+                assert_eq!(popup.elements.len(), *expected_elements, "Wrong element count for auto-detection test case {}", i);
+            },
+            Err(err) => {
+                eprintln!("Test case {} input: {}", i, input);
+                eprintln!("Error: {}", err);
+                panic!("Auto-detection test case {} failed", i);
+            }
+        }
     }
 }
 
