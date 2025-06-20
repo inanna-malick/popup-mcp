@@ -1,4 +1,4 @@
-use egui::{Color32, Context, Rounding, Stroke};
+use egui::{Color32, Context, Stroke};
 
 /// Cyberpunk theme with neon colors and sharp edges
 #[derive(Debug, Clone)]
@@ -47,15 +47,12 @@ impl Theme {
         let mut visuals = style.visuals.clone();
         
         // Sharp cyberpunk window with neon glow
-        visuals.window_rounding = Rounding::ZERO;
         visuals.window_stroke = Stroke::new(2.0, self.neon_cyan);
-        visuals.window_shadow.extrusion = 16.0;
         visuals.window_shadow.color = self.neon_cyan.linear_multiply(0.3);
         
         // Tight spacing for compact feel
         style.spacing.button_padding = egui::vec2(10.0, 6.0);
         style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.menu_margin = egui::Margin::symmetric(10.0, 8.0);
         
         // Dark background with neon text
         visuals.override_text_color = Some(self.text_primary);
@@ -66,20 +63,16 @@ impl Theme {
         // Widget states with cyberpunk colors
         visuals.widgets.noninteractive.bg_fill = self.dark_gray;
         visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, self.neon_purple.linear_multiply(0.2));
-        visuals.widgets.noninteractive.rounding = Rounding::ZERO;
         
         visuals.widgets.inactive.bg_fill = self.dark_gray;
         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, self.electric_blue.linear_multiply(0.3));
-        visuals.widgets.inactive.rounding = Rounding::ZERO;
         
         visuals.widgets.hovered.bg_fill = self.dark_gray.linear_multiply(1.3);
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, self.neon_cyan);
-        visuals.widgets.hovered.rounding = Rounding::ZERO;
         visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, self.neon_cyan);
         
         visuals.widgets.active.bg_fill = self.neon_pink.linear_multiply(0.15);
         visuals.widgets.active.bg_stroke = Stroke::new(1.0, self.neon_pink);
-        visuals.widgets.active.rounding = Rounding::ZERO;
         
         // Neon button highlights
         visuals.widgets.inactive.weak_bg_fill = self.electric_blue.linear_multiply(0.2);

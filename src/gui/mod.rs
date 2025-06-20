@@ -1,6 +1,7 @@
 use anyhow::Result;
 use eframe::egui;
 use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Id};
+use egui_twemoji::EmojiLabel;
 use std::sync::{Arc, Mutex};
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition, ComparisonOp};
@@ -8,16 +9,12 @@ use crate::theme::Theme;
 
 mod widget_renderers;
 
-fn setup_custom_fonts(_ctx: &Context) {
-    // Note: egui currently only supports monochrome emoji rendering
-    // Full color emoji would require:
-    // 1. Custom font loading with color emoji support
-    // 2. Platform-specific rendering (e.g., CoreText on macOS)
-    // 3. Or switching to a different text rendering backend
-    
-    // For now, we get monochrome emoji which is better than nothing
-    // and maintains cross-platform compatibility
+fn setup_custom_fonts(ctx: &Context) {
+    // Install image loaders for egui-twemoji (required for emoji rendering)
+    egui_extras::install_image_loaders(ctx);
+    log::info!("Installed image loaders for emoji support");
 }
+
 
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     use std::sync::{Arc, Mutex};
@@ -45,7 +42,7 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
             setup_custom_fonts(&cc.egui_ctx);
             
             let app = PopupApp::new_with_result(definition, result_clone);
-            Box::new(app)
+            Ok(Box::new(app))
         }),
     ).map_err(|e| anyhow::anyhow!("Failed to run eframe: {}", e))?;
     
@@ -154,7 +151,7 @@ fn render_elements_with_context(
                         let header_text = RichText::new(format!("▶ {}", text))
                             .size(16.0)
                             .color(theme.neon_cyan);
-                        ui.label(header_text);
+                        EmojiLabel::new(header_text).show(ui);
                     });
                     ui.add_space(2.0);
                     
@@ -164,7 +161,7 @@ fn render_elements_with_context(
                 } else {
                     ui.horizontal(|ui| {
                         ui.add_space(10.0);
-                        ui.label(RichText::new(text).color(theme.text_secondary));
+                        EmojiLabel::new(RichText::new(text).color(theme.text_secondary)).show(ui);
                     });
                 }
                 is_first = false;
@@ -175,15 +172,15 @@ fn render_elements_with_context(
                     ui.group(|ui| {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new(label).color(theme.text_primary));
+                                EmojiLabel::new(RichText::new(label).color(theme.text_primary)).show(ui);
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace());
+                                    EmojiLabel::new(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace()).show(ui);
                                 });
                             });
                             
                             let slider = egui::Slider::new(value, *min..=*max)
                                 .show_value(false)
-                                .clamp_to_range(true);
+                                .clamping(egui::SliderClamping::Always);
                             let response = ui.add(slider);
                             
                             // Store the response ID for focus
@@ -224,7 +221,7 @@ fn render_elements_with_context(
             
             Element::Textbox { label, placeholder, rows } => {
                 ui.group(|ui| {
-                    ui.label(RichText::new(format!("◈ {}", label)).color(theme.electric_blue));
+                    EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.electric_blue)).show(ui);
                     if let Some(value) = state.get_text_mut(label) {
                         let height = rows.unwrap_or(1) as f32 * 20.0;
                         let text_edit = egui::TextEdit::multiline(value)
@@ -247,7 +244,7 @@ fn render_elements_with_context(
             
             Element::Choice { label, options } => {
                 ui.group(|ui| {
-                    ui.label(RichText::new(format!("◆ {}", label)).color(theme.neon_purple));
+                    EmojiLabel::new(RichText::new(format!("◆ {}", label)).color(theme.neon_purple)).show(ui);
                     if let Some(selected) = state.get_choice_mut(label) {
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
@@ -280,7 +277,7 @@ fn render_elements_with_context(
             
             Element::Multiselect { label, options } => {
                 ui.group(|ui| {
-                    ui.label(RichText::new(format!("◈ {}", label)).color(theme.warning_orange));
+                    EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.warning_orange)).show(ui);
                     if let Some(selections) = state.get_multichoice_mut(label) {
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
@@ -315,8 +312,8 @@ fn render_elements_with_context(
             Element::Group { label, elements } => {
                 ui.group(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("//").color(theme.neon_pink).monospace());
-                        ui.label(RichText::new(label).color(theme.neon_cyan).strong());
+                        EmojiLabel::new(RichText::new("//").color(theme.neon_pink).monospace()).show(ui);
+                        EmojiLabel::new(RichText::new(label).color(theme.neon_cyan).strong()).show(ui);
                     });
                     ui.separator();
                     render_elements_with_context(ui, elements, state, all_elements, theme, first_widget_id, widget_focused);
@@ -356,12 +353,47 @@ fn render_elements_with_context(
                             theme.electric_blue
                         };
                         
-                        let response = ui.add_sized(
-                            Vec2::new(button_width, 28.0),
-                            egui::Button::new(button_text)
-                                .fill(button_color.linear_multiply(0.2))
-                                .stroke(Stroke::new(1.0, button_color))
-                        );
+                        // For buttons, we need to use a different approach since Button expects a WidgetText
+                        let response = if button.chars().any(|c| c as u32 > 0x7F) {
+                            // Contains non-ASCII characters (likely emoji)
+                            // First, render the emoji and get its rect
+                            let emoji_response = ui.allocate_ui_with_layout(
+                                Vec2::new(button_width, 28.0),
+                                Layout::centered_and_justified(egui::Direction::LeftToRight),
+                                |ui| {
+                                    EmojiLabel::new(button_text).show(ui);
+                                }
+                            );
+                            
+                            // Then create a clickable overlay at the same position
+                            let response = ui.interact(
+                                emoji_response.response.rect,
+                                egui::Id::new(format!("emoji_button_{}", i)),
+                                egui::Sense::click()
+                            );
+                            
+                            // Draw translucent button overlay
+                            if ui.is_rect_visible(response.rect) {
+                                let visuals = ui.style().interact(&response);
+                                ui.painter().rect(
+                                    response.rect,
+                                    visuals.corner_radius,
+                                    button_color.linear_multiply(0.1), // More translucent
+                                    Stroke::new(1.0, button_color),
+                                    egui::StrokeKind::Middle
+                                );
+                            }
+                            
+                            response
+                        } else {
+                            // Regular text button
+                            ui.add_sized(
+                                Vec2::new(button_width, 28.0),
+                                egui::Button::new(button_text)
+                                    .fill(button_color.linear_multiply(0.2))
+                                    .stroke(Stroke::new(1.0, button_color))
+                            )
+                        };
                         
                         // Store the response ID for focus (only for first button)
                         if first_widget_id.is_none() && !widget_focused && i == 0 {
