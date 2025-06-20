@@ -5,8 +5,9 @@ WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
 // Root: popup "Title" [elements...] or [Title: elements...]
 popup = { SOI ~ (classic_popup | simplified_popup) ~ EOI }
-classic_popup = { "popup" ~ string ~ "[" ~ element* ~ "]" }
-simplified_popup = { "[" ~ title_text ~ ":" ~ element* ~ "]" }
+classic_popup = { "popup" ~ string ~ "[" ~ element_list ~ "]" }
+simplified_popup = { "[" ~ title_text ~ ":" ~ element_list ~ "]" }
+element_list = { (element ~ (","? ~ element)*)? }
 title_text = @{ (!":" ~ ANY)+ }
 
 // All supported UI elements
@@ -30,11 +31,11 @@ checkbox = { "checkbox" ~ string ~ ("@" ~ boolean)? }                     // @ s
 textbox = { "textbox" ~ string }
 choice = { "choice" ~ string ~ "[" ~ string_list ~ "]" }
 multiselect = { "multiselect" ~ string ~ "[" ~ string_list ~ "]" }
-group = { "group" ~ string ~ "[" ~ element* ~ "]" }
+group = { "group" ~ string ~ "[" ~ element_list ~ "]" }
 buttons = { "buttons" ~ "[" ~ string_list ~ "]" }
 
 // Conditional UI: if condition [elements...]
-conditional = { "if" ~ condition ~ "[" ~ element* ~ "]" }
+conditional = { "if" ~ condition ~ "[" ~ element_list ~ "]" }
 condition = {
     "checked(" ~ string ~ ")" |                          // if checkbox is checked
     "selected(" ~ string ~ "," ~ string ~ ")" |          // if choice equals value

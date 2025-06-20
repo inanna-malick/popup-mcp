@@ -1,4 +1,4 @@
-use popup_mcp::dsl::parse_popup_dsl;
+use popup_mcp::dsl::{parse_popup_dsl, serialize_popup_dsl};
 use popup_mcp::models::Element;
 
 #[test]
@@ -349,6 +349,26 @@ fn test_format_auto_detection() {
             }
         }
     }
+}
+
+#[test]
+fn test_single_line_format() {
+    // Test that single-line format parses correctly
+    let single_line = r#"popup "Test" [textbox "Name", buttons ["OK"]]"#;
+    let popup = parse_popup_dsl(single_line).unwrap();
+    
+    assert_eq!(popup.title, "Test");
+    assert_eq!(popup.elements.len(), 2);
+    
+    // Test that serialization produces single-line format
+    let serialized = serialize_popup_dsl(&popup);
+    assert!(serialized.contains("[textbox \"Name\", buttons"));
+    assert!(!serialized.contains('\n')); // No newlines in serialized output
+    
+    // Test roundtrip
+    let reparsed = parse_popup_dsl(&serialized).unwrap();
+    assert_eq!(reparsed.title, popup.title);
+    assert_eq!(reparsed.elements.len(), popup.elements.len());
 }
 
 #[test]

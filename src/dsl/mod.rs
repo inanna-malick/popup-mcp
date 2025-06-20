@@ -90,16 +90,16 @@ fn parse_classic_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefinit
     // Get title from quoted string
     let title = parse_string(inner.next().unwrap())?;
     
-    // Parse elements
-    let mut elements = Vec::new();
-    for pair in inner {
-        if pair.as_rule() == Rule::EOI {
-            continue;
+    // Parse element_list (if present)
+    let elements = if let Some(element_list_pair) = inner.next() {
+        if element_list_pair.as_rule() == Rule::element_list {
+            parse_element_list(element_list_pair)?
+        } else {
+            Vec::new()
         }
-        if let Ok(element) = parse_element(pair) {
-            elements.push(element);
-        }
-    }
+    } else {
+        Vec::new()
+    };
     
     Ok(PopupDefinition { title, elements })
 }
@@ -110,18 +110,30 @@ fn parse_simplified_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefi
     // Get title from unquoted text before colon
     let title = inner.next().unwrap().as_str().trim().to_string();
     
-    // Parse elements
-    let mut elements = Vec::new();
-    for pair in inner {
-        if pair.as_rule() == Rule::EOI {
-            continue;
+    // Parse element_list (if present)
+    let elements = if let Some(element_list_pair) = inner.next() {
+        if element_list_pair.as_rule() == Rule::element_list {
+            parse_element_list(element_list_pair)?
+        } else {
+            Vec::new()
         }
-        if let Ok(element) = parse_element(pair) {
-            elements.push(element);
-        }
-    }
+    } else {
+        Vec::new()
+    };
     
     Ok(PopupDefinition { title, elements })
+}
+
+fn parse_element_list(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Element>> {
+    let mut elements = Vec::new();
+    for element_pair in pair.into_inner() {
+        if element_pair.as_rule() == Rule::element {
+            if let Ok(element) = parse_element(element_pair) {
+                elements.push(element);
+            }
+        }
+    }
+    Ok(elements)
 }
 
 fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
@@ -215,7 +227,15 @@ fn parse_multiselect(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
 fn parse_group(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let label = parse_string(inner.next().unwrap())?;
-    let elements = parse_elements(inner)?;
+    let elements = if let Some(element_list_pair) = inner.next() {
+        if element_list_pair.as_rule() == Rule::element_list {
+            parse_element_list(element_list_pair)?
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
     Ok(Element::Group { label, elements })
 }
 
@@ -229,7 +249,15 @@ fn parse_conditional(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     let mut inner = pair.into_inner();
     let condition_pair = inner.next().unwrap();
     let condition = parse_condition(condition_pair)?;
-    let elements = parse_elements(inner)?;
+    let elements = if let Some(element_list_pair) = inner.next() {
+        if element_list_pair.as_rule() == Rule::element_list {
+            parse_element_list(element_list_pair)?
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
     Ok(Element::Conditional { condition, elements })
 }
 
@@ -244,15 +272,6 @@ fn parse_string_list_rule(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Strin
     Ok(strings)
 }
 
-fn parse_elements(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<Element>> {
-    let mut elements = Vec::new();
-    for pair in pairs {
-        if let Ok(element) = parse_element(pair) {
-            elements.push(element);
-        }
-    }
-    Ok(elements)
-}
 
 fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
     match pair.as_rule() {
@@ -873,87 +892,74 @@ fn add_missing_quotes_to_title(input: &str) -> Option<String> {
 
 /// Serialize a PopupDefinition back to DSL format for round-trip testing
 pub fn serialize_popup_dsl(definition: &PopupDefinition) -> String {
-    let mut result = format!("popup \"{}\" [\n", definition.title);
+    let elements: Vec<String> = definition.elements.iter()
+        .map(|element| serialize_element(element))
+        .collect();
     
-    for element in &definition.elements {
-        result.push_str(&serialize_element(element, 1));
-    }
-    
-    result.push_str("]");
-    result
+    format!("popup \"{}\" [{}]", definition.title, elements.join(", "))
 }
 
-fn serialize_element(element: &Element, indent_level: usize) -> String {
-    let indent = "    ".repeat(indent_level);
-    
+fn serialize_element(element: &Element) -> String {
     match element {
         Element::Text(text) => {
             if text.contains('\n') {
-                format!("{}text \"\"\"{}\"\"\"\n", indent, text)
+                format!("text \"\"\"{}\"\"\"", text)
             } else {
-                format!("{}text \"{}\"\n", indent, text)
+                format!("text \"{}\"", text)
             }
         },
         Element::Slider { label, min, max, default } => {
             if (min + max) / 2.0 == *default {
-                format!("{}slider \"{}\" {}..{}\n", indent, label, min, max)
+                format!("slider \"{}\" {}..{}", label, min, max)
             } else {
-                format!("{}slider \"{}\" {}..{} @{}\n", indent, label, min, max, default)
+                format!("slider \"{}\" {}..{} @{}", label, min, max, default)
             }
         },
         Element::Checkbox { label, default } => {
             if *default {
-                format!("{}checkbox \"{}\" @true\n", indent, label)
+                format!("checkbox \"{}\" @true", label)
             } else {
-                format!("{}checkbox \"{}\"\n", indent, label)
+                format!("checkbox \"{}\"", label)
             }
         },
         Element::Textbox { label, placeholder, rows } => {
-            let mut result = format!("{}textbox \"{}\"", indent, label);
+            let mut result = format!("textbox \"{}\"", label);
             if let Some(placeholder) = placeholder {
                 result.push_str(&format!(" \"{}\"", placeholder));
             }
             if let Some(rows) = rows {
                 result.push_str(&format!(" rows={}", rows));
             }
-            result.push('\n');
             result
         },
         Element::Choice { label, options } => {
-            format!("{}choice \"{}\" [{}]\n", 
-                indent, 
+            format!("choice \"{}\" [{}]", 
                 label, 
                 options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
             )
         },
         Element::Multiselect { label, options } => {
-            format!("{}multiselect \"{}\" [{}]\n", 
-                indent, 
+            format!("multiselect \"{}\" [{}]", 
                 label, 
                 options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
             )
         },
         Element::Group { label, elements } => {
-            let mut result = format!("{}group \"{}\" [\n", indent, label);
-            for elem in elements {
-                result.push_str(&serialize_element(elem, indent_level + 1));
-            }
-            result.push_str(&format!("{}]\n", indent));
-            result
+            let nested: Vec<String> = elements.iter()
+                .map(|e| serialize_element(e))
+                .collect();
+            format!("group \"{}\" [{}]", label, nested.join(", "))
         },
         Element::Buttons(buttons) => {
-            format!("{}buttons [{}]\n", 
-                indent, 
+            format!("buttons [{}]", 
                 buttons.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
             )
         },
         Element::Conditional { condition, elements } => {
-            let mut result = format!("{}if {} [\n", indent, serialize_condition(condition));
-            for elem in elements {
-                result.push_str(&serialize_element(elem, indent_level + 1));
-            }
-            result.push_str(&format!("{}]\n", indent));
-            result
+            let nested: Vec<String> = elements.iter()
+                .map(|e| serialize_element(e))
+                .collect();
+            format!("if {} [{}]", serialize_condition(condition), nested.join(", "))
         },
     }
 }
