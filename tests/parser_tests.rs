@@ -227,6 +227,99 @@ fn test_natural_multiline_layout_works() {
 }
 
 #[test]
+fn test_extended_bare_text_support() {
+    // Test enhanced bare text patterns - multiline format (working)
+    let test_cases = vec![
+        // Simple multiline bare text
+        (r#"[Test: 
+            Name: [textbox]
+            buttons ["OK"]
+        ]"#, 2),
+        
+        // Test with parentheses in multiline
+        (r#"[Test:
+            Age (optional): [input]
+            buttons ["OK"]
+        ]"#, 2),
+        
+        // Test with question marks in multiline
+        (r#"[Test:
+            What's your name?: [textbox]
+            buttons ["OK"]
+        ]"#, 2),
+        
+        // Test multiple bare text elements
+        (r#"[Form:
+            Full name: [textbox]
+            Email: [input]
+            Subscribe: [checkbox]
+            buttons ["Submit"]
+        ]"#, 4),
+    ];
+    
+    for (i, (input, expected_elements)) in test_cases.iter().enumerate() {
+        let result = parse_popup_dsl(input);
+        assert!(result.is_ok(), "Test case {} failed: {}", i, result.unwrap_err());
+        
+        let popup = result.unwrap();
+        assert_eq!(popup.elements.len(), *expected_elements, "Wrong element count for test case {}", i);
+    }
+}
+
+#[test]
+fn test_slider_pattern_parsing() {
+    let test_cases = vec![
+        (r#"[Test: Volume: [0..100], buttons ["OK"]]"#, 0.0, 100.0, 50.0),
+        (r#"[Test: Rating: [1-5], buttons ["OK"]]"#, 1.0, 5.0, 3.0),
+        (r#"[Test: Score: [0..10@7], buttons ["OK"]]"#, 0.0, 10.0, 7.0),
+    ];
+    
+    for (input, expected_min, expected_max, expected_default) in test_cases {
+        let result = parse_popup_dsl(input);
+        assert!(result.is_ok(), "Failed to parse slider pattern: {}", input);
+        
+        let popup = result.unwrap();
+        match &popup.elements[0] {
+            Element::Slider { min, max, default, .. } => {
+                assert_eq!(*min, expected_min);
+                assert_eq!(*max, expected_max);
+                assert_eq!(*default, expected_default);
+            },
+            _ => panic!("Expected slider element"),
+        }
+    }
+}
+
+#[test]
+fn test_natural_language_labels() {
+    // Test that labels with punctuation and complex text work
+    let input = r#"[User Info:
+        What's your full name?: [textbox]
+        Email (required): [input]
+        Do you agree to the terms?: [checkbox]
+        How would you rate us?: [1..5]
+        buttons ["Continue"]
+    ]"#;
+    
+    let result = parse_popup_dsl(input);
+    assert!(result.is_ok(), "Natural language labels should work");
+    
+    let popup = result.unwrap();
+    assert_eq!(popup.elements.len(), 5);
+    
+    // Check that labels are preserved correctly
+    match &popup.elements[0] {
+        Element::Textbox { label, .. } => assert_eq!(label, "What's your full name?"),
+        _ => panic!("Expected textbox"),
+    }
+    
+    match &popup.elements[1] {
+        Element::Textbox { label, .. } => assert_eq!(label, "Email (required)"),
+        _ => panic!("Expected textbox"),
+    }
+}
+
+#[test]
 fn test_widget_alias_normalization() {
     // Test that aliases work in simplified syntax
     let inputs = vec![

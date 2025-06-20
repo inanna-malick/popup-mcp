@@ -392,17 +392,36 @@ fn parse_bare_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
                     label: label.to_string(), 
                     default: false 
                 }),
+                "choice" => Ok(Element::Choice {
+                    label: label.to_string(),
+                    options: vec!["Option 1".to_string(), "Option 2".to_string()]
+                }),
+                "multiselect" => Ok(Element::Multiselect {
+                    label: label.to_string(), 
+                    options: vec!["Option 1".to_string(), "Option 2".to_string()]
+                }),
                 _ => {
-                    // Check special cases that aren't direct aliases
+                    // Check special cases and pattern-based widgets
                     let widget_lower = widget_type.to_lowercase();
                     match widget_lower.as_str() {
-                        "y/n" => Ok(Element::Choice { 
+                        "y/n" | "yes/no" => Ok(Element::Choice { 
                             label: label.to_string(), 
                             options: vec!["Y".to_string(), "N".to_string()] 
                         }),
+                        "slider" => Ok(Element::Slider {
+                            label: label.to_string(),
+                            min: 0.0,
+                            max: 10.0, 
+                            default: 5.0
+                        }),
                         _ => {
-                            // Not a recognized widget type, treat as plain text
-                            Ok(Element::Text(text.to_string()))
+                            // Check if it looks like a slider pattern: [0..10] or [1-5]
+                            if let Some(slider) = parse_slider_pattern(widget_type, label) {
+                                Ok(slider)
+                            } else {
+                                // Not a recognized widget type, treat as plain text
+                                Ok(Element::Text(text.to_string()))
+                            }
                         }
                     }
                 }
@@ -633,6 +652,78 @@ fn normalize_widget_type(widget_type: &str) -> &str {
     
     // Return original if not an alias
     widget_type
+}
+
+/// Parse slider patterns like "0..10", "1-5", "0-100@50"
+fn parse_slider_pattern(widget_type: &str, label: &str) -> Option<Element> {
+    // Check for range patterns: 0..10, 1-5, etc.
+    if let Some(captures) = parse_range_syntax(widget_type) {
+        let (min, max, default) = captures;
+        return Some(Element::Slider { 
+            label: label.to_string(), 
+            min, 
+            max, 
+            default 
+        });
+    }
+    
+    None
+}
+
+/// Parse range syntax: "0..10", "1-5", "0-100@50"
+fn parse_range_syntax(text: &str) -> Option<(f32, f32, f32)> {
+    // Try ".." syntax first: "0..10" or "0..10@5"
+    if let Some(dot_pos) = text.find("..") {
+        let before = &text[..dot_pos];
+        let after = &text[dot_pos + 2..];
+        
+        if let Ok(min) = before.parse::<f32>() {
+            // Check for default value after @
+            if let Some(at_pos) = after.find('@') {
+                let max_str = &after[..at_pos];
+                let default_str = &after[at_pos + 1..];
+                
+                if let (Ok(max), Ok(default)) = (max_str.parse::<f32>(), default_str.parse::<f32>()) {
+                    return Some((min, max, default));
+                }
+            } else {
+                // No default, use midpoint
+                if let Ok(max) = after.parse::<f32>() {
+                    let default = (min + max) / 2.0;
+                    return Some((min, max, default));
+                }
+            }
+        }
+    }
+    
+    // Try "-" syntax: "1-5" or "0-100@25"
+    if let Some(dash_pos) = text.find('-') {
+        // Make sure it's not a negative number at the start
+        if dash_pos > 0 {
+            let before = &text[..dash_pos];
+            let after = &text[dash_pos + 1..];
+            
+            if let Ok(min) = before.parse::<f32>() {
+                // Check for default value after @
+                if let Some(at_pos) = after.find('@') {
+                    let max_str = &after[..at_pos];
+                    let default_str = &after[at_pos + 1..];
+                    
+                    if let (Ok(max), Ok(default)) = (max_str.parse::<f32>(), default_str.parse::<f32>()) {
+                        return Some((min, max, default));
+                    }
+                } else {
+                    // No default, use midpoint
+                    if let Ok(max) = after.parse::<f32>() {
+                        let default = (min + max) / 2.0;
+                        return Some((min, max, default));
+                    }
+                }
+            }
+        }
+    }
+    
+    None
 }
 
 /// Serialize a PopupDefinition back to DSL format for round-trip testing

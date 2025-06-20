@@ -2243,3 +2243,517 @@ Error:
   |         ^---
   |
   = expected element
+
+--- Parse Error (2025-06-20 01:33:50 UTC) ---
+Input:
+[Form:
+            What's your name?: [textbox]
+            Age (optional): [input] 
+            Are you ready?: [y/n]
+            Rating 1-10: [1..10]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 3:13
+  |
+3 |             Age (optional): [input] 
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:18 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:45:18 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:18 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:18 UTC) ---
+Input:
+[SPIKE: Quick Check
+  Thing 1: [textbox]
+]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Check
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:33 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:45:33 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:33 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:45:33 UTC) ---
+Input:
+[SPIKE: Quick Check
+  Thing 1: [textbox]
+]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Check
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+popup "Title" [ Name: [textbox], buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Title" [ Name: [textbox], buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Form:
+            What's your name?: [textbox]
+            Age (optional): [input] 
+            Are you ready?: [y/n]
+            Rating 1-10: [1..10]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 3:13
+  |
+3 |             Age (optional): [input] 
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[User Info:
+        What's your full name?: [textbox]
+        Email (required): [input]
+        Do you agree to the terms?: [checkbox]
+        How would you rate us?: [1..5]
+        buttons ["Continue"]
+    ]
+
+Error:
+ --> 3:9
+  |
+3 |         Email (required): [input]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Test: Volume: [0..100], buttons ["OK"]]
+
+Error:
+ --> 1:8
+  |
+1 | [Test: Volume: [0..100], buttons ["OK"]]
+  |        ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:07 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:34 UTC) ---
+Input:
+[Form:
+            What's your name?: [textbox]
+            Age (optional): [input] 
+            Are you ready?: [y/n]
+            Rating 1-10: [1..10]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 3:13
+  |
+3 |             Age (optional): [input] 
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:55:47 UTC) ---
+Input:
+[Form:
+            What's your name?: [textbox]
+            Age (optional): [input] 
+            Are you ready?: [y/n]
+            Rating 1-10: [1..10]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 3:13
+  |
+3 |             Age (optional): [input] 
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:56:11 UTC) ---
+Input:
+[Form:
+            What's your name?: [textbox]
+            Age (optional): [input] 
+            Are you ready?: [y/n]
+            Rating 1-10: [1..10]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 5:13
+  |
+5 |             Rating 1-10: [1..10]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:56:37 UTC) ---
+Input:
+[Test: Name: [textbox], buttons ["OK"]]
+
+Error:
+ --> 1:23
+  |
+1 | [Test: Name: [textbox], buttons ["OK"]]
+  |                       ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:56:59 UTC) ---
+Input:
+[Test: Name: [textbox], buttons ["OK"]]
+
+Error:
+ --> 1:23
+  |
+1 | [Test: Name: [textbox], buttons ["OK"]]
+  |                       ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+popup "Title" [ Name: [textbox], buttons ["OK"] ]
+
+Error:
+ --> 1:32
+  |
+1 | popup "Title" [ Name: [textbox], buttons ["OK"] ]
+  |                                ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[User Info:
+        What's your full name?: [textbox]
+        Email (required): [input]
+        Do you agree to the terms?: [checkbox]
+        How would you rate us?: [1..5]
+        buttons ["Continue"]
+    ]
+
+Error:
+ --> 5:9
+  |
+5 |         How would you rate us?: [1..5]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+popup "Test" [
+
+Error:
+ --> 1:15
+  |
+1 | popup "Test" [
+  |               ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Quick: label "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: label "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Quick: info "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: info "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Test: Volume: [0..100], buttons ["OK"]]
+
+Error:
+ --> 1:8
+  |
+1 | [Test: Volume: [0..100], buttons ["OK"]]
+  |        ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 01:57:33 UTC) ---
+Input:
+[Quick: message "test", buttons ["OK"]]
+
+Error:
+ --> 1:9
+  |
+1 | [Quick: message "test", buttons ["OK"]]
+  |         ^---
+  |
+  = expected element

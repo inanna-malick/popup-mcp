@@ -54,5 +54,6 @@ number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
 boolean = { "true" | "false" }                          // Boolean values
 
 // Match "Label: [widget]" pattern with flexible widget names that will be normalized
-bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ (ASCII_ALPHANUMERIC | " ")+ ~ ":" ~ " "* ~ "[" ~ widget_alias ~ "]" }
-widget_alias = @{ (ASCII_ALPHA | "-" | "_" | "/")+ }
+bare_text = @{ !(("text" | "slider" | "checkbox" | "textbox" | "choice" | "multiselect" | "group" | "buttons" | "if") ~ (" " | "\t")) ~ label_content ~ ":" ~ " "* ~ "[" ~ widget_alias ~ "]" }
+label_content = @{ (ASCII_ALPHANUMERIC | " " | "'" | "?" | "!" | "." | "," | "-" | "_" | "(" | ")")+ }
+widget_alias = @{ (ASCII_ALPHA | "-" | "_" | "/" | ASCII_DIGIT)+ }
