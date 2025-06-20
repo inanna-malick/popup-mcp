@@ -91,6 +91,92 @@ fn test_bare_text_not_allowed_in_classic_syntax() {
 }
 
 
+#[test] 
+fn test_multiline_text_support() {
+    let input = r#"popup "Instructions" [
+        text """Welcome to the system!
+        
+        This popup demonstrates:
+        • Multiline text support
+        • Bullet points work
+        • Line breaks are preserved
+        
+        Please proceed when ready."""
+        
+        buttons ["Continue", "Help"]
+    ]"#;
+    
+    let result = parse_popup_dsl(input);
+    assert!(result.is_ok(), "Failed to parse multiline text");
+    
+    let popup = result.unwrap();
+    match &popup.elements[0] {
+        Element::Text(content) => {
+            assert!(content.contains("Welcome to the system!"));
+            assert!(content.contains("• Multiline text support"));
+            assert!(content.contains("Line breaks are preserved"));
+            // Check that newlines are preserved
+            assert!(content.contains('\n'));
+        },
+        _ => panic!("Expected text element"),
+    }
+}
+
+#[test]
+fn test_mixed_single_and_multiline_strings() {
+    let input = r#"popup "Mixed Example" [
+        text "Single line text"
+        text """Multiline text
+        with multiple lines
+        and formatting"""
+        textbox "Enter details"
+        buttons ["Save"]
+    ]"#;
+    
+    let result = parse_popup_dsl(input);
+    assert!(result.is_ok(), "Failed to parse mixed string types");
+    
+    let popup = result.unwrap();
+    assert_eq!(popup.elements.len(), 4); // 2 text + 1 textbox + 1 buttons
+    
+    match &popup.elements[0] {
+        Element::Text(content) => assert_eq!(content, "Single line text"),
+        _ => panic!("Expected single line text"),
+    }
+    
+    match &popup.elements[1] {
+        Element::Text(content) => {
+            assert!(content.contains("Multiline text"));
+            assert!(content.contains("with multiple lines"));
+        },
+        _ => panic!("Expected multiline text"),
+    }
+}
+
+#[test]
+fn test_multiline_roundtrip() {
+    use popup_mcp::dsl::serialize_popup_dsl;
+    
+    let input = r#"popup "Test" [
+        text """Line 1
+Line 2
+Line 3"""
+        buttons ["OK"]
+    ]"#;
+    
+    let parsed = parse_popup_dsl(input).expect("Should parse multiline");
+    let serialized = serialize_popup_dsl(&parsed);
+    let reparsed = parse_popup_dsl(&serialized).expect("Should reparse serialized");
+    
+    // Check the content is preserved
+    match &reparsed.elements[0] {
+        Element::Text(content) => {
+            assert_eq!(content, "Line 1\nLine 2\nLine 3");
+        },
+        _ => panic!("Expected text element"),
+    }
+}
+
 #[test]
 fn test_widget_alias_normalization() {
     // Test that aliases work in simplified syntax

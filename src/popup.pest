@@ -46,7 +46,10 @@ string_list = { string ~ ("," ~ string)* }              // Comma-separated strin
 op = { ">" | "<" | ">=" | "<=" | "==" | "!=" }         // Comparison operators
 
 // Basic types
-string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }               // Quoted strings
+string = { multiline_string | single_string }          // Either multiline or single-line strings
+single_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }       // Regular quoted strings
+multiline_string = { "\"\"\"" ~ multiline_content ~ "\"\"\"" } // Triple-quoted multiline strings
+multiline_content = @{ (!"\"\"\"" ~ ANY)* }            // Content between triple quotes
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? } // Integers or floats
 boolean = { "true" | "false" }                          // Boolean values
 

@@ -236,11 +236,52 @@ fn parse_elements(pairs: pest::iterators::Pairs<Rule>) -> Result<Vec<Element>> {
 }
 
 fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
-    // The string rule now includes quotes, so we need to strip them
-    let full_string = pair.as_str();
-    // Remove the surrounding quotes
-    let content = &full_string[1..full_string.len()-1];
-    Ok(content.to_string())
+    match pair.as_rule() {
+        Rule::string => {
+            // Check which type of string this is
+            let inner = pair.into_inner().next().unwrap();
+            match inner.as_rule() {
+                Rule::single_string => {
+                    let full_string = inner.as_str();
+                    // Remove the surrounding quotes
+                    let content = &full_string[1..full_string.len()-1];
+                    Ok(content.to_string())
+                },
+                Rule::multiline_string => {
+                    let full_string = inner.as_str();
+                    // Remove the surrounding triple quotes
+                    let content = &full_string[3..full_string.len()-3];
+                    Ok(content.to_string())
+                },
+                _ => Err(anyhow::anyhow!("Unknown string type: {:?}", inner.as_rule()))
+            }
+        },
+        Rule::single_string => {
+            let full_string = pair.as_str();
+            // Remove the surrounding quotes
+            let content = &full_string[1..full_string.len()-1];
+            Ok(content.to_string())
+        },
+        Rule::multiline_string => {
+            let full_string = pair.as_str();
+            // Remove the surrounding triple quotes
+            let content = &full_string[3..full_string.len()-3];
+            Ok(content.to_string())
+        },
+        _ => {
+            // Fallback to old behavior for compatibility
+            let full_string = pair.as_str();
+            if full_string.starts_with("\"\"\"") && full_string.ends_with("\"\"\"") {
+                let content = &full_string[3..full_string.len()-3];
+                Ok(content.to_string())
+            } else if full_string.starts_with('"') && full_string.ends_with('"') {
+                let content = &full_string[1..full_string.len()-1];
+                Ok(content.to_string())
+            } else {
+                Ok(full_string.to_string())
+            }
+        }
+    }
 }
 
 fn parse_condition(pair: pest::iterators::Pair<Rule>) -> Result<Condition> {
@@ -610,7 +651,13 @@ fn serialize_element(element: &Element, indent_level: usize) -> String {
     let indent = "    ".repeat(indent_level);
     
     match element {
-        Element::Text(text) => format!("{}text \"{}\"\n", indent, text),
+        Element::Text(text) => {
+            if text.contains('\n') {
+                format!("{}text \"\"\"{}\"\"\"\n", indent, text)
+            } else {
+                format!("{}text \"{}\"\n", indent, text)
+            }
+        },
         Element::Slider { label, min, max, default } => {
             if (min + max) / 2.0 == *default {
                 format!("{}slider \"{}\" {}..{}\n", indent, label, min, max)
