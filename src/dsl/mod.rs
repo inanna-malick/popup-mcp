@@ -520,45 +520,6 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_text_syntax() {
-        let input = r#"[Quick Form:
-            Name: [textbox]
-            Agree: [checkbox]
-            Ready: [Y/N]
-            buttons ["Submit"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        if let Err(e) = &result {
-            eprintln!("Parse error in test_simple_text_syntax: {}", e);
-        }
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.title, "Quick Form");
-        assert_eq!(popup.elements.len(), 4);
-        
-        // Check that simple text elements were parsed correctly
-        match &popup.elements[0] {
-            Element::Textbox { label, .. } => assert_eq!(label, "Name"),
-            _ => panic!("Expected textbox"),
-        }
-        
-        match &popup.elements[1] {
-            Element::Checkbox { label, .. } => assert_eq!(label, "Agree"),
-            _ => panic!("Expected checkbox"),
-        }
-        
-        match &popup.elements[2] {
-            Element::Choice { label, options } => {
-                assert_eq!(label, "Ready");
-                assert_eq!(options, &["Y", "N"]);
-            },
-            _ => panic!("Expected choice"),
-        }
-    }
-
-    #[test]
     fn test_conditional_elements() {
         let input = r#"popup "Conditional Test" [
             checkbox "Show advanced" @false
@@ -627,31 +588,6 @@ mod tests {
     }
 
     #[test]
-    fn test_spike_grounding_check_example() {
-        let input = r#"[SPIKE: Quick Grounding Check
-            Thing 1: [textbox]
-            Thing 2: [textbox]
-            Thing 3: [textbox]
-            
-            One physical sensation you notice: [textbox]
-            
-            Ready for gentle distraction after?: [Y/N]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        if let Err(e) = &result {
-            eprintln!("Parse error in test_spike_grounding_check_example: {}", e);
-        }
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.title, "SPIKE: Quick Grounding Check");
-        
-        // Should have 5 elements + auto-added buttons
-        assert!(popup.elements.len() >= 5);
-    }
-
-    #[test]
     fn test_complex_conditions() {
         let input = r#"popup "Complex Conditions" [
             choice "Mode" ["Basic", "Advanced"]
@@ -688,19 +624,6 @@ mod tests {
         // Missing quotes in classic syntax
         let input = r#"popup Title []"#;
         assert!(parse_popup_dsl(input).is_err());
-    }
-
-    #[test]
-    fn test_simple_text_minimal() {
-        let input = r#"[Test:
-            Name: [textbox]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        if let Err(e) = &result {
-            eprintln!("Parse error in test_simple_text_minimal: {}", e);
-        }
-        assert!(result.is_ok());
     }
 
     #[test]

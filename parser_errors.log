@@ -77,3 +77,428 @@ Error:
   |                                ^---
   |
   = expected element
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+[Test:
+            Name: [textbox]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+[Quick Form:
+            Name: [textbox]
+            Agree: [checkbox]
+            Ready: [Y/N]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:06:36 UTC) ---
+Input:
+[SPIKE: Quick Grounding Check
+            Thing 1: [textbox]
+            Thing 2: [textbox]
+            Thing 3: [textbox]
+            
+            One physical sensation you notice: [textbox]
+            
+            Ready for gentle distraction after?: [Y/N]
+        ]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Grounding Check
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+[Test:
+            Name: [textbox]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+[SPIKE: Quick Grounding Check
+            Thing 1: [textbox]
+            Thing 2: [textbox]
+            Thing 3: [textbox]
+            
+            One physical sensation you notice: [textbox]
+            
+            Ready for gentle distraction after?: [Y/N]
+        ]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Grounding Check
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+[Quick Form:
+            Name: [textbox]
+            Agree: [checkbox]
+            Ready: [Y/N]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:27:34 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+[Quick Form:
+            Name: [textbox]
+            Agree: [checkbox]
+            Ready: [Y/N]
+            buttons ["Submit"]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+[Test:
+            Name: [textbox]
+        ]
+
+Error:
+ --> 2:13
+  |
+2 |             Name: [textbox]
+  |             ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+[SPIKE: Quick Grounding Check
+            Thing 1: [textbox]
+            Thing 2: [textbox]
+            Thing 3: [textbox]
+            
+            One physical sensation you notice: [textbox]
+            
+            Ready for gentle distraction after?: [Y/N]
+        ]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Grounding Check
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:18 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Widget Test:
+Display: [text]
+Input: [textbox]
+Toggle: [checkbox]
+YesNo: [Y/N]
+buttons ["Done"]
+]
+
+Error:
+ --> 3:1
+  |
+3 | Input: [textbox]
+  | ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Mixed Form:
+text "Instructions here"
+Name: [textbox]
+checkbox "I agree" @true
+Options: [Y/N]
+buttons ["Submit", "Cancel"]
+]
+
+Error:
+ --> 3:1
+  |
+3 | Name: [textbox]
+  | ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Bad:
+Name: [invalid]
+]
+
+Error:
+ --> 2:1
+  |
+2 | Name: [invalid]
+  | ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Form:
+Name: [textbox]
+buttons ["Submit"]
+]
+
+Error:
+ --> 2:1
+  |
+2 | Name: [textbox]
+  | ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[SPIKE: Test
+Thing 1: [textbox]
+Ready: [Y/N]
+]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Test
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:28:55 UTC) ---
+Input:
+[Test:Name: [textbox]]
+
+Error:
+ --> 1:7
+  |
+1 | [Test:Name: [textbox]]
+  |       ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:29:13 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:29:13 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:29:13 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
