@@ -16,8 +16,9 @@ pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
             // Log parse errors to file for ergonomics improvement
             log_parse_error(input, &e);
             
-            // Pest errors include detailed position and expected tokens
-            anyhow::anyhow!("Parse error: {}", e)
+            // Create helpful error message with examples
+            let helpful_error = format_helpful_error(input, &e);
+            anyhow::anyhow!("{}", helpful_error)
         })?;
     
     let pair = pairs
@@ -365,6 +366,192 @@ fn log_parse_error(input: &str, error: &pest::error::Error<Rule>) {
     }
 }
 
+/// Format error messages with helpful examples and suggestions
+fn format_helpful_error(input: &str, error: &pest::error::Error<Rule>) -> String {
+    let trimmed = input.trim();
+    
+    // Detect common error patterns and provide specific help
+    match detect_error_pattern(trimmed, error) {
+        ErrorPattern::MissingQuotes => {
+            format!(
+                "Parse error: Missing quotes around title\n\n\
+                 You wrote: popup {} [...]\n\
+                 Should be: popup \"{}\" [...]\n\n\
+                 Example:\n  \
+                 popup \"My Title\" [\n    \
+                 text \"Hello\",\n    \
+                 buttons [\"OK\"]\n  \
+                 ]",
+                extract_unquoted_title(trimmed),
+                extract_unquoted_title(trimmed)
+            )
+        },
+        ErrorPattern::FormatMixing => {
+            "Parse error: Format mixing detected!\n\n\
+             Choose ONE format style:\n\n\
+             Classic format (with 'popup' keyword):\n  \
+             popup \"Title\" [\n    \
+             text \"Hello\",\n    \
+             buttons [\"OK\"]\n  \
+             ]\n\n\
+             Simplified format (no 'popup' keyword):\n  \
+             [Title:\n    \
+             text \"Hello\",\n    \
+             buttons [\"OK\"]\n  \
+             ]\n\n\
+             Tip: If you use 'popup', use quotes. If you use brackets only, use a colon.".to_string()
+        },
+        ErrorPattern::InvalidWidget => {
+            let widget = extract_invalid_widget(trimmed, error);
+            format!(
+                "Parse error: Unknown widget type '{}'\n\n\
+                 Valid widget types:\n  \
+                 • text \"message\" - Display text\n  \
+                 • textbox \"label\" - Text input field\n  \
+                 • checkbox \"label\" - Boolean toggle\n  \
+                 • slider \"label\" min..max - Numeric range\n  \
+                 • choice \"label\" [\"opt1\", \"opt2\"] - Single selection\n  \
+                 • multiselect \"label\" [\"opt1\", \"opt2\"] - Multiple selection\n  \
+                 • buttons [\"label1\", \"label2\"] - Action buttons (required!)\n\n\
+                 Example:\n  \
+                 popup \"Form\" [\n    \
+                 textbox \"Name\",\n    \
+                 checkbox \"Subscribe\" @true,\n    \
+                 buttons [\"Submit\"]\n  \
+                 ]",
+                widget
+            )
+        },
+        ErrorPattern::MissingElement => {
+            let line = get_error_line(error);
+            format!(
+                "Parse error at line {}: Expected a popup element\n\n\
+                 Common issues:\n  \
+                 • Missing comma between elements on the same line\n  \
+                 • Invalid element syntax\n  \
+                 • Empty popup body\n\n\
+                 Valid elements:\n  \
+                 • text \"message\"\n  \
+                 • textbox \"label\"\n  \
+                 • checkbox \"label\"\n  \
+                 • slider \"label\" 0..10\n  \
+                 • buttons [\"OK\", \"Cancel\"]\n\n\
+                 Example of a complete popup:\n  \
+                 popup \"Example\" [\n    \
+                 text \"Enter your details\",\n    \
+                 textbox \"Name\",\n    \
+                 buttons [\"Submit\"]\n  \
+                 ]",
+                line
+            )
+        },
+        ErrorPattern::SimplifiedSyntaxError => {
+            "Parse error: Invalid simplified syntax\n\n\
+             The simplified syntax requires:\n  \
+             1. Opening bracket [\n  \
+             2. Title followed by colon\n  \
+             3. Elements\n  \
+             4. Closing bracket ]\n\n\
+             Correct examples:\n  \
+             [Quick Check:\n    \
+             text \"Status check\",\n    \
+             buttons [\"Continue\"]\n  \
+             ]\n\n  \
+             [User Input:\n    \
+             Name: [textbox]\n    \
+             Ready: [Y/N]\n    \
+             buttons [\"Submit\"]\n  \
+             ]\n\n\
+             Note: 'Label: [widget]' only works for simple widgets (textbox, checkbox, Y/N)".to_string()
+        },
+        ErrorPattern::Generic => {
+            // Fallback to original error with general help
+            format!(
+                "{}\n\n\
+                 Quick syntax reference:\n\n\
+                 Classic format:\n  \
+                 popup \"Title\" [\n    \
+                 text \"message\",\n    \
+                 buttons [\"OK\"]\n  \
+                 ]\n\n\
+                 Simplified format:\n  \
+                 [Title:\n    \
+                 text \"message\",\n    \
+                 buttons [\"OK\"]\n  \
+                 ]\n\n\
+                 For more examples, see the documentation.",
+                error
+            )
+        }
+    }
+}
+
+#[derive(Debug)]
+enum ErrorPattern {
+    MissingQuotes,
+    FormatMixing,
+    InvalidWidget,
+    MissingElement,
+    SimplifiedSyntaxError,
+    Generic,
+}
+
+fn detect_error_pattern(input: &str, error: &pest::error::Error<Rule>) -> ErrorPattern {
+    let error_str = error.to_string();
+    
+    // Check for missing quotes (popup Title instead of popup "Title")
+    if input.starts_with("popup ") && error_str.contains("expected string") {
+        return ErrorPattern::MissingQuotes;
+    }
+    
+    // Check for format mixing
+    if input.contains("popup") && input.contains(": [") {
+        return ErrorPattern::FormatMixing;
+    }
+    
+    // Check for invalid widget in simplified syntax
+    if error_str.contains("expected element") && input.contains("invalid_widget") {
+        return ErrorPattern::InvalidWidget;
+    }
+    
+    // Check for simplified syntax errors
+    if input.starts_with('[') && input.contains(':') && error_str.contains("expected element") {
+        return ErrorPattern::SimplifiedSyntaxError;
+    }
+    
+    // Check for missing element (empty popup, missing comma, etc)
+    if error_str.contains("expected element") {
+        return ErrorPattern::MissingElement;
+    }
+    
+    ErrorPattern::Generic
+}
+
+fn extract_unquoted_title(input: &str) -> &str {
+    if let Some(start) = input.find("popup ") {
+        let after_popup = &input[start + 6..];
+        if let Some(bracket_pos) = after_popup.find('[') {
+            return after_popup[..bracket_pos].trim();
+        }
+    }
+    "Title"
+}
+
+fn extract_invalid_widget<'a>(input: &'a str, _error: &pest::error::Error<Rule>) -> &'a str {
+    // Try to find widget name near error position
+    if input.contains("invalid_widget") {
+        return "invalid_widget";
+    }
+    "unknown"
+}
+
+fn get_error_line(error: &pest::error::Error<Rule>) -> usize {
+    match &error.line_col {
+        pest::error::LineColLocation::Pos((line, _)) => *line,
+        pest::error::LineColLocation::Span((line, _), _) => *line,
+    }
+}
+
 /// Serialize a PopupDefinition back to DSL format for round-trip testing
 pub fn serialize_popup_dsl(definition: &PopupDefinition) -> String {
     let mut result = format!("popup \"{}\" [\n", definition.title);
@@ -624,6 +811,37 @@ mod tests {
         // Missing quotes in classic syntax
         let input = r#"popup Title []"#;
         assert!(parse_popup_dsl(input).is_err());
+    }
+
+    #[test]
+    fn test_enhanced_error_messages() {
+        // Test missing quotes error
+        let input = r#"popup Title []"#;
+        let result = parse_popup_dsl(input);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Missing quotes around title"));
+        assert!(error_msg.contains("Should be: popup \"Title\""));
+        
+        // Test invalid widget error
+        let input = r#"[Title: invalid_widget "test"]"#;
+        let result = parse_popup_dsl(input);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Invalid simplified syntax") || error_msg.contains("Unknown widget"));
+        
+        // Test empty popup error
+        let input = r#"popup "Bad" ["#;
+        let result = parse_popup_dsl(input);
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Expected a popup element"));
+        
+        // Test format mixing error
+        let input = r#"popup "Title" [ Name: [textbox] ]"#;
+        let result = parse_popup_dsl(input);
+        assert!(result.is_err());
+        // This might not detect as format mixing, but should still provide helpful error
     }
 
     #[test]

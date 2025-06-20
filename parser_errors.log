@@ -502,3 +502,149 @@ Error:
   |       ^---
   |
   = expected string
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:33:03 UTC) ---
+Input:
+popup "Title" [ Name: [textbox] ]
+
+Error:
+ --> 1:17
+  |
+1 | popup "Title" [ Name: [textbox] ]
+  |                 ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:39:03 UTC) ---
+Input:
+popup Title []
+
+Error:
+ --> 1:7
+  |
+1 | popup Title []
+  |       ^---
+  |
+  = expected string
+
+--- Parse Error (2025-06-20 00:39:03 UTC) ---
+Input:
+[Title: invalid_widget "test"]
+
+Error:
+ --> 1:9
+  |
+1 | [Title: invalid_widget "test"]
+  |         ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:39:03 UTC) ---
+Input:
+popup "Bad" [
+
+Error:
+ --> 1:14
+  |
+1 | popup "Bad" [
+  |              ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:39:03 UTC) ---
+Input:
+popup "Title" [ Name: [textbox] ]
+
+Error:
+ --> 1:17
+  |
+1 | popup "Title" [ Name: [textbox] ]
+  |                 ^---
+  |
+  = expected element
+
+--- Parse Error (2025-06-20 00:39:03 UTC) ---
+Input:
+[SPIKE: Quick Check
+  Thing 1: [textbox]
+]
+
+Error:
+ --> 1:9
+  |
+1 | [SPIKE: Quick Check
+  |         ^---
+  |
+  = expected element
