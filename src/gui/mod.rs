@@ -169,25 +169,23 @@ fn render_elements_with_context(
             
             Element::Slider { label, min, max, default: _ } => {
                 if let Some(value) = state.get_number_mut(label) {
-                    ui.group(|ui| {
-                        ui.vertical(|ui| {
-                            ui.horizontal(|ui| {
-                                EmojiLabel::new(RichText::new(label).color(theme.text_primary)).show(ui);
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    EmojiLabel::new(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace()).show(ui);
-                                });
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            EmojiLabel::new(RichText::new(label).color(theme.text_primary)).show(ui);
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                EmojiLabel::new(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace()).show(ui);
                             });
-                            
-                            let slider = egui::Slider::new(value, *min..=*max)
-                                .show_value(false)
-                                .clamping(egui::SliderClamping::Always);
-                            let response = ui.add(slider);
-                            
-                            // Store the response ID for focus
-                            if first_widget_id.is_none() && !widget_focused {
-                                *first_widget_id = Some(response.id);
-                            }
                         });
+                        
+                        let slider = egui::Slider::new(value, *min..=*max)
+                            .show_value(false)
+                            .clamping(egui::SliderClamping::Always);
+                        let response = ui.add(slider);
+                        
+                        // Store the response ID for focus
+                        if first_widget_id.is_none() && !widget_focused {
+                            *first_widget_id = Some(response.id);
+                        }
                     });
                 }
             }

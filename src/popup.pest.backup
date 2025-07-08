@@ -1,0 +1,429 @@
+// Popup DSL - Crystalline Expression Language
+// Semantic aliases, natural patterns, and error tolerance
+
+// ============================================
+// WHITESPACE & COMMENTS
+// ============================================
+
+WHITESPACE = _{ " " | "\t" }
+NEWLINE = _{ "\r\n" | "\n" }
+ws = _{ WHITESPACE* }
+COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* | "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+// ============================================
+// ROOT - Multiple format support
+// ============================================
+
+popup = { SOI ~ ws ~ popup_content ~ ws ~ EOI }
+
+popup_content = {
+    structured_popup   // Title: body format
+    | bracket_popup    // [Title: inline body] format
+    | natural_popup    // Natural language format
+}
+
+// Traditional structured format
+structured_popup = { 
+    title ~ ws? ~ ":" ~ ws? ~ NEWLINE? ~ 
+    body
+}
+
+// Inline bracket format  
+bracket_popup = {
+    "[" ~ ws? ~ title ~ ws? ~ ":" ~ ws? ~ 
+    inline_body ~ ws? ~ "]"
+}
+
+// Natural language format - use natural_button_list instead of button_list
+natural_popup = {
+    "confirm" ~ ws ~ text_value ~ ws ~ 
+    ("with" | "using") ~ ws ~ natural_button_list
+}
+
+// Title should not consume the colon in structured format
+title = { title_text }
+body = { ws ~ (element ~ (ws ~ NEWLINE+ ~ ws ~ element)*)? ~ ws }
+inline_body = { (element ~ (ws? ~ (","|";")? ~ ws? ~ element)*)? }
+
+// ============================================
+// ELEMENTS - Core UI components
+// ============================================
+
+element = {
+    widget           // Input elements with semantic aliases
+    | buttons        // Action buttons
+    | conditional    // Conditional elements
+    | section        // Grouped elements
+}
+
+// ============================================  
+// WIDGETS - Multiple expression styles
+// ============================================
+
+widget = {
+    explicit_widget     // slider "Volume" 0..100
+    | inferred_widget   // Volume: 0-100  
+    | natural_widget    // Volume from 0 to 100
+    | symbolic_widget   // ✓ enabled
+    | standalone_text   // Plain text
+}
+
+// Explicit widget: type "label" options
+explicit_widget = {
+    widget_type ~ ws ~ widget_definition
+}
+
+widget_definition = {
+    text_value ~ (ws ~ widget_options)?
+}
+
+// Widget type aliases
+widget_type = {
+    checkbox_alias
+    | slider_alias  
+    | textbox_alias
+    | choice_alias
+    | multiselect_alias
+    | text_alias
+    | group_alias
+}
+
+checkbox_alias = @{ 
+    "checkbox" | "check" | "tick" | "toggle" | "switch" | 
+    "bool" | "boolean" | "yes/no" | "y/n" | "enabled"
+}
+
+slider_alias = @{
+    "slider" | "range" | "scale" | "numeric" | "number" |
+    "dial" | "knob" | "level" | "gauge" | "meter"
+}
+
+textbox_alias = @{
+    "textbox" | "text" | "input" | "field" | "entry" |
+    "textarea" | "string" | "prompt" | "write"
+}
+
+choice_alias = @{
+    "choice" | "select" | "dropdown" | "pick" | "choose" |
+    "option" | "radio" | "single"
+}
+
+multiselect_alias = @{
+    "multiselect" | "multi" | "multiple" | "checklist" |
+    "pickMany" | "selectMultiple" | "options" | "tags"
+}
+
+text_alias = @{ "text" | "label" | "message" | "info" | "display" }
+
+group_alias = @{ "group" | "section" | "container" | "panel" | "box" }
+
+// Widget options based on type
+widget_options = {
+    range_pattern
+    | boolean_pattern
+    | choice_list
+    | "@" ~ text_value
+}
+
+// Inferred widget: label: value
+inferred_widget = {
+    label ~ ws? ~ ":" ~ ws? ~ widget_value
+}
+
+widget_value = {
+    range_pattern       // 0-100 → slider
+    | boolean_pattern   // yes/✓ → checkbox
+    | choice_list       // A|B|C → choice
+    | "@" ~ text_value  // @hint → textbox
+    | text_value        // fallback → text
+}
+
+// Natural language widgets
+natural_widget = {
+    natural_slider
+    | natural_checkbox  
+    | natural_choice
+}
+
+natural_slider = {
+    label ~ ws ~ 
+    ("from" | "between" | "ranging") ~ ws ~ 
+    number ~ ws ~ 
+    ("to" | "and" | "-") ~ ws ~ 
+    number ~ 
+    (ws ~ slider_default)?
+}
+
+slider_default = {
+    ("starting" ~ ws ~ "at" | "initially" | "default" ~ ":"? | "=" | "@") ~ 
+    ws ~ number
+    | "(" ~ ws? ~ ("default" ~ ":"?)? ~ ws? ~ number ~ ws? ~ ")"
+}
+
+natural_checkbox = {
+    checkbox_symbol ~ ws ~ label
+    | label ~ ws? ~ ":" ~ ws? ~ checkbox_symbol
+}
+
+natural_choice = {
+    label ~ ws? ~ ":" ~ ws? ~ single_choice
+}
+
+// Symbolic widgets
+symbolic_widget = {
+    checkbox_symbol ~ ws ~ label
+    | star_rating
+    | progress_bar
+}
+
+star_rating = { ("★" | "☆")+ }
+progress_bar = { "[" ~ ("•" | "●" | "=" | "-" | " ")+ ~ "]" }
+
+// ============================================
+// VALUE PATTERNS
+// ============================================
+
+// Range patterns → slider
+range_pattern = {
+    number ~ ws? ~ range_sep ~ ws? ~ number ~ (ws? ~ range_default)?
+}
+
+range_sep = { ".." | "-" | "to" | "…" }
+
+range_default = {
+    ("=" | "@" | "default" ~ ":"?) ~ ws? ~ number
+}
+
+// Boolean patterns → checkbox
+boolean_pattern = {
+    checkbox_symbol ~ (ws? ~ "=" ~ ws? ~ boolean_word)?
+    | boolean_word
+}
+
+boolean_word = @{
+    "yes" | "no" | "on" | "off" | "true" | "false" |
+    "enabled" | "disabled" | "active" | "inactive"
+}
+
+checkbox_symbol = { 
+    "✓" | "✗" | "☐" | "☑" | "☒" | 
+    "[ ]" | "[x]" | "[X]" | "(*)" | "( )"
+}
+
+// Choice patterns
+choice_list = {
+    single_choice      // A | B | C
+    | multi_choice     // [A, B, C]
+}
+
+single_choice = {
+    choice_value ~ (ws? ~ choice_sep ~ ws? ~ choice_value)+
+}
+
+multi_choice = {
+    "[" ~ ws? ~ 
+    choice_value ~ (ws? ~ "," ~ ws? ~ choice_value)* ~ 
+    ws? ~ "]"
+}
+
+choice_sep = { "|" | "/" }
+choice_value = { quoted_string | word }
+
+// ============================================
+// BUTTONS - Multiple styles
+// ============================================
+
+buttons = {
+    explicit_buttons    // buttons: [OK, Cancel]
+    | arrow_button      // → Continue
+    | button_row        // [OK | Cancel]
+    | separator_buttons // --- \n OK | Cancel
+    | natural_buttons   // OK or Cancel
+}
+
+explicit_buttons = {
+    button_alias ~ ws? ~ ":"? ~ ws? ~ button_list
+}
+
+button_alias = @{
+    "buttons" | "actions" | "button" | "btns" | 
+    "controls" | "options"
+}
+
+button_list = {
+    "[" ~ ws? ~ button_value ~ (ws? ~ button_sep ~ ws? ~ button_value)* ~ ws? ~ "]"
+    | button_value ~ (ws ~ ("or" | button_sep) ~ ws ~ button_value)*
+}
+
+// Special rule for natural language button lists that properly handles "or" separator
+natural_button_list = {
+    natural_button_value ~ (ws ~ "or" ~ ws ~ natural_button_value)*
+}
+
+// Button value for natural language - stops at " or " boundary
+natural_button_value = { 
+    quoted_string 
+    | natural_button_text 
+}
+
+// Natural button text that properly stops at " or " word boundary
+natural_button_text = @{
+    (!(" or " | NEWLINE) ~ ANY)+
+}
+
+arrow_button = {
+    "→" ~ ws ~ button_value
+}
+
+button_row = {
+    "[" ~ ws? ~ button_value ~ (ws? ~ button_sep ~ ws? ~ button_value)* ~ ws? ~ "]"
+}
+
+separator_buttons = {
+    "---" ~ ws? ~ NEWLINE ~ ws? ~
+    button_value ~ (ws? ~ button_sep ~ ws? ~ button_value)*
+}
+
+natural_buttons = {
+    button_value ~ ws ~ "or" ~ ws ~ button_value
+}
+
+button_sep = { "|" | "," }
+button_value = { quoted_string | button_text }
+// Button text matches everything except separators, but needs special handling for "or"
+// We'll handle the "or" splitting in the button_list rule instead
+button_text = @{ (!(button_sep | "]" | NEWLINE) ~ ANY)+ }
+
+// ============================================
+// CONDITIONALS - Flexible syntax
+// ============================================
+
+conditional = {
+    conditional_keyword ~ ws ~ condition ~ ws? ~ 
+    conditional_sep ~ ws? ~ NEWLINE? ~
+    conditional_body
+}
+
+conditional_keyword = {
+    "when" | "if" | "unless" |
+    "show" ~ ws ~ "when" |
+    "visible" ~ ws ~ "if"
+}
+
+conditional_sep = { ":" | "=>" | "then" }
+
+conditional_body = {
+    indented_body
+    | "[" ~ ws? ~ body ~ ws? ~ "]"
+    | "{" ~ ws? ~ body ~ ws? ~ "}"
+}
+
+condition = {
+    compound_condition
+    | comparison
+    | simple_condition  
+    | negated_condition
+}
+
+compound_condition = {
+    simple_term ~ ws ~ boolean_op ~ ws ~ simple_term
+}
+
+simple_term = {
+    comparison
+    | simple_condition
+    | negated_condition
+}
+
+boolean_op = { 
+    "and" | "&&" | "AND" | 
+    "or" | "||" | "OR"
+}
+
+negated_condition = {
+    ("not" | "!") ~ ws ~ condition
+}
+
+simple_condition = {
+    value_reference ~ ws? ~ "?"?     // enabled?
+    | value_reference ~ ws ~ "is" ~ ws ~ ("checked" | "selected")
+}
+
+comparison = {
+    value_reference ~ ws? ~ comparison_op ~ ws? ~ comparison_value
+}
+
+value_reference = {
+    identifier ~ ".count"      // tasks.count
+    | "#" ~ identifier         // #tasks
+    | "$" ~ identifier         // $volume
+    | "@" ~ identifier         // @volume  
+    | "{" ~ identifier ~ "}"   // {volume}
+    | identifier               // volume
+}
+
+comparison_op = { 
+    ">=" | "<=" | "!=" | "==" | 
+    ">" | "<" | "=" |
+    "more" ~ ws ~ "than" |
+    "less" ~ ws ~ "than" |
+    "at" ~ ws ~ "least"
+}
+
+comparison_value = { number | quoted_string | word }
+
+// ============================================
+// SECTIONS - Grouping
+// ============================================
+
+section = {
+    section_header ~ ws? ~ NEWLINE ~ 
+    indented_body
+}
+
+section_header = {
+    "---" ~ ws? ~ text_value ~ ws? ~ "---"
+    | text_value ~ ws? ~ ":"
+}
+
+indented_body = {
+    PUSH(" "+ | "\t"+) ~ body ~ DROP
+}
+
+// ============================================
+// TEXT ELEMENTS
+// ============================================
+
+standalone_text = {
+    ">" ~ ws ~ text_value      // Info
+    | "!" ~ ws ~ text_value     // Warning
+    | "?" ~ ws ~ text_value     // Help
+    | "•" ~ ws ~ text_value     // Bullet
+    | text_value                // Plain
+}
+
+// ============================================
+// BASIC TYPES
+// ============================================
+
+label = @{ (!(":"|"@"|">"|"!"|"?"|"•"|NEWLINE) ~ ANY)+ }
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
+word = @{ (ASCII_ALPHANUMERIC | "_" | "-")+ }
+
+text_value = { quoted_string | unquoted_text }
+
+quoted_string = {
+    "\"" ~ double_string_content ~ "\""
+    | "'" ~ single_string_content ~ "'"
+}
+
+double_string_content = @{ (!"\"" ~ ANY)* }
+single_string_content = @{ (!"'" ~ ANY)* }
+
+unquoted_text = @{ (!NEWLINE ~ ANY)+ }
+
+// Title text that stops at colon for structured format
+title_text = { quoted_string | title_unquoted }
+title_unquoted = @{ (!(":" | NEWLINE) ~ ANY)+ }
+
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }

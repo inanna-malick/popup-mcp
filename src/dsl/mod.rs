@@ -1,1254 +1,221 @@
 use anyhow::Result;
-use pest::Parser;
-use pest_derive::Parser;
-use std::fs::OpenOptions;
-use std::io::Write;
 
 use crate::models::{Element, PopupDefinition, Condition, ComparisonOp};
 
-// Widget type aliases for better ergonomics
-const WIDGET_ALIASES: &[(&str, &str)] = &[
-    // Text display aliases
-    ("label", "text"), ("info", "text"), ("message", "text"), 
-    ("display", "text"), ("output", "text"),
-    
-    // Input aliases
-    ("input", "textbox"), ("field", "textbox"), ("entry", "textbox"),
-    ("text_input", "textbox"), ("text_field", "textbox"),
-    
-    // Boolean aliases (y/n handled as special case in parse_bare_text)
-    ("bool", "checkbox"), ("boolean", "checkbox"),
-    ("yes/no", "checkbox"), ("toggle", "checkbox"), ("switch", "checkbox"),
-    
-    // Selection aliases
-    ("select", "choice"), ("dropdown", "choice"), ("radio", "choice"),
-    ("multi", "multiselect"), ("multi-select", "multiselect"), 
-    ("checkboxes", "multiselect"), ("multi_choice", "multiselect"),
-];
+// New unified parser module
+mod unified_parser;
 
-#[derive(Parser)]
-#[grammar = "popup.pest"]
-pub struct PopupParser;
+// Simple parser with intelligent widget detection
+mod simple_parser;
 
+// Temporarily disabled old tests that use old grammar
+// #[cfg(test)]
+// mod tests;
+
+// #[cfg(test)]
+// mod parser_tests;
+
+// #[cfg(test)]
+// mod edge_case_tests;
+
+// #[cfg(test)]
+// mod new_grammar_tests;
+
+// #[cfg(test)]
+// mod current_grammar_tests;
+
+// #[cfg(test)]
+// mod debug_tests;
+
+// #[cfg(test)]
+// mod debug_tests2;
+
+// #[cfg(test)]
+// mod ast_verification_tests;
+
+// #[cfg(test)]
+// mod unified_tests;
+
+// #[cfg(test)]
+// mod unified_integration_test;
+
+#[cfg(test)]
+mod unified_parser_tests;
+
+#[cfg(test)]
+mod simple_parser_tests;
+
+// Main parsing function
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
-    // Try original input first
-    match attempt_parse(input) {
-        Ok(definition) => return Ok(definition),
-        Err(original_error) => {
-            // If parsing fails, try format auto-detection and transformation
-            if let Some(transformed) = auto_detect_and_transform_format(input) {
-                match attempt_parse(&transformed) {
-                    Ok(definition) => return Ok(definition),
-                    Err(_) => {} // Fall through to original error
+    // Use the new simple parser with intelligent widget detection
+    simple_parser::parse_popup_dsl(input)
+        .map(|mut def| {
+            ensure_button_safety(&mut def);
+            def
+        })
+}
+
+// Ensure buttons have Force Yield
+fn ensure_button_safety(popup: &mut PopupDefinition) {
+    let has_buttons = popup.elements.iter().any(|e| matches!(e, Element::Buttons(_)));
+    
+    if has_buttons {
+        for element in &mut popup.elements {
+            if let Element::Buttons(ref mut labels) = element {
+                if !labels.contains(&"Force Yield".to_string()) {
+                    labels.push("Force Yield".to_string());
                 }
+                break;
             }
-            
-            // Return the original error with helpful formatting
-            Err(original_error)
         }
     }
 }
 
-fn attempt_parse(input: &str) -> Result<PopupDefinition> {
-    let pairs = PopupParser::parse(Rule::popup, input)
-        .map_err(|e| {
-            // Log parse errors to file for ergonomics improvement
-            log_parse_error(input, &e);
-            
-            // Create helpful error message with examples
-            let helpful_error = format_helpful_error(input, &e);
-            anyhow::anyhow!("{}", helpful_error)
-        })?;
+// Format helpful error messages for users
+fn format_helpful_error(input: &str, error: &pest::error::Error<unified_parser::Rule>) -> String {
+    use pest::error::ErrorVariant;
     
-    let pair = pairs
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("No popup found"))?;
-    
-    let mut definition = parse_popup(pair)?;
-    
-    // Ensure popup has buttons and Force Yield safety
-    ensure_button_safety(&mut definition);
-    
-    Ok(definition)
-}
-
-fn parse_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefinition> {
-    let mut inner = pair.into_inner();
-    let first = inner.next().unwrap();
-    
-    match first.as_rule() {
-        Rule::classic_popup => parse_classic_popup(first),
-        Rule::simplified_popup => parse_simplified_popup(first),
-        _ => Err(anyhow::anyhow!("Unexpected popup format"))
-    }
-}
-
-fn parse_classic_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefinition> {
-    let mut inner = pair.into_inner();
-    
-    // Get title from quoted string
-    let title = parse_string(inner.next().unwrap())?;
-    
-    // Parse element_list (if present)
-    let elements = if let Some(element_list_pair) = inner.next() {
-        if element_list_pair.as_rule() == Rule::element_list {
-            parse_element_list(element_list_pair)?
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
+    let (line, col) = match error.line_col {
+        pest::error::LineColLocation::Pos((l, c)) => (l, c),
+        pest::error::LineColLocation::Span((l, c), _) => (l, c),
     };
     
-    Ok(PopupDefinition { title, elements })
-}
-
-fn parse_simplified_popup(pair: pest::iterators::Pair<Rule>) -> Result<PopupDefinition> {
-    let mut inner = pair.into_inner();
+    let lines: Vec<&str> = input.lines().collect();
+    let error_line = lines.get(line.saturating_sub(1)).unwrap_or(&"");
     
-    // Get title from unquoted text before colon
-    let title = inner.next().unwrap().as_str().trim().to_string();
+    let mut message = format!("Parse error at line {}, column {}:\n", line, col);
+    message.push_str(&format!("  {}\n", error_line));
+    message.push_str(&format!("  {}^\n", " ".repeat(col.saturating_sub(1))));
     
-    // Parse element_list (if present)
-    let elements = if let Some(element_list_pair) = inner.next() {
-        if element_list_pair.as_rule() == Rule::element_list {
-            parse_element_list(element_list_pair)?
-        } else {
-            Vec::new()
+    match &error.variant {
+        ErrorVariant::ParsingError { positives, negatives } => {
+            if !positives.is_empty() {
+                message.push_str("Expected one of: ");
+                let expected: Vec<String> = positives.iter()
+                    .map(|r| format!("{:?}", r))
+                    .collect();
+                message.push_str(&expected.join(", "));
+            }
         }
+        ErrorVariant::CustomError { message: custom } => {
+            message.push_str(&format!("Error: {}", custom));
+        }
+    }
+    
+    // Add helpful suggestions
+    message.push_str("\n\nHint: ");
+    if error_line.contains("checkbox") || error_line.contains("check") {
+        message.push_str("For checkboxes, use format: 'Label: yes' or 'Label: ✓'");
+    } else if error_line.contains("slider") || error_line.contains("..") {
+        message.push_str("For sliders, use format: 'Label: 0-100' or 'Label: 0..100 = 50'");
+    } else if error_line.contains("|") && !error_line.contains("[") {
+        message.push_str("For choices, use format: 'Label: Option1 | Option2'");
+    } else if error_line.trim().is_empty() {
+        message.push_str("Empty lines are not allowed as elements");
     } else {
-        Vec::new()
-    };
-    
-    Ok(PopupDefinition { title, elements })
-}
-
-fn parse_element_list(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Element>> {
-    let mut elements = Vec::new();
-    for element_pair in pair.into_inner() {
-        if element_pair.as_rule() == Rule::element {
-            if let Ok(element) = parse_element(element_pair) {
-                elements.push(element);
-            }
-        }
-    }
-    Ok(elements)
-}
-
-fn parse_element(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let inner_pair = if pair.as_rule() == Rule::element {
-        // If it's an element wrapper, get the actual element inside
-        pair.into_inner().next().unwrap()
-    } else {
-        // Otherwise use the pair directly
-        pair
-    };
-    
-    match inner_pair.as_rule() {
-        Rule::text => parse_text(inner_pair),
-        Rule::slider => parse_slider(inner_pair),
-        Rule::checkbox => parse_checkbox(inner_pair),
-        Rule::textbox => parse_textbox(inner_pair),
-        Rule::choice => parse_choice(inner_pair),
-        Rule::multiselect => parse_multiselect(inner_pair),
-        Rule::group => parse_group(inner_pair),
-        Rule::buttons => parse_buttons(inner_pair),
-        Rule::conditional => parse_conditional(inner_pair),
-        Rule::bare_text => parse_bare_text(inner_pair),
-        Rule::EOI => Err(anyhow::anyhow!("EOI is not an element")),
-        _ => Err(anyhow::anyhow!("Unknown element type: {:?}", inner_pair.as_rule()))
-    }
-}
-
-// Macro to reduce parsing repetition
-macro_rules! parse_with_label {
-    ($pair:expr, $variant:ident) => {{
-        let mut inner = $pair.into_inner();
-        let label = parse_string(inner.next().unwrap())?;
-        let options = parse_string_list_rule(inner.next().unwrap())?;
-        Ok(Element::$variant { label, options })
-    }};
-}
-
-fn parse_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let text = parse_string(pair.into_inner().next().unwrap())?;
-    Ok(Element::Text(text))
-}
-
-fn parse_slider(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let min = inner.next().unwrap().as_str().parse::<f32>()?;
-    let max = inner.next().unwrap().as_str().parse::<f32>()?;
-    let default = inner.next()
-        .map(|p| p.as_str().parse::<f32>())
-        .transpose()?
-        .unwrap_or((min + max) / 2.0);
-    
-    Ok(Element::Slider { label, min, max, default })
-}
-
-fn parse_checkbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let default = inner.next()
-        .map(|p| p.as_str() == "true")
-        .unwrap_or(false);
-    
-    Ok(Element::Checkbox { label, default })
-}
-
-fn parse_textbox(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let mut placeholder = None;
-    let mut rows = None;
-    
-    for pair in inner {
-        match pair.as_rule() {
-            Rule::string => placeholder = Some(parse_string(pair)?),
-            Rule::number => rows = Some(pair.as_str().parse::<u32>()?),
-            _ => {}
-        }
+        message.push_str("Check the popup syntax - common patterns:\n");
+        message.push_str("  - Title:\n");
+        message.push_str("  - Widget: value\n");
+        message.push_str("  - [Button1 | Button2]");
     }
     
-    Ok(Element::Textbox { label, placeholder, rows })
+    message
 }
 
-fn parse_choice(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    parse_with_label!(pair, Choice)
-}
-
-fn parse_multiselect(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    parse_with_label!(pair, Multiselect)
-}
-
-fn parse_group(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let label = parse_string(inner.next().unwrap())?;
-    let elements = if let Some(element_list_pair) = inner.next() {
-        if element_list_pair.as_rule() == Rule::element_list {
-            parse_element_list(element_list_pair)?
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
-    Ok(Element::Group { label, elements })
-}
-
-fn parse_buttons(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let string_list_pair = pair.into_inner().next().unwrap();
-    let buttons = parse_string_list_rule(string_list_pair)?;
-    Ok(Element::Buttons(buttons))
-}
-
-fn parse_conditional(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let mut inner = pair.into_inner();
-    let condition_pair = inner.next().unwrap();
-    let condition = parse_condition(condition_pair)?;
-    let elements = if let Some(element_list_pair) = inner.next() {
-        if element_list_pair.as_rule() == Rule::element_list {
-            parse_element_list(element_list_pair)?
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
-    Ok(Element::Conditional { condition, elements })
-}
-
-// Helper functions to reduce duplication
-fn parse_string_list_rule(pair: pest::iterators::Pair<Rule>) -> Result<Vec<String>> {
-    let mut strings = Vec::new();
-    for inner_pair in pair.into_inner() {
-        if inner_pair.as_rule() == Rule::string {
-            strings.push(parse_string(inner_pair)?);
-        }
-    }
-    Ok(strings)
-}
-
-
-fn parse_string(pair: pest::iterators::Pair<Rule>) -> Result<String> {
-    match pair.as_rule() {
-        Rule::string => {
-            // Check which type of string this is
-            let inner = pair.into_inner().next().unwrap();
-            match inner.as_rule() {
-                Rule::single_string => {
-                    let full_string = inner.as_str();
-                    // Remove the surrounding quotes
-                    let content = &full_string[1..full_string.len()-1];
-                    Ok(content.to_string())
-                },
-                Rule::multiline_string => {
-                    let full_string = inner.as_str();
-                    // Remove the surrounding triple quotes
-                    let content = &full_string[3..full_string.len()-3];
-                    Ok(content.to_string())
-                },
-                _ => Err(anyhow::anyhow!("Unknown string type: {:?}", inner.as_rule()))
-            }
-        },
-        Rule::single_string => {
-            let full_string = pair.as_str();
-            // Remove the surrounding quotes
-            let content = &full_string[1..full_string.len()-1];
-            Ok(content.to_string())
-        },
-        Rule::multiline_string => {
-            let full_string = pair.as_str();
-            // Remove the surrounding triple quotes
-            let content = &full_string[3..full_string.len()-3];
-            Ok(content.to_string())
-        },
-        _ => {
-            // Fallback to old behavior for compatibility
-            let full_string = pair.as_str();
-            if full_string.starts_with("\"\"\"") && full_string.ends_with("\"\"\"") {
-                let content = &full_string[3..full_string.len()-3];
-                Ok(content.to_string())
-            } else if full_string.starts_with('"') && full_string.ends_with('"') {
-                let content = &full_string[1..full_string.len()-1];
-                Ok(content.to_string())
-            } else {
-                Ok(full_string.to_string())
-            }
-        }
-    }
-}
-
-fn parse_condition(pair: pest::iterators::Pair<Rule>) -> Result<Condition> {
-    let condition_str = pair.as_str();
-    let mut inner = pair.into_inner();
-    
-    // The condition rule now contains the entire condition string
-    // We need to determine which type based on the pattern
-    if condition_str.starts_with("checked(") {
-        // checked("name")
-        let name = parse_string(inner.next().unwrap())?;
-        Ok(Condition::Checked(name))
-    } else if condition_str.starts_with("selected(") {
-        // selected("name", "value")
-        let name = parse_string(inner.next().unwrap())?;
-        let value = parse_string(inner.next().unwrap())?;
-        Ok(Condition::Selected(name, value))
-    } else if condition_str.starts_with("count(") {
-        // count("name") op value
-        let name = parse_string(inner.next().unwrap())?;
-        let op_pair = inner.next().unwrap();
-        let op = parse_op(op_pair)?;
-        let value = inner.next().unwrap().as_str().parse::<i32>()?;
-        Ok(Condition::Count(name, op, value))
-    } else {
-        Err(anyhow::anyhow!("Unknown condition type: {}", condition_str))
-    }
-}
-
-fn parse_op(pair: pest::iterators::Pair<Rule>) -> Result<ComparisonOp> {
-    match pair.as_str() {
-        ">" => Ok(ComparisonOp::Greater),
-        "<" => Ok(ComparisonOp::Less),
-        ">=" => Ok(ComparisonOp::GreaterEqual),
-        "<=" => Ok(ComparisonOp::LessEqual),
-        "==" => Ok(ComparisonOp::Equal),
-        "!=" => Err(anyhow::anyhow!("!= operator not yet supported in conditions")),
-        _ => Err(anyhow::anyhow!("Unknown comparison operator: {}", pair.as_str()))
-    }
-}
-
-/// Ensures popup safety: adds buttons if missing and includes Force Yield
-fn ensure_button_safety(definition: &mut PopupDefinition) {
-    // Add default buttons if none exist
-    if !has_buttons_recursive(&definition.elements) {
-        eprintln!(
-            "Warning: Popup '{}' had no buttons defined. Adding default 'Continue' button.",
-            definition.title
-        );
-        definition.elements.push(Element::Buttons(vec!["Continue".to_string()]));
-    }
-    
-    // Add Force Yield to the last button element
-    add_force_yield_to_last_buttons(&mut definition.elements);
-}
-
-fn has_buttons_recursive(elements: &[Element]) -> bool {
-    elements.iter().any(|element| match element {
-        Element::Buttons(_) => true,
-        Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
-            has_buttons_recursive(elements)
-        }
-        _ => false,
-    })
-}
-
-fn add_force_yield_to_last_buttons(elements: &mut [Element]) -> bool {
-    for element in elements.iter_mut().rev() {
-        match element {
-            Element::Buttons(buttons) => {
-                if !buttons.iter().any(|b| b == "Force Yield") {
-                    buttons.push("Force Yield".to_string());
-                }
-                return true;
-            }
-            Element::Group { elements: nested, .. } => {
-                if add_force_yield_to_last_buttons(nested) {
-                    return true;
-                }
-            }
-            Element::Conditional { .. } => continue, // Skip conditional buttons
-            _ => {}
-        }
-    }
-    false
-}
-
-fn parse_bare_text(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
-    let text = pair.as_str().trim();
-    
-    // Check if this looks like "Label: [widget]" format
-    if let Some(colon_pos) = text.find(':') {
-        let label = text[..colon_pos].trim();
-        let rest = text[colon_pos + 1..].trim();
-        
-        if rest.starts_with('[') && rest.ends_with(']') {
-            let widget_type = &rest[1..rest.len() - 1].trim();
-            let normalized = normalize_widget_type(widget_type);
-            
-            match normalized {
-                "text" => Ok(Element::Text(label.to_string())),
-                "textbox" => Ok(Element::Textbox { 
-                    label: label.to_string(), 
-                    placeholder: None, 
-                    rows: None 
-                }),
-                "checkbox" => Ok(Element::Checkbox { 
-                    label: label.to_string(), 
-                    default: false 
-                }),
-                "choice" => Ok(Element::Choice {
-                    label: label.to_string(),
-                    options: vec!["Option 1".to_string(), "Option 2".to_string()]
-                }),
-                "multiselect" => Ok(Element::Multiselect {
-                    label: label.to_string(), 
-                    options: vec!["Option 1".to_string(), "Option 2".to_string()]
-                }),
-                _ => {
-                    // Check special cases and pattern-based widgets
-                    let widget_lower = widget_type.to_lowercase();
-                    match widget_lower.as_str() {
-                        "y/n" | "yes/no" => Ok(Element::Choice { 
-                            label: label.to_string(), 
-                            options: vec!["Y".to_string(), "N".to_string()] 
-                        }),
-                        "slider" => Ok(Element::Slider {
-                            label: label.to_string(),
-                            min: 0.0,
-                            max: 10.0, 
-                            default: 5.0
-                        }),
-                        _ => {
-                            // Check if it looks like a slider pattern: [0..10] or [1-5]
-                            if let Some(slider) = parse_slider_pattern(widget_type, label) {
-                                Ok(slider)
-                            } else {
-                                // Not a recognized widget type, treat as plain text
-                                Ok(Element::Text(text.to_string()))
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // Doesn't match [widget] pattern, treat as plain text
-            Ok(Element::Text(text.to_string()))
-        }
-    } else {
-        // No colon, treat as plain text
-        Ok(Element::Text(text.to_string()))
-    }
-}
-
-/// Log parse errors to a file for analysis and ergonomics improvements
-fn log_parse_error(input: &str, error: &pest::error::Error<Rule>) {
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("parser_errors.log")
-    {
-        let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
-        let log_entry = format!(
-            "\n--- Parse Error ({}) ---\nInput:\n{}\n\nError:\n{}\n",
-            timestamp, input, error
-        );
-        
-        let _ = file.write_all(log_entry.as_bytes());
-    }
-}
-
-/// Format error messages with helpful examples and suggestions
-fn format_helpful_error(input: &str, error: &pest::error::Error<Rule>) -> String {
-    let trimmed = input.trim();
-    
-    // Detect common error patterns and provide specific help
-    match detect_error_pattern(trimmed, error) {
-        ErrorPattern::MissingQuotes => {
-            format!(
-                "Parse error: Missing quotes around title\n\n\
-                 You wrote: popup {} [...]\n\
-                 Should be: popup \"{}\" [...]\n\n\
-                 Example:\n  \
-                 popup \"My Title\" [\n    \
-                 text \"Hello\",\n    \
-                 buttons [\"OK\"]\n  \
-                 ]",
-                extract_unquoted_title(trimmed),
-                extract_unquoted_title(trimmed)
-            )
-        },
-        ErrorPattern::FormatMixing => {
-            "Parse error: Format mixing detected!\n\n\
-             Choose ONE format style:\n\n\
-             Classic format (with 'popup' keyword):\n  \
-             popup \"Title\" [\n    \
-             text \"Hello\",\n    \
-             buttons [\"OK\"]\n  \
-             ]\n\n\
-             Simplified format (no 'popup' keyword):\n  \
-             [Title:\n    \
-             text \"Hello\",\n    \
-             buttons [\"OK\"]\n  \
-             ]\n\n\
-             Tip: If you use 'popup', use quotes. If you use brackets only, use a colon.".to_string()
-        },
-        ErrorPattern::InvalidWidget => {
-            let widget = extract_invalid_widget(trimmed, error);
-            format!(
-                "Parse error: Unknown widget type '{}'\n\n\
-                 Valid widget types:\n  \
-                 • text \"message\" - Display text\n  \
-                 • textbox \"label\" - Text input field\n  \
-                 • checkbox \"label\" - Boolean toggle\n  \
-                 • slider \"label\" min..max - Numeric range\n  \
-                 • choice \"label\" [\"opt1\", \"opt2\"] - Single selection\n  \
-                 • multiselect \"label\" [\"opt1\", \"opt2\"] - Multiple selection\n  \
-                 • buttons [\"label1\", \"label2\"] - Action buttons (required!)\n\n\
-                 Example:\n  \
-                 popup \"Form\" [\n    \
-                 textbox \"Name\",\n    \
-                 checkbox \"Subscribe\" @true,\n    \
-                 buttons [\"Submit\"]\n  \
-                 ]",
-                widget
-            )
-        },
-        ErrorPattern::MissingElement => {
-            let line = get_error_line(error);
-            format!(
-                "Parse error at line {}: Expected a popup element\n\n\
-                 Common issues:\n  \
-                 • Missing comma between elements on the same line\n  \
-                 • Invalid element syntax\n  \
-                 • Empty popup body\n\n\
-                 Valid elements:\n  \
-                 • text \"message\"\n  \
-                 • textbox \"label\"\n  \
-                 • checkbox \"label\"\n  \
-                 • slider \"label\" 0..10\n  \
-                 • buttons [\"OK\", \"Cancel\"]\n\n\
-                 Example of a complete popup:\n  \
-                 popup \"Example\" [\n    \
-                 text \"Enter your details\",\n    \
-                 textbox \"Name\",\n    \
-                 buttons [\"Submit\"]\n  \
-                 ]",
-                line
-            )
-        },
-        ErrorPattern::SimplifiedSyntaxError => {
-            "Parse error: Invalid simplified syntax\n\n\
-             The simplified syntax requires:\n  \
-             1. Opening bracket [\n  \
-             2. Title followed by colon\n  \
-             3. Elements\n  \
-             4. Closing bracket ]\n\n\
-             Correct examples:\n  \
-             [Quick Check:\n    \
-             text \"Status check\",\n    \
-             buttons [\"Continue\"]\n  \
-             ]\n\n  \
-             [User Input:\n    \
-             Name: [textbox]\n    \
-             Ready: [Y/N]\n    \
-             buttons [\"Submit\"]\n  \
-             ]\n\n\
-             Note: 'Label: [widget]' only works for simple widgets (textbox, checkbox, Y/N)".to_string()
-        },
-        ErrorPattern::Generic => {
-            // Fallback to original error with general help
-            format!(
-                "{}\n\n\
-                 Quick syntax reference:\n\n\
-                 Classic format:\n  \
-                 popup \"Title\" [\n    \
-                 text \"message\",\n    \
-                 buttons [\"OK\"]\n  \
-                 ]\n\n\
-                 Simplified format:\n  \
-                 [Title:\n    \
-                 text \"message\",\n    \
-                 buttons [\"OK\"]\n  \
-                 ]\n\n\
-                 For more examples, see the documentation.",
-                error
-            )
-        }
-    }
-}
-
-#[derive(Debug)]
-enum ErrorPattern {
-    MissingQuotes,
-    FormatMixing,
-    InvalidWidget,
-    MissingElement,
-    SimplifiedSyntaxError,
-    Generic,
-}
-
-fn detect_error_pattern(input: &str, error: &pest::error::Error<Rule>) -> ErrorPattern {
-    let error_str = error.to_string();
-    
-    // Check for missing quotes (popup Title instead of popup "Title")
-    if input.starts_with("popup ") && error_str.contains("expected string") {
-        return ErrorPattern::MissingQuotes;
-    }
-    
-    // Check for format mixing
-    if input.contains("popup") && input.contains(": [") {
-        return ErrorPattern::FormatMixing;
-    }
-    
-    // Check for invalid widget in simplified syntax
-    if error_str.contains("expected element") && input.contains("invalid_widget") {
-        return ErrorPattern::InvalidWidget;
-    }
-    
-    // Check for simplified syntax errors
-    if input.starts_with('[') && input.contains(':') && error_str.contains("expected element") {
-        return ErrorPattern::SimplifiedSyntaxError;
-    }
-    
-    // Check for missing element (empty popup, missing comma, etc)
-    if error_str.contains("expected element") {
-        return ErrorPattern::MissingElement;
-    }
-    
-    ErrorPattern::Generic
-}
-
-fn extract_unquoted_title(input: &str) -> &str {
-    if let Some(start) = input.find("popup ") {
-        let after_popup = &input[start + 6..];
-        if let Some(bracket_pos) = after_popup.find('[') {
-            return after_popup[..bracket_pos].trim();
-        }
-    }
-    "Title"
-}
-
-fn extract_invalid_widget<'a>(input: &'a str, _error: &pest::error::Error<Rule>) -> &'a str {
-    // Try to find widget name near error position
-    if input.contains("invalid_widget") {
-        return "invalid_widget";
-    }
-    "unknown"
-}
-
-fn get_error_line(error: &pest::error::Error<Rule>) -> usize {
-    match &error.line_col {
-        pest::error::LineColLocation::Pos((line, _)) => *line,
-        pest::error::LineColLocation::Span((line, _), _) => *line,
-    }
-}
-
-/// Normalize widget type aliases to their canonical form
-fn normalize_widget_type(widget_type: &str) -> &str {
-    let lower = widget_type.to_lowercase();
-    
-    // Check aliases
-    for (alias, canonical) in WIDGET_ALIASES {
-        if lower == *alias {
-            return canonical;
-        }
-    }
-    
-    // Return original if not an alias
-    widget_type
-}
-
-/// Parse slider patterns like "0..10", "1-5", "0-100@50"
-fn parse_slider_pattern(widget_type: &str, label: &str) -> Option<Element> {
-    // Check for range patterns: 0..10, 1-5, etc.
-    if let Some(captures) = parse_range_syntax(widget_type) {
-        let (min, max, default) = captures;
-        return Some(Element::Slider { 
-            label: label.to_string(), 
-            min, 
-            max, 
-            default 
-        });
-    }
-    
-    None
-}
-
-/// Parse range syntax: "0..10", "1-5", "0-100@50"
-fn parse_range_syntax(text: &str) -> Option<(f32, f32, f32)> {
-    // Try ".." syntax first: "0..10" or "0..10@5"
-    if let Some(dot_pos) = text.find("..") {
-        let before = &text[..dot_pos];
-        let after = &text[dot_pos + 2..];
-        
-        if let Ok(min) = before.parse::<f32>() {
-            // Check for default value after @
-            if let Some(at_pos) = after.find('@') {
-                let max_str = &after[..at_pos];
-                let default_str = &after[at_pos + 1..];
-                
-                if let (Ok(max), Ok(default)) = (max_str.parse::<f32>(), default_str.parse::<f32>()) {
-                    return Some((min, max, default));
-                }
-            } else {
-                // No default, use midpoint
-                if let Ok(max) = after.parse::<f32>() {
-                    let default = (min + max) / 2.0;
-                    return Some((min, max, default));
-                }
-            }
-        }
-    }
-    
-    // Try "-" syntax: "1-5" or "0-100@25"
-    if let Some(dash_pos) = text.find('-') {
-        // Make sure it's not a negative number at the start
-        if dash_pos > 0 {
-            let before = &text[..dash_pos];
-            let after = &text[dash_pos + 1..];
-            
-            if let Ok(min) = before.parse::<f32>() {
-                // Check for default value after @
-                if let Some(at_pos) = after.find('@') {
-                    let max_str = &after[..at_pos];
-                    let default_str = &after[at_pos + 1..];
-                    
-                    if let (Ok(max), Ok(default)) = (max_str.parse::<f32>(), default_str.parse::<f32>()) {
-                        return Some((min, max, default));
-                    }
-                } else {
-                    // No default, use midpoint
-                    if let Ok(max) = after.parse::<f32>() {
-                        let default = (min + max) / 2.0;
-                        return Some((min, max, default));
-                    }
-                }
-            }
-        }
-    }
-    
-    None
-}
-
-/// Auto-detect popup format and transform input to make it parseable
-fn auto_detect_and_transform_format(input: &str) -> Option<String> {
-    let trimmed = input.trim();
-    
-    // Pattern 1: Classic syntax with bare text elements
-    // Example: popup "Title" [ Name: [textbox], buttons ["OK"] ]
-    if trimmed.starts_with("popup") && contains_bare_text_in_classic_syntax(trimmed) {
-        return transform_classic_with_bare_text(trimmed);
-    }
-    
-    // Pattern 2: Missing quotes around title in classic syntax
-    // Example: popup Title [elements...]
-    if trimmed.starts_with("popup ") && !trimmed.starts_with("popup \"") {
-        return add_missing_quotes_to_title(trimmed);
-    }
-    
-    // Future: Could add more auto-detection patterns here
-    // - Simplified syntax with malformed elements
-    // - Mixed format detection and normalization
-    // - Common typo corrections
-    
-    None
-}
-
-/// Check if classic syntax contains bare text patterns
-fn contains_bare_text_in_classic_syntax(input: &str) -> bool {
-    // Look for patterns like "Name: [widget]" inside popup brackets
-    if let Some(start) = input.find('[') {
-        if let Some(end) = input.rfind(']') {
-            let content = &input[start+1..end];
-            // Check for colon followed by bracketed widget
-            return content.contains(':') && content.contains('[') && content.contains(']');
-        }
-    }
-    false
-}
-
-/// Transform classic syntax with bare text to proper element syntax
-fn transform_classic_with_bare_text(input: &str) -> Option<String> {
-    // Extract title and content
-    if let Some(quote_start) = input[6..].find('"') { // Find first quote after 'popup '
-        let quote_start_abs = 6 + quote_start;
-        if let Some(quote_end) = input[quote_start_abs + 1..].find('"') {
-            let quote_end_abs = quote_start_abs + 1 + quote_end;
-            let title = &input[quote_start_abs + 1..quote_end_abs]; // Extract between quotes
-            
-            if let Some(bracket_start) = input.find('[') {
-                if let Some(bracket_end) = input.rfind(']') {
-                    let content = &input[bracket_start+1..bracket_end].trim();
-                    
-                    // Transform bare text elements to proper syntax
-                    let transformed_content = transform_bare_text_elements(content);
-                    
-                    return Some(format!("popup \"{}\" [\n{}\n]", title, transformed_content));
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Transform bare text elements like "Name: [textbox]" to "textbox \"Name\""
-fn transform_bare_text_elements(content: &str) -> String {
-    let mut result = Vec::new();
-    
-    // Split by commas and process each element
-    for element in content.split(',') {
-        let trimmed = element.trim();
-        
-        // Check if this looks like bare text: "Label: [widget]"
-        if let Some(colon_pos) = trimmed.find(':') {
-            let label = trimmed[..colon_pos].trim();
-            let rest = trimmed[colon_pos + 1..].trim();
-            
-            if rest.starts_with('[') && rest.ends_with(']') {
-                let widget_type = &rest[1..rest.len() - 1].trim();
-                let normalized = normalize_widget_type(widget_type);
-                
-                // Convert to proper element syntax
-                match normalized {
-                    "text" => result.push(format!("    text \"{}\"", label)),
-                    "textbox" => result.push(format!("    textbox \"{}\"", label)),
-                    "checkbox" => result.push(format!("    checkbox \"{}\"", label)),
-                    "slider" => result.push(format!("    slider \"{}\" 0..10", label)),
-                    "choice" => result.push(format!("    choice \"{}\" [\"Option 1\", \"Option 2\"]", label)),
-                    "multiselect" => result.push(format!("    multiselect \"{}\" [\"Option 1\", \"Option 2\"]", label)),
-                    _ => {
-                        // Handle special cases
-                        let widget_lower = widget_type.to_lowercase();
-                        match widget_lower.as_str() {
-                            "y/n" | "yes/no" => result.push(format!("    choice \"{}\" [\"Y\", \"N\"]", label)),
-                            _ => result.push(format!("    text \"{}\"", trimmed)), // Fallback
-                        }
-                    }
-                }
-                continue;
-            }
-        }
-        
-        // If not bare text, pass through as-is (with proper indentation)
-        if !trimmed.is_empty() {
-            result.push(format!("    {}", trimmed));
-        }
-    }
-    
-    result.join("\n")
-}
-
-/// Add missing quotes around popup title
-fn add_missing_quotes_to_title(input: &str) -> Option<String> {
-    // Find the title (word after "popup ")
-    let after_popup = &input[6..].trim_start();
-    
-    if let Some(space_pos) = after_popup.find(' ') {
-        let title = &after_popup[..space_pos];
-        let rest = &after_popup[space_pos..];
-        
-        // Only add quotes if title doesn't already have them
-        if !title.starts_with('"') {
-            return Some(format!("popup \"{}\" {}", title, rest.trim_start()));
-        }
-    }
-    
-    None
-}
-
-/// Serialize a PopupDefinition back to DSL format for round-trip testing
+// Serialize a popup definition back to DSL format
 pub fn serialize_popup_dsl(definition: &PopupDefinition) -> String {
-    let elements: Vec<String> = definition.elements.iter()
-        .map(|element| serialize_element(element))
-        .collect();
+    let mut result = format!("{}:", definition.title);
     
-    format!("popup \"{}\" [{}]", definition.title, elements.join(", "))
+    for element in &definition.elements {
+        result.push_str("\n  ");
+        result.push_str(&serialize_element(element, 1));
+    }
+    
+    result
 }
 
-fn serialize_element(element: &Element) -> String {
+fn serialize_element(element: &Element, indent: usize) -> String {
+    let indent_str = "  ".repeat(indent);
+    
     match element {
         Element::Text(text) => {
-            if text.contains('\n') {
-                format!("text \"\"\"{}\"\"\"", text)
+            if text.starts_with("ℹ️") {
+                format!("> {}", text.trim_start_matches("ℹ️ ").trim())
+            } else if text.starts_with("⚠️") {
+                format!("! {}", text.trim_start_matches("⚠️ ").trim())
+            } else if text.starts_with("❓") {
+                format!("? {}", text.trim_start_matches("❓ ").trim())
             } else {
-                format!("text \"{}\"", text)
+                text.clone()
             }
-        },
+        }
         Element::Slider { label, min, max, default } => {
-            if (min + max) / 2.0 == *default {
-                format!("slider \"{}\" {}..{}", label, min, max)
-            } else {
-                format!("slider \"{}\" {}..{} @{}", label, min, max, default)
-            }
-        },
+            format!("{}: {}-{} = {}", label, min, max, default)
+        }
         Element::Checkbox { label, default } => {
             if *default {
-                format!("checkbox \"{}\" @true", label)
+                format!("{}: ✓", label)
             } else {
-                format!("checkbox \"{}\"", label)
+                format!("{}: ☐", label)
             }
-        },
-        Element::Textbox { label, placeholder, rows } => {
-            let mut result = format!("textbox \"{}\"", label);
-            if let Some(placeholder) = placeholder {
-                result.push_str(&format!(" \"{}\"", placeholder));
+        }
+        Element::Textbox { label, placeholder, rows: _ } => {
+            if let Some(ph) = placeholder {
+                format!("{}: @{}", label, ph)
+            } else {
+                format!("{}: @", label)
             }
-            if let Some(rows) = rows {
-                result.push_str(&format!(" rows={}", rows));
+        }
+        Element::Choice { label, options } => {
+            format!("{}: {}", label, options.join(" | "))
+        }
+        Element::Multiselect { label, options } => {
+            format!("{}: [{}]", label, options.join(", "))
+        }
+        Element::Group { label, elements } => {
+            let mut result = format!("--- {} ---", label);
+            for elem in elements {
+                result.push_str(&format!("\n{}{}", indent_str, serialize_element(elem, indent + 1)));
             }
             result
-        },
-        Element::Choice { label, options } => {
-            format!("choice \"{}\" [{}]", 
-                label, 
-                options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
-            )
-        },
-        Element::Multiselect { label, options } => {
-            format!("multiselect \"{}\" [{}]", 
-                label, 
-                options.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
-            )
-        },
-        Element::Group { label, elements } => {
-            let nested: Vec<String> = elements.iter()
-                .map(|e| serialize_element(e))
+        }
+        Element::Buttons(labels) => {
+            let filtered: Vec<String> = labels.iter()
+                .filter(|l| *l != "Force Yield")
+                .cloned()
                 .collect();
-            format!("group \"{}\" [{}]", label, nested.join(", "))
-        },
-        Element::Buttons(buttons) => {
-            format!("buttons [{}]", 
-                buttons.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", ")
-            )
-        },
+            
+            if filtered.len() == 1 {
+                format!("→ {}", filtered[0])
+            } else if filtered.is_empty() {
+                "[Force Yield]".to_string()
+            } else {
+                format!("[{}]", filtered.join(" | "))
+            }
+        }
         Element::Conditional { condition, elements } => {
-            let nested: Vec<String> = elements.iter()
-                .map(|e| serialize_element(e))
-                .collect();
-            format!("if {} [{}]", serialize_condition(condition), nested.join(", "))
-        },
+            let mut result = format!("when {}:", serialize_condition(condition));
+            for elem in elements {
+                result.push_str(&format!("\n{}{}", indent_str, serialize_element(elem, indent + 1)));
+            }
+            result
+        }
     }
 }
 
 fn serialize_condition(condition: &Condition) -> String {
     match condition {
-        Condition::Checked(name) => format!("checked(\"{}\")", name),
-        Condition::Selected(name, value) => format!("selected(\"{}\", \"{}\")", name, value),
-        Condition::Count(name, op, value) => {
+        Condition::Checked(name) => name.clone(),
+        Condition::Selected(name, value) => format!("{} = {}", name, value),
+        Condition::Count(field, op, value) => {
             let op_str = match op {
                 ComparisonOp::Greater => ">",
                 ComparisonOp::Less => "<",
                 ComparisonOp::GreaterEqual => ">=",
                 ComparisonOp::LessEqual => "<=",
-                ComparisonOp::Equal => "==",
+                ComparisonOp::Equal => "=",
             };
-            format!("count(\"{}\") {} {}", name, op_str, value)
-        },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_classic_popup_syntax() {
-        let input = r#"popup "Test Title" [
-            text "Hello World"
-            buttons ["OK", "Cancel"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.title, "Test Title");
-        assert_eq!(popup.elements.len(), 2);
-    }
-
-    #[test]
-    fn test_simplified_popup_syntax() {
-        let input = r#"[Test Title:
-            text "Hello World"
-            buttons ["OK", "Cancel"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.title, "Test Title");
-        assert_eq!(popup.elements.len(), 2);
-    }
-
-    #[test]
-    fn test_all_widget_types() {
-        let input = r#"popup "Widget Test" [
-            text "Display text"
-            slider "Volume" 0..100 @50
-            checkbox "Enable feature" @true
-            textbox "Enter name"
-            choice "Select option" ["A", "B", "C"]
-            multiselect "Choose many" ["X", "Y", "Z"]
-            group "Settings" [
-                checkbox "Advanced" @false
-            ]
-            buttons ["Save", "Cancel"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.elements.len(), 8);
-    }
-
-    #[test]
-    fn test_conditional_elements() {
-        let input = r#"popup "Conditional Test" [
-            checkbox "Show advanced" @false
-            if checked("Show advanced") [
-                slider "Detail level" 1..10 @5
-            ]
-            buttons ["OK"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.elements.len(), 3);
-        
-        match &popup.elements[1] {
-            Element::Conditional { condition, elements } => {
-                match condition {
-                    Condition::Checked(name) => assert_eq!(name, "Show advanced"),
-                    _ => panic!("Expected Checked condition"),
-                }
-                assert_eq!(elements.len(), 1);
-            },
-            _ => panic!("Expected conditional"),
-        }
-    }
-
-    #[test]
-    fn test_force_yield_auto_added() {
-        let input = r#"popup "Test" [
-            text "Hello"
-            buttons ["OK"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        match &popup.elements[1] {
-            Element::Buttons(buttons) => {
-                assert!(buttons.contains(&"Force Yield".to_string()));
-            },
-            _ => panic!("Expected buttons"),
-        }
-    }
-
-    #[test]
-    fn test_missing_buttons_auto_added() {
-        let input = r#"popup "No Buttons" [
-            text "This popup has no buttons"
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.elements.len(), 2);
-        
-        match &popup.elements[1] {
-            Element::Buttons(buttons) => {
-                assert!(buttons.contains(&"Continue".to_string()));
-                assert!(buttons.contains(&"Force Yield".to_string()));
-            },
-            _ => panic!("Expected buttons"),
-        }
-    }
-
-    #[test]
-    fn test_complex_conditions() {
-        let input = r#"popup "Complex Conditions" [
-            choice "Mode" ["Basic", "Advanced"]
-            multiselect "Features" ["A", "B", "C"]
-            
-            if selected("Mode", "Advanced") [
-                slider "Power" 1..100 @50
-            ]
-            
-            if count("Features") > 1 [
-                text "Multiple features selected!"
-            ]
-            
-            buttons ["Apply"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.elements.len(), 5);
-    }
-
-    #[test]
-    fn test_parse_errors() {
-        // Missing closing bracket
-        let input = r#"popup "Bad" ["#;
-        assert!(parse_popup_dsl(input).is_err());
-        
-        // Invalid widget type
-        let input = r#"[Title: invalid_widget "test"]"#;
-        assert!(parse_popup_dsl(input).is_err());
-        
-        // Completely malformed syntax that auto-detection can't fix
-        let input = r#"invalid_popup_syntax"#;
-        assert!(parse_popup_dsl(input).is_err());
-    }
-
-
-    #[test]
-    fn test_widget_aliases() {
-        // Test bare text with aliases
-        let input = r#"[Quick Form:
-            Name: [input]
-            Email: [field]
-            Subscribe: [bool]
-            Accept Terms: [toggle]
-            Ready: [y/n]
-            buttons ["Submit"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        assert_eq!(popup.title, "Quick Form");
-        
-        // Check that aliases were normalized correctly
-        match &popup.elements[0] {
-            Element::Textbox { label, .. } => assert_eq!(label, "Name"),
-            _ => panic!("Expected textbox for 'input' alias"),
-        }
-        
-        match &popup.elements[1] {
-            Element::Textbox { label, .. } => assert_eq!(label, "Email"),
-            _ => panic!("Expected textbox for 'field' alias"),
-        }
-        
-        match &popup.elements[2] {
-            Element::Checkbox { label, .. } => assert_eq!(label, "Subscribe"),
-            _ => panic!("Expected checkbox for 'bool' alias"),
-        }
-        
-        match &popup.elements[3] {
-            Element::Checkbox { label, .. } => assert_eq!(label, "Accept Terms"),
-            _ => panic!("Expected checkbox for 'toggle' alias"),
-        }
-        
-        match &popup.elements[4] {
-            Element::Choice { label, options } => {
-                assert_eq!(label, "Ready");
-                assert_eq!(options, &vec!["Y".to_string(), "N".to_string()]);
-            },
-            _ => panic!("Expected choice for 'y/n' alias"),
-        }
-    }
-    
-    #[test]
-    fn test_mixed_case_aliases() {
-        let input = r#"[Test:
-            Field1: [Input]
-            Field2: [BOOL]
-            Field3: [Y/n]
-            buttons ["OK"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        
-        // Aliases should work regardless of case
-        match &popup.elements[0] {
-            Element::Textbox { label, .. } => assert_eq!(label, "Field1"),
-            _ => panic!("Expected textbox for 'Input' alias"),
-        }
-        
-        match &popup.elements[1] {
-            Element::Checkbox { label, .. } => assert_eq!(label, "Field2"),
-            _ => panic!("Expected checkbox for 'BOOL' alias"),
-        }
-    }
-
-    #[test]
-    fn test_nested_groups() {
-        let input = r#"popup "Nested Groups" [
-            group "Outer" [
-                text "In outer group"
-                group "Inner" [
-                    checkbox "Deep option" @false
-                ]
-            ]
-            buttons ["OK"]
-        ]"#;
-        
-        let result = parse_popup_dsl(input);
-        assert!(result.is_ok());
-        
-        let popup = result.unwrap();
-        match &popup.elements[0] {
-            Element::Group { label, elements } => {
-                assert_eq!(label, "Outer");
-                assert_eq!(elements.len(), 2);
-                
-                match &elements[1] {
-                    Element::Group { label, elements } => {
-                        assert_eq!(label, "Inner");
-                        assert_eq!(elements.len(), 1);
-                    },
-                    _ => panic!("Expected inner group"),
-                }
-            },
-            _ => panic!("Expected outer group"),
+            format!("#{} {} {}", field, op_str, value)
         }
     }
 }

@@ -14,17 +14,7 @@ COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* }
 // ROOT - Single unified structure
 // ============================================
 
-popup = { SOI ~ ws ~ (natural_language_popup | structured_popup) ~ ws ~ EOI }
-
-// Natural language format: "confirm Question with Yes or No"
-natural_language_popup = {
-    "confirm" ~ ws ~ title_text ~ ws ~ natural_buttons
-}
-
-// Structured format with optional colon
-structured_popup = {
-    title ~ ws? ~ ":"? ~ ws? ~ NEWLINE? ~ body?
-}
+popup = { SOI ~ ws ~ title_line ~ ws ~ body? ~ ws ~ EOI }
 
 // Title can be standalone or with a colon
 title_line = {
@@ -221,9 +211,9 @@ inner_string = @{ (!("\"" | "'") ~ ANY)* }
 
 unquoted_text = @{ (!NEWLINE ~ ANY)+ }
 
-// Title text stops at colon, newline, or "with" (for natural language)
+// Title text stops at colon or newline
 title_text = { quoted_string | title_unquoted }
-title_unquoted = @{ (!(":" | " with " | NEWLINE) ~ ANY)+ }
+title_unquoted = @{ (!(":" | NEWLINE) ~ ANY)+ }
 
 word = @{ (ASCII_ALPHANUMERIC | "_" | "-")+ }
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }

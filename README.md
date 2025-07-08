@@ -1,184 +1,188 @@
 # popup-mcp
 
-An MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows with conditional UI support using a simple domain-specific language (DSL).
+An MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using a simple, natural domain-specific language (DSL).
 
 ## Features
 
-- **Conditional UI Elements** (NEW!)
-  - `if checked("name")` - Show content when checkbox is checked
-  - `if selected("name", "value")` - Show content for specific choice selection
-  - `if count("name") > N` - Show content based on multiselect count
-- **Rich controls**: text, sliders, checkboxes, radio buttons, text inputs, groups, multiselect
-- **Simple DSL** for defining popup layouts with conditional logic
-- **Native GUI** using imgui-rs (immediate mode, cyberpunk aesthetic)
-- **JSON output** of user selections
-- **Automatic button validation** - ensures every popup has at least one button
-- **MCP integration** for use with Claude Desktop and other AI assistants
+- **Simple, natural syntax** - Write popups like you think
+- **Smart widget detection** - Parser intelligently infers widget types from values
+- **Flexible formats** - Multiple ways to express the same thing
+- **Rich controls** - Sliders, checkboxes, choices, multiselect, text inputs
+- **Message formatting** - Info, warnings, questions with automatic icons
+- **Native GUI** - Fast, responsive popups using egui
+- **JSON output** - Clean, structured results
+- **MCP integration** - Works with Claude Desktop and other AI assistants
 
-## DSL Syntax
-
-```
-popup "Title" [
-    text "Some explanation"
-    
-    slider "Energy Level" 0..10 default=5
-    
-    checkbox "Enable feature" default=true
-    
-    choice "Select option:" [
-        "Option A",
-        "Option B", 
-        "Option C"
-    ]
-    
-    # NEW: Conditional elements
-    if selected("Select option:", "Option A") [
-        text "You selected A!"
-        checkbox "A-specific setting"
-    ]
-    
-    # NEW: Multiselect widget
-    multiselect "Active components:" [
-        "Component 1",
-        "Component 2",
-        "Component 3"
-    ]
-    
-    if count("Active components:") > 1 [
-        text "Multiple components selected!"
-    ]
-    
-    textbox "Your name:" placeholder="Enter name..."
-    
-    textbox "Notes:" rows=3
-    
-    group "Settings" [
-        slider "Volume" 0..100
-        checkbox "Mute"
-    ]
-    
-    # REQUIRED: Every popup must have at least one button
-    buttons ["OK", "Cancel", "Help"]
-]
-```
-
-### Button Requirement
-
-**Important**: Every popup MUST include at least one button to provide users with an exit path. If no buttons are defined, the parser automatically adds a "Continue" button with a warning message.
-
-```
-# This popup will get an automatic "Continue" button:
-popup "Info" [
-    text "System ready"
-    # Warning: no buttons defined!
-]
-
-# Better - explicit button:
-popup "Info" [
-    text "System ready"
-    buttons ["OK"]
-]
-
-# Best - meaningful action:
-popup "Confirm" [
-    text "Delete this file?"
-    buttons ["Delete", "Cancel"]
-]
-```
-
-## Usage
-
-### As a CLI tool
+## Installation
 
 ```bash
-# Read DSL from stdin
-cat examples/simple.popup | cargo run
+# Install from source
+cargo install --path .
 
-# Or pipe DSL directly
-echo 'popup "Test" [text "Hello!" buttons ["OK"]]' | cargo run
+# Or install from git
+cargo install --git https://github.com/yourusername/popup-mcp
 ```
 
-### As an MCP server
+### Claude Desktop Integration
 
-1. Build the MCP server:
-   ```bash
-   cargo build --bin stdio_direct
-   ```
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
-2. Add to Claude Desktop config (~/.config/Claude/claude_desktop_config.json):
-   ```json
-   {
-     "mcpServers": {
-       "popup-mcp": {
-         "command": "/path/to/popup-mcp/target/debug/stdio_direct",
-         "args": [],
-         "env": {}
-       }
-     }
-   }
-   ```
-
-3. Restart Claude Desktop
-
-4. Use the `popup` tool in Claude to create popups!
-
-## Examples
-
-See the `examples/` directory for sample popup definitions.
-
-### Conditional UI Example
-
-```
-popup "Adaptive Interface" [
-    choice "State:" ["Stuck", "Conflicted", "Exploring"]
-    
-    if selected("State:", "Stuck") [
-        text ">>> MICRO-MOVEMENT PROTOCOL <<<"
-        checkbox "Can stand up?"
-        checkbox "Can get water?"
-        
-        if checked("Can stand up?") [
-            text "Great! Next step: move to a different room"
-        ]
-    ]
-    
-    if selected("State:", "Conflicted") [
-        multiselect "Active headmates:" [
-            "[lotus] Body-Agent",
-            "[temple] Order-Seeker",
-            "[flower] Comfort-Seeker"
-        ]
-        
-        if count("Active headmates:") > 2 [
-            text "Complex negotiation needed"
-            slider "Tension level" 0..10
-        ]
-    ]
-    
-    buttons ["Execute", "Defer"]
-]
+```json
+{
+  "mcpServers": {
+    "popup": {
+      "command": "stdio_direct"
+    }
+  }
+}
 ```
 
-### Button Best Practices
+## Simple DSL Syntax
 
-1. **Always include explicit buttons** - Don't rely on the automatic fallback
-2. **Use meaningful labels** - "Save"/"Cancel" instead of "OK"/"Cancel"
-3. **Consider the context** - "Continue" for wizards, "Apply" for settings, "Done" for info
-4. **Order matters** - Primary action first, then secondary, then cancel/abort
-5. **Conditional buttons are risky** - If all buttons are in conditionals, add a root-level fallback
+The new DSL is designed to be natural and forgiving. No complex syntax to remember!
 
-This creates a dynamic interface that changes based on user selections, perfect for:
-- Multi-step wizards
-- Contextual help systems
-- Adaptive questionnaires
-- State-dependent workflows
+### Basic Example
 
-## Architecture
+```
+confirm Delete file?
+Yes or No
+```
 
-- `src/dsl/` - Pest-based DSL parser
-- `src/gui/` - imgui-rs rendering engine  
-- `src/models.rs` - Data structures
-- `src/bin/stdio_direct.rs` - MCP server implementation
+### Settings Example
+
+```
+Settings
+Volume: 0-100 = 75
+Theme: Light | Dark
+Notifications: yes
+Auto-save: enabled
+[Save | Cancel]
+```
+
+This automatically creates:
+- Slider for Volume (detects range pattern)
+- Choice for Theme (detects pipe-separated options)
+- Checkbox for Notifications (detects boolean)
+- Checkbox for Auto-save (detects boolean word)
+- Buttons at the bottom
+
+### Smart Widget Detection
+
+The parser automatically detects widget types based on value patterns:
+
+| Value Pattern | Widget Type | Example |
+|--------------|-------------|---------|
+| `0-100`, `0..100`, `0 to 100` | Slider | `Volume: 0-100` |
+| `yes`, `no`, `true`, `false`, `✓`, `[x]` | Checkbox | `Enabled: yes` |
+| `A | B | C` | Choice (radio) | `Size: Small | Medium | Large` |
+| `[A, B, C]` | Multiselect | `Tags: [Bug, Feature, Urgent]` |
+| `@placeholder` | Text input | `Name: @Enter your name` |
+| Anything else | Text display | `Status: Active` |
+
+### Button Formats
+
+All these work:
+
+```
+[OK | Cancel]              # Bracket format
+→ Continue                 # Arrow format
+Save or Discard           # Natural language
+```
+
+### Messages with Icons
+
+```
+System Update
+! Critical security update    # ⚠️ Warning
+> Download size: 145MB       # ℹ️ Info
+? Need help?                 # ❓ Question
+• Restart required           # • Bullet
+[Install | Later]
+```
+
+## More Examples
+
+### User Profile Form
+
+```
+User Profile
+Name: @Your name
+Email: @your@email.com
+Age: 18-100 = 25
+Country: USA | Canada | UK | Other
+Interests: [Sports, Music, Art, Tech]
+Newsletter: yes
+Bio: @Tell us about yourself...
+→ Save Profile
+```
+
+### Status Report
+
+```
+System Status
+! Disk space low (95% full)
+> CPU Usage: 45%
+> Memory: 8GB / 16GB
+Status: Healthy
+Uptime: 24 days
+[Refresh | Details]
+```
+
+### Quick Survey
+
+```
+Feedback
+How was your experience?
+Rating: 1-10 = 7
+Would recommend: yes
+Comments: @Optional feedback...
+[Submit | Skip]
+```
+
+## Command Line Usage
+
+Test your popups directly:
+
+```bash
+# From a file
+popup-mcp < my_popup.popup
+
+# Or with echo
+echo "confirm Save changes?\nYes or No" | popup-mcp
+```
+
+## Output Format
+
+The popup returns JSON with user selections:
+
+```json
+{
+  "Volume": 75,
+  "Theme": "Dark",
+  "Notifications": true,
+  "button": "Save"
+}
+```
+
+## Tips
+
+1. **Keep it simple** - The parser is smart and will figure out what you mean
+2. **Use meaningful labels** - They become the keys in the JSON output
+3. **One element per line** - Makes it easy to read and write
+4. **Test interactively** - Use the command line to quickly test popups
+
+## Development
+
+```bash
+# Run tests
+cargo test
+
+# Build
+cargo build --release
+
+# Install locally
+cargo install --path .
+```
 
 ## License
 

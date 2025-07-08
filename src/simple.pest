@@ -1,0 +1,83 @@
+// Simple, unified popup grammar with intelligent value recognition
+// The grammar focuses on structure; the parser handles interpretation
+
+// ============================================
+// WHITESPACE & COMMENTS
+// ============================================
+
+WHITESPACE = _{ " " | "\t" }
+NEWLINE = _{ "\r\n" | "\n" }
+ws = _{ WHITESPACE* }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+
+// ============================================
+// ROOT
+// ============================================
+
+popup = { SOI ~ ws ~ title ~ (ws ~ NEWLINE ~ ws ~ element)* ~ ws ~ EOI }
+
+// Title: first line, with optional "confirm" prefix
+title = { 
+    ("confirm" ~ ws)? ~ text_line
+}
+
+// ============================================
+// ELEMENTS - Things that appear after the title
+// ============================================
+
+element = {
+    // Messages with prefix (check first to avoid colon confusion)
+    message
+    // Button patterns
+    | buttons
+    // Labeled items that might be widgets
+    | labeled_item
+    // Plain text line (fallback)
+    | text_line
+}
+
+// Labeled item: "Label: value" - parser decides if it's a widget or text
+labeled_item = {
+    label ~ ws? ~ ":" ~ ws? ~ item_value
+}
+
+label = @{ (!(":" | NEWLINE) ~ ANY)+ }
+
+// The value part - parser will interpret based on pattern
+item_value = @{ (!NEWLINE ~ ANY)+ }
+
+// Button patterns - various formats
+buttons = {
+    // [OK | Cancel]
+    bracket_buttons
+    // → Continue
+    | arrow_button
+    // Yes or No
+    | or_buttons
+}
+
+bracket_buttons = {
+    "[" ~ ws? ~ button_text ~ (ws? ~ "|" ~ ws? ~ button_text)* ~ ws? ~ "]"
+}
+
+arrow_button = {
+    "→" ~ ws ~ button_text
+}
+
+or_buttons = {
+    button_text ~ (ws ~ "or" ~ ws ~ button_text)+
+}
+
+button_text = @{ 
+    (!("|" | "]" | " or " | NEWLINE) ~ ANY)+
+}
+
+// Messages - lines starting with specific prefixes
+message = {
+    message_prefix ~ ws ~ text_line
+}
+
+message_prefix = { ">" | "!" | "?" | "•" }
+
+// Generic text line
+text_line = @{ (!NEWLINE ~ ANY)+ }

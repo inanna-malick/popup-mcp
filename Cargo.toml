@@ -15,10 +15,13 @@ path = "src/bin/spike.rs"
 [dependencies]
 anyhow = "1.0.98"
 env_logger = "0.11.8"
-eframe = "0.25.0"
-egui = "0.25.0"
+eframe = "0.31"
+egui = "0.31"
+egui_extras = { version = "0.31.0", features = ["svg", "image"] }
+egui-twemoji = "0.7"
 pest = "2.8.0"
 pest_derive = "2.8.0"
+regex = "1.10"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 mcpr = "0.2.3"

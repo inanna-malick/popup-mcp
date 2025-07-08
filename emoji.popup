@@ -1,0 +1,1 @@
+popup "🦋" [checkbox "explore", checkbox "document", buttons ["→", "↗", "↻"]]

@@ -1,135 +1,214 @@
-# Popup-MCP: Structured GUI for AI Communication
+# Popup-MCP: Simple, Ergonomic GUI Popups for AI Communication
 
-Popup-MCP provides structured GUI interrupts for high-bandwidth human→AI communication. Use it when GUI structure adds value beyond simple text exchange.
+Popup-MCP provides structured GUI popups for high-bandwidth human→AI communication using a simple, natural syntax.
 
 ## Quick Setup
 
 ```bash
 # Install globally
-npm install -g popup-mcp
+cargo install --git https://github.com/yourusername/popup-mcp
 
 # Add to Claude Desktop config
 # ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "popup": {
-      "command": "popup-mcp"
+      "command": "stdio_direct"
     }
   }
 }
 ```
 
-## Core Syntax & Elements
+## New Simple Syntax
+
+The DSL is designed to be natural and forgiving. Just write what feels right!
+
+### Basic Format
 
 ```
-popup "Title" [
-  element_type "label" [options...],
-  if condition [...],
-  buttons ["Action1", "Action2"]
-]
+Title
+Element 1
+Element 2
+[Buttons]
 ```
 
-### Available Elements
-- `text "message"` - Display text
-- `slider "label" min..max default=N` - Numeric range
-- `checkbox "label" default=true/false` - Boolean toggle
-- `choice "label" ["option1", "option2"]` - Single selection
-- `multiselect "label" ["option1", "option2"]` - Multiple selection
-- `textbox "label"` - Free text input
-- `group "label" [...]` - Visual grouping
-- `buttons ["label1", "label2"]` - Action buttons (required)
+### Natural Language Confirmation
 
-### Conditional UI
-- `if checked("checkbox_name") [...]` - Show when checkbox checked
-- `if selected("choice_name", "value") [...]` - Show for specific choice
-- `if count("multiselect_name") > N [...]` - Show based on selection count
+```
+confirm Delete file?
+Yes or No
+```
+
+### Smart Widget Detection
+
+The parser intelligently detects widget types from the value pattern:
+
+```
+Settings
+Volume: 0-100
+Theme: Light | Dark
+Notifications: yes
+Auto-save: enabled
+Language: English
+[Save | Cancel]
+```
+
+This creates:
+- **Slider**: `Volume: 0-100` (range pattern)
+- **Choice**: `Theme: Light | Dark` (pipe-separated options)
+- **Checkbox**: `Notifications: yes` (boolean value)
+- **Checkbox**: `Auto-save: enabled` (boolean word)
+- **Text**: `Language: English` (no special pattern)
+- **Buttons**: `[Save | Cancel]`
+
+### Widget Patterns
+
+| Pattern | Creates | Example |
+|---------|---------|---------|
+| `Label: 0-100` | Slider | `Volume: 0-100` |
+| `Label: 0..100` | Slider | `Progress: 0..100` |
+| `Label: 0 to 100` | Slider | `Score: 0 to 100` |
+| `Label: 0-100 = 50` | Slider with default | `Brightness: 0-100 = 75` |
+| `Label: yes/no/true/false` | Checkbox | `Subscribe: yes` |
+| `Label: ✓/☐/[x]/[ ]` | Checkbox | `Complete: ✓` |
+| `Label: A \| B \| C` | Choice | `Size: Small \| Medium \| Large` |
+| `Label: [A, B, C]` | Multiselect | `Tags: [Work, Personal, Urgent]` |
+| `Label: @hint` | Textbox | `Name: @Enter your name` |
+| `Label: anything else` | Text display | `Status: Active` |
+
+### Button Formats
+
+All these formats work:
+
+```
+[OK | Cancel]              # Bracket format
+→ Continue                 # Arrow format
+Save or Discard           # Natural language
+buttons: Submit or Reset  # Explicit format
+```
+
+### Messages
+
+Use prefixes for different message types:
+
+```
+System Update
+! Critical security update
+> Download size: 145MB
+? Need help with installation?
+• Restart required
+This is plain text
+[Install | Later]
+```
+
+Prefixes:
+- `!` → ⚠️ Warning
+- `>` → ℹ️ Information
+- `?` → ❓ Question
+- `•` → Bullet point
+
+## Complete Examples
+
+### Simple Confirmation
+```
+confirm Delete file?
+This action cannot be undone
+Delete or Cancel
+```
+
+### User Profile Form
+```
+User Profile
+Name: @Your name
+Email: @your@email.com
+Age: 18-100 = 25
+Country: USA | Canada | UK | Other
+Interests: [Sports, Music, Art, Tech]
+Newsletter: yes
+Bio: @Tell us about yourself...
+→ Save Profile
+```
+
+### Status Report
+```
+System Status
+! Disk space: Critical (95% full)
+> CPU: 45% usage
+> Memory: 8GB / 16GB
+> Network: Connected
+Status: Operational
+Last check: 5 minutes ago
+[Refresh | Details | Settings]
+```
+
+### Settings Panel
+```
+Preferences
+Theme: Light | Dark | Auto
+Font Size: 10-24 = 14
+Show hints: yes
+Auto-save: enabled
+Save interval: 1-60 = 5
+Backup location: @/path/to/backups
+[Apply | Reset | Cancel]
+```
 
 ## When to Use Popups
 
 **Use conversational prompts for:**
-- Simple text responses
-- Yes/no confirmations
-- Single values
-- Maintaining flow
+- Simple yes/no questions
+- Single text inputs
+- Quick confirmations
 
 **Use Popup when:**
-- Multiple inputs needed simultaneously
-- GUI structure conveys information
-- Visual elements (sliders, checkboxes) communicate better than words
-- Complex branching logic required
+- Multiple inputs needed at once
+- Visual widgets communicate better than text
+- You need structured data back
+- The spatial layout helps understanding
 
-## Examples
-
-### State Assessment
-```
-popup "System Check" [
-  slider "Energy" 0..10,
-  slider "Focus" 0..10,
-  checkbox "Needs break",
-  textbox "Notes",
-  buttons ["Continue", "Pause"]
-]
-```
-
-### Contextual Decision
-```
-popup "Migration Strategy" [
-  choice "Approach" ["Incremental", "Big Bang", "Feature Flag"],
-  if selected("Approach", "Incremental") [
-    slider "Phases" 1..6 default=3
-  ],
-  slider "Risk tolerance" 0..10,
-  buttons ["Proceed", "Reconsider"]
-]
-```
-
-## Integration
+## Integration Example
 
 ```python
-def check_user_state():
+def configure_settings():
     result = popup("""
-    popup "Energy Check" [
-      slider "Energy" 0..10 default=5,
-      checkbox "Need break",
-      buttons ["Continue", "Pause"]
-    ]
+    Settings
+    Volume: 0-100 = 50
+    Theme: Light | Dark
+    Notifications: yes
+    [Save | Cancel]
     """)
     
-    # Result: {"Energy": 7, "Need break": false, "button": "Continue"}
+    # Result: {
+    #   "Volume": 75,
+    #   "Theme": "Dark", 
+    #   "Notifications": true,
+    #   "button": "Save"
+    # }
     
-    if result["button"] == "Pause":
-        take_break()
-    elif result["Energy"] < 4:
-        suggest_intervention()
+    if result["button"] == "Save":
+        save_settings(result)
 ```
 
-## Best Practices
+## Key Features
 
-1. **One decision per popup** - Keep focused
-2. **Descriptive labels** - Be specific about what's measured
-3. **Include escape hatch** - "Force Yield" button is automatic
-4. **Capture edge cases** - Add "Other" textbox when appropriate
-5. **Structure must add value** - Otherwise use conversational prompts
+1. **Smart widget detection** - The parser infers widget types from value patterns
+2. **Flexible syntax** - Multiple ways to express the same thing
+3. **Natural language** - Write like you think
+4. **Automatic Force Yield** - Every popup gets an escape hatch
+5. **Clean JSON output** - Easy to process results
 
-## Technical Notes
+## Tips
 
-### Output Format
-Results return all field values by label, plus a special "button" key:
+- Keep it simple - the parser is smart
+- Don't worry about exact syntax - if it looks right, it probably works
+- Test your popups interactively with `popup-mcp < yourfile.popup`
+- Use meaningful labels - they become the JSON keys in results
 
-```json
-{
-  "Energy": 7,
-  "Tasks": ["Email", "Code review"],
-  "Notes": "Waiting on feedback",
-  "button": "Continue"
-}
-```
+## Troubleshooting
 
-### Error Handling
-- Missing buttons trigger auto-add with warning
-- Malformed DSL returns descriptive errors
-- User timeouts handled gracefully
+If a value isn't recognized as a widget:
+- Check the pattern matches one of the widget types
+- Remember that unrecognized patterns become text displays
+- Use quotes if your text contains special characters
 
-## Key Insight
-
-Popup-MCP is for structured extraction, not conversation. It's a high-bandwidth channel when GUI structure itself conveys meaning. Ask yourself: "Would seeing these options together help the user decide?" If yes, use Popup. If no, use conversational prompts.
+The parser is designed to be forgiving - when in doubt, just try it!

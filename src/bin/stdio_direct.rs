@@ -6,8 +6,8 @@ use serde::Serialize;
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
-// Include the formal grammar specification
-const DSL_GRAMMAR: &str = include_str!("../../src/popup.pest");
+// Include the simple grammar specification
+const DSL_GRAMMAR: &str = include_str!("../../src/simple.pest");
 
 #[derive(Serialize)]
 struct ErrorResponse {

@@ -1,0 +1,221 @@
+# Comprehensive DSL Demo - All Syntax Variations
+
+# ====================
+# SEMANTIC ALIASES
+# ====================
+
+# All these create the same checkbox:
+Widget Aliases Demo:
+  checkbox "Notifications"
+  check "Updates"  
+  tick "Newsletter"
+  toggle "Dark Mode"
+  switch "Auto-save"
+  bool "Debug Mode"
+  boolean "Show Tips"
+  yes/no "Remember Me"
+  enabled "Feature X"
+  
+  # All these create the same slider:
+  slider "Master Volume" 0..100
+  range "Bass" 0..10 @5
+  scale "Brightness" 0..255 default:128
+  numeric "Zoom" 50..200 = 100
+  dial "Pan" -100..100
+  level "Difficulty" 1..5
+  gauge "CPU Usage" 0..100
+  
+  # All these create the same textbox:
+  textbox "Username" @Enter username
+  input "Password" @********
+  field "Email" @user@example.com
+  entry "Phone"
+  prompt "Feedback" @Tell us what you think
+  
+  # All these create the same choice:
+  choice "Language" ["English", "Spanish", "French"]
+  select "Country" ["USA", "Canada", "Mexico"]
+  dropdown "Font" ["Arial", "Times", "Courier"]
+  pick "Color" ["Red", "Green", "Blue"]
+  
+  # All these create the same multiselect:
+  multiselect "Features" ["A", "B", "C"]
+  multi "Skills" ["Python", "Rust", "JS"]
+  checklist "Tasks" ["Design", "Code", "Test"]
+  tags "Categories" ["Work", "Personal"]
+  
+  [Continue]
+
+# ====================
+# NATURAL LANGUAGE
+# ====================
+
+Natural Language Patterns:
+  # Sliders with natural syntax
+  Volume from 0 to 100 starting at 75
+  Brightness between 0 and 255 initially 200
+  Speed ranging 1 to 10 (default: 5)
+  
+  # Checkboxes with symbols
+  ✓ Email notifications
+  ☐ SMS alerts
+  [x] Auto-update
+  [ ] Beta features
+  (*) Selected option
+  
+  # Natural conditionals
+  when notifications:
+    Sound: Low | Medium | High
+    
+  if email notifications:
+    Email frequency: Daily | Weekly
+    
+  show when beta features:
+    ! Warning: Beta features may be unstable
+    
+  visible if Auto-update:
+    Update channel: Stable | Beta | Nightly
+  
+  → Next
+
+# ====================
+# INFERRED TYPES
+# ====================
+
+Type Inference Demo:
+  # Type inferred from value syntax
+  Volume: 0-100              # → slider
+  Notifications: yes          # → checkbox  
+  Theme: Light | Dark         # → choice
+  Tags: [Work, Personal]      # → multiselect
+  Notes: @Add your notes      # → textbox
+  
+  # Natural patterns
+  Quality: Low | Medium | High | Ultra
+  Enabled: ✓
+  Progress: [••••••    ]
+  Rating: ★★★☆☆
+  
+  [Save | Cancel]
+
+# ====================
+# MULTIPLE FORMATS
+# ====================
+
+# Inline format
+[Quick Settings: Volume: 0-100, Mute: no, Save or Cancel]
+
+# Natural confirmation
+confirm "Delete all data?" with Yes or No
+
+# Structured with sections
+Advanced Settings:
+  --- Audio ---
+  Master: 0-100 = 80
+  Effects: 0-100 = 50
+  Music: 0-100 = 70
+  
+  --- Video ---
+  Resolution: 720p | 1080p | 4K
+  Frame Rate: 30 | 60 | 120 | 144
+  VSync: on
+  
+  --- Performance ---
+  when Resolution = 4K:
+    ! High resolution may impact performance
+    DLSS: Off | Quality | Performance
+    
+  when Frame Rate > 60:
+    ? Requires high-end GPU
+    Adaptive Sync: yes
+  
+  ---
+  Apply | Reset | Cancel
+
+# ====================
+# CONDITIONAL LOGIC
+# ====================
+
+Smart Form:
+  Account Type: Free | Pro | Enterprise
+  
+  # Multiple condition syntaxes
+  when Account Type = Pro:
+    Seats: 1-10 = 1
+    Billing: Monthly | Yearly
+    
+  if Account Type = Enterprise:
+    Custom Domain: @company.com
+    SSO: ☐
+    
+  show when Account Type != Free:
+    Priority Support: yes
+    
+  # Compound conditions  
+  when Pro and Yearly:
+    > 20% discount applied!
+    
+  if Seats > 5:
+    Volume Discount: 10-50 = 10
+    
+  # Negation
+  unless Account Type = Free:
+    API Access: ✓
+    
+  [Upgrade | Continue]
+
+# ====================
+# ERROR RECOVERY
+# ====================
+
+Error Recovery Demo:
+  # Missing quotes - auto-fixed
+  checkbox Enabled
+  slider Volume 0..100
+  
+  # Common typos - auto-corrected
+  chekbox "Spell Check"
+  choise "Theme" [Light, Dark]
+  butons: [OK, Cancel]
+  
+  # Mixed syntax - normalized
+  Notifications: ✓
+  volume from 0 to 100
+  Theme: Light|Dark
+  
+  → Done
+
+# ====================
+# COMMENTS & DOCS
+# ====================
+
+Documented Form:
+  # This is a comment
+  Username: @Enter username  # Inline comment
+  
+  // Another comment style
+  Password: @••••••••
+  
+  /* Multi-line
+     comment */
+  Remember: yes
+  
+  [Sign In]
+
+# ====================
+# EMOJI & SYMBOLS
+# ====================
+
+Fun With Unicode:
+  Mood: 😢 | 😐 | 😊 | 😄
+  Energy: 🔋──────📱
+  Weather: ☀️ | ☁️ | 🌧️ | ⛈️ | ❄️
+  Priority: 🔴 | 🟡 | 🟢
+  
+  Status: 
+    ✅ Completed
+    ⏳ In Progress  
+    ❌ Failed
+    ⚠️ Warning
+    
+  [🚀 Launch | 🛑 Stop]
