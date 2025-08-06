@@ -5,12 +5,8 @@ edition = "2021"
 build = "build.rs"
 
 [[bin]]
-name = "stdio_direct"
+name = "popup-mcp-server"
 path = "src/bin/stdio_direct.rs"
-
-[[bin]]
-name = "spike"
-path = "src/bin/spike.rs"
 
 [dependencies]
 anyhow = "1.0.98"
@@ -28,6 +24,7 @@ mcpr = "0.2.3"
 log = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
+pest-ast = "0.3.6"
 
 [dev-dependencies]
 pest = "2.8.0"

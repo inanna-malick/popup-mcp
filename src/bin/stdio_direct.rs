@@ -117,6 +117,10 @@ fn main() -> Result<()> {
                                                 "dsl": {
                                                     "type": "string",
                                                     "description": "Popup DSL expression defining the UI elements"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "description": "Optional title for the popup window"
                                                 }
                                             },
                                             "required": ["dsl"]
@@ -144,8 +148,12 @@ fn main() -> Result<()> {
                         let result = match tool_name {
                             "popup" => {
                                 let dsl = tool_args.get("dsl").and_then(|d| d.as_str()).unwrap_or("");
+                                let title = tool_args.get("title").and_then(|t| t.as_str());
                                 
                                 log::info!("Showing popup with DSL: {}", dsl);
+                                if let Some(title) = title {
+                                    log::info!("Title: {}", title);
+                                }
                                 
                                 // Just spawn the popup-mcp binary and pipe the DSL
                                 // First try to find popup-mcp in the same directory as this binary
@@ -176,7 +184,11 @@ fn main() -> Result<()> {
                                 // Spawn popup binary directly without shell
                                 let child = if let Some(binary_path) = popup_path {
                                     log::info!("Spawning popup binary directly: {:?}", binary_path);
-                                    std::process::Command::new(binary_path)
+                                    let mut cmd = std::process::Command::new(binary_path);
+                                    if let Some(title) = title {
+                                        cmd.args(&["--title", title]);
+                                    }
+                                    cmd
                                         .stdin(std::process::Stdio::piped())
                                         .stdout(std::process::Stdio::piped())
                                         .stderr(std::process::Stdio::piped())
@@ -185,8 +197,12 @@ fn main() -> Result<()> {
                                 } else {
                                     // Fallback to cargo run for development
                                     log::info!("Falling back to cargo run for popup");
+                                    let mut args = vec!["run", "--release", "--bin", "popup-mcp", "--quiet", "--"];
+                                    if let Some(title) = title {
+                                        args.extend(&["--title", title]);
+                                    }
                                     std::process::Command::new("cargo")
-                                        .args(&["run", "--release", "--bin", "popup-mcp", "--quiet"])
+                                        .args(&args)
                                         .current_dir(env!("CARGO_MANIFEST_DIR"))
                                         .stdin(std::process::Stdio::piped())
                                         .stdout(std::process::Stdio::piped())

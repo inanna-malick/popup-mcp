@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PopupDefinition {
     pub title: String,
     pub elements: Vec<Element>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Element {
     Text(String),
     Slider { label: String, min: f32, max: f32, default: f32 },
@@ -21,14 +21,14 @@ pub enum Element {
     Conditional { condition: Condition, elements: Vec<Element> },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Condition {
     Checked(String),
     Selected(String, String),
     Count(String, ComparisonOp, i32),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComparisonOp {
     Greater,
     Less,

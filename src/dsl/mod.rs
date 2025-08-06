@@ -2,53 +2,41 @@ use anyhow::Result;
 
 use crate::models::{Element, PopupDefinition, Condition, ComparisonOp};
 
-// New unified parser module
-mod unified_parser;
-
 // Simple parser with intelligent widget detection
-mod simple_parser;
-
-// Temporarily disabled old tests that use old grammar
-// #[cfg(test)]
-// mod tests;
-
-// #[cfg(test)]
-// mod parser_tests;
-
-// #[cfg(test)]
-// mod edge_case_tests;
-
-// #[cfg(test)]
-// mod new_grammar_tests;
-
-// #[cfg(test)]
-// mod current_grammar_tests;
-
-// #[cfg(test)]
-// mod debug_tests;
-
-// #[cfg(test)]
-// mod debug_tests2;
-
-// #[cfg(test)]
-// mod ast_verification_tests;
-
-// #[cfg(test)]
-// mod unified_tests;
-
-// #[cfg(test)]
-// mod unified_integration_test;
-
-#[cfg(test)]
-mod unified_parser_tests;
+pub mod simple_parser;
 
 #[cfg(test)]
 mod simple_parser_tests;
 
-// Main parsing function
+#[cfg(test)]
+mod grammar_debug_tests;
+
+#[cfg(test)]
+mod exact_ast_tests;
+
+#[cfg(test)]
+mod conditional_tests;
+
+#[cfg(test)]
+mod conditional_grammar_tests;
+
+#[cfg(test)]
+mod title_removal_tests;
+
+
+
+// Main parsing functions
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     // Use the new simple parser with intelligent widget detection
     simple_parser::parse_popup_dsl(input)
+        .map(|mut def| {
+            ensure_button_safety(&mut def);
+            def
+        })
+}
+
+pub fn parse_popup_dsl_with_title(input: &str, title: Option<String>) -> Result<PopupDefinition> {
+    simple_parser::parse_popup_dsl_with_title(input, title)
         .map(|mut def| {
             ensure_button_safety(&mut def);
             def
@@ -71,8 +59,9 @@ fn ensure_button_safety(popup: &mut PopupDefinition) {
     }
 }
 
-// Format helpful error messages for users
-fn format_helpful_error(input: &str, error: &pest::error::Error<unified_parser::Rule>) -> String {
+// Format helpful error messages for users (currently unused)
+#[allow(dead_code)]
+fn format_helpful_error(input: &str, error: &pest::error::Error<simple_parser::Rule>) -> String {
     use pest::error::ErrorVariant;
     
     let (line, col) = match error.line_col {
@@ -88,7 +77,7 @@ fn format_helpful_error(input: &str, error: &pest::error::Error<unified_parser::
     message.push_str(&format!("  {}^\n", " ".repeat(col.saturating_sub(1))));
     
     match &error.variant {
-        ErrorVariant::ParsingError { positives, negatives } => {
+        ErrorVariant::ParsingError { positives, negatives: _ } => {
             if !positives.is_empty() {
                 message.push_str("Expected one of: ");
                 let expected: Vec<String> = positives.iter()

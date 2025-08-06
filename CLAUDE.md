@@ -1,67 +1,116 @@
-# Popup-MCP: Simple, Ergonomic GUI Popups for AI Communication
+# CLAUDE.md
 
-Popup-MCP provides structured GUI popups for high-bandwidth human→AI communication using a simple, natural syntax.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Quick Setup
+## Popup-MCP: Simple, Ergonomic GUI Popups for AI Communication
+
+Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using a simple, natural domain-specific language (DSL). It provides structured GUI popups for high-bandwidth human→AI communication.
+
+## Common Development Commands
 
 ```bash
-# Install globally
-cargo install --git https://github.com/yourusername/popup-mcp
+# Build the project
+cargo build --release
 
-# Add to Claude Desktop config
-# ~/Library/Application Support/Claude/claude_desktop_config.json
-{
-  "mcpServers": {
-    "popup": {
-      "command": "stdio_direct"
-    }
-  }
-}
+# Run all tests
+cargo test
+
+# Run tests with output (useful for debugging)
+cargo test -- --nocapture
+
+# Run a specific test
+cargo test test_simple_confirmation
+
+# Run tests in a specific module
+cargo test dsl::simple_parser_tests
+
+# Build and install locally
+cargo install --path .
+
+# Run the main popup binary with input
+echo "confirm Delete?\nYes or No" | cargo run
+
+# Run with validation mode to see AST
+echo "Settings\nVolume: 0-100" | cargo run -- --validate
+
+# Run the spike CLI tool
+cargo run --bin spike -- checkin
+cargo run --bin spike -- show examples/demo_settings.popup
+
+# Build specific binary
+cargo build --bin stdio_direct
+cargo build --bin spike
 ```
 
-## New Simple Syntax
+## Development Principles
 
-The DSL is designed to be natural and forgiving. Just write what feels right!
+- **ALWAYS write unit tests, not main methods**. This is a critical invariant. No main methods unless explicitly requested.
+- Use the existing test patterns in `src/dsl/simple_parser_tests.rs` as examples
+- Prefer iterators and for loops over manual iteration in Rust
+- Avoid early optimizations without benchmarks
+- **Wherever possible, write unit tests instead of using cargo run to test changes**
 
-### Basic Format
+## High-Level Architecture
 
-```
-Title
-Element 1
-Element 2
-[Buttons]
-```
+### Core Components
 
-### Natural Language Confirmation
+1. **DSL Parser** (`src/dsl/`)
+   - `simple.pest`: PEG grammar defining the DSL syntax structure
+   - `simple_parser.rs`: Smart parser that detects widget types from value patterns
+   - Separation of concerns: Grammar handles syntax, parser handles semantic widget detection
 
-```
-confirm Delete file?
-Yes or No
-```
+2. **GUI Renderer** (`src/gui/`)
+   - `mod.rs`: Main popup window logic using egui framework
+   - `widget_renderers.rs`: Individual widget rendering implementations
+   - Native GUI popups that return structured JSON results
 
-### Smart Widget Detection
+3. **MCP Server** (`src/bin/stdio_direct.rs`)
+   - Implements Model Context Protocol for AI assistant integration
+   - Handles JSON-RPC communication with Claude Desktop
+   - Provides `popup` tool for creating GUI popups from DSL
 
-The parser intelligently detects widget types from the value pattern:
+4. **CLI Tools**
+   - `src/main.rs`: Main binary for testing popups via stdin
+   - `src/bin/spike.rs`: Interactive CLI for structured feedback collection
 
-```
-Settings
-Volume: 0-100
-Theme: Light | Dark
-Notifications: yes
-Auto-save: enabled
-Language: English
-[Save | Cancel]
-```
+### Key Design Decisions
 
-This creates:
-- **Slider**: `Volume: 0-100` (range pattern)
-- **Choice**: `Theme: Light | Dark` (pipe-separated options)
-- **Checkbox**: `Notifications: yes` (boolean value)
-- **Checkbox**: `Auto-save: enabled` (boolean word)
-- **Text**: `Language: English` (no special pattern)
-- **Buttons**: `[Save | Cancel]`
+- **Smart Widget Detection**: Instead of complex grammar rules, the parser intelligently infers widget types from value patterns (e.g., `0-100` → slider, `yes/no` → checkbox)
+- **Error Tolerance**: Grammar focuses on structure while parser handles edge cases and provides helpful error messages
+- **Force Yield**: Every popup automatically includes a "Force Yield" escape button
+- **Natural Language Support**: Multiple ways to express the same concepts (e.g., buttons can be `[A|B]`, `A or B`, `→ Continue`)
 
-### Widget Patterns
+### Testing Strategy
+
+Tests are organized by functionality in `src/dsl/`:
+- `simple_parser_tests.rs`: Core parser functionality tests
+- `grammar_debug_tests.rs`: Grammar rule verification
+- `edge_case_tests.rs`: Error handling and edge cases
+- Use `#[test]` attributes for unit tests, following existing patterns
+
+## Latest Implementation Status
+
+**Grammar & Parser**: Fully redesigned with simplified, error-tolerant approach
+- **Grammar**: `src/simple.pest` - Clean, minimal PEG grammar focused on structure
+- **Parser**: `src/dsl/simple_parser.rs` - Smart widget detection with pattern recognition
+- **Architecture**: Grammar handles syntax, parser handles semantics (separation of concerns)
+
+**Recent Improvements**:
+- ✅ Fixed natural language button parsing ("Yes or No" → ["Yes", "No"])
+- ✅ Added markdown header support (`# Title`, `## Title`, etc.)
+- ✅ Implemented intelligent widget detection from value patterns
+- ✅ Added comprehensive test coverage with systematic unit tests
+- ✅ Simplified grammar to avoid complex optional prefix matching
+- ✅ Support for blank lines and natural multi-line text
+- ✅ Robust error handling with helpful error messages
+
+**Key Architecture Decision**: 
+Instead of complex grammar rules for prefixes (confirm, markdown), we handle them in parser logic. This makes the grammar simpler and more maintainable while providing better error tolerance.
+
+
+## DSL Widget Pattern Reference
+
+The parser automatically detects widget types from value patterns:
 
 | Pattern | Creates | Example |
 |---------|---------|---------|
@@ -78,137 +127,14 @@ This creates:
 
 ### Button Formats
 
-All these formats work:
+- `[OK | Cancel]` - Bracket format
+- `→ Continue` - Arrow format  
+- `Save or Discard` - Natural language
+- `buttons: Submit or Reset` - Explicit format
 
-```
-[OK | Cancel]              # Bracket format
-→ Continue                 # Arrow format
-Save or Discard           # Natural language
-buttons: Submit or Reset  # Explicit format
-```
+### Message Prefixes
 
-### Messages
-
-Use prefixes for different message types:
-
-```
-System Update
-! Critical security update
-> Download size: 145MB
-? Need help with installation?
-• Restart required
-This is plain text
-[Install | Later]
-```
-
-Prefixes:
-- `!` → ⚠️ Warning
-- `>` → ℹ️ Information
-- `?` → ❓ Question
+- `!` → Warning message
+- `>` → Information message
+- `?` → Question
 - `•` → Bullet point
-
-## Complete Examples
-
-### Simple Confirmation
-```
-confirm Delete file?
-This action cannot be undone
-Delete or Cancel
-```
-
-### User Profile Form
-```
-User Profile
-Name: @Your name
-Email: @your@email.com
-Age: 18-100 = 25
-Country: USA | Canada | UK | Other
-Interests: [Sports, Music, Art, Tech]
-Newsletter: yes
-Bio: @Tell us about yourself...
-→ Save Profile
-```
-
-### Status Report
-```
-System Status
-! Disk space: Critical (95% full)
-> CPU: 45% usage
-> Memory: 8GB / 16GB
-> Network: Connected
-Status: Operational
-Last check: 5 minutes ago
-[Refresh | Details | Settings]
-```
-
-### Settings Panel
-```
-Preferences
-Theme: Light | Dark | Auto
-Font Size: 10-24 = 14
-Show hints: yes
-Auto-save: enabled
-Save interval: 1-60 = 5
-Backup location: @/path/to/backups
-[Apply | Reset | Cancel]
-```
-
-## When to Use Popups
-
-**Use conversational prompts for:**
-- Simple yes/no questions
-- Single text inputs
-- Quick confirmations
-
-**Use Popup when:**
-- Multiple inputs needed at once
-- Visual widgets communicate better than text
-- You need structured data back
-- The spatial layout helps understanding
-
-## Integration Example
-
-```python
-def configure_settings():
-    result = popup("""
-    Settings
-    Volume: 0-100 = 50
-    Theme: Light | Dark
-    Notifications: yes
-    [Save | Cancel]
-    """)
-    
-    # Result: {
-    #   "Volume": 75,
-    #   "Theme": "Dark", 
-    #   "Notifications": true,
-    #   "button": "Save"
-    # }
-    
-    if result["button"] == "Save":
-        save_settings(result)
-```
-
-## Key Features
-
-1. **Smart widget detection** - The parser infers widget types from value patterns
-2. **Flexible syntax** - Multiple ways to express the same thing
-3. **Natural language** - Write like you think
-4. **Automatic Force Yield** - Every popup gets an escape hatch
-5. **Clean JSON output** - Easy to process results
-
-## Tips
-
-- Keep it simple - the parser is smart
-- Don't worry about exact syntax - if it looks right, it probably works
-- Test your popups interactively with `popup-mcp < yourfile.popup`
-- Use meaningful labels - they become the JSON keys in results
-
-## Troubleshooting
-
-If a value isn't recognized as a widget:
-- Check the pattern matches one of the widget types
-- Remember that unrecognized patterns become text displays
-- Use quotes if your text contains special characters
-
-The parser is designed to be forgiving - when in doubt, just try it!
