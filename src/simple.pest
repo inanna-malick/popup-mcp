@@ -43,7 +43,19 @@ labeled_item = {
 label = @{ (!(":" | "\n" | "\r") ~ ANY)+ }
 
 // The value part - parser will interpret based on pattern
-item_value = @{ boolean_value | range_value | choice_value | (!("\n" | "\r") ~ ANY)+ }
+item_value = @{ 
+    textbox_value |
+    boolean_value | 
+    range_value | 
+    choice_value | 
+    plain_value 
+}
+
+// Textbox pattern starts with @
+textbox_value = @{ "@" ~ (!("\n" | "\r") ~ ANY)* }
+
+// Plain value - anything that's not a newline
+plain_value = @{ (!("\n" | "\r") ~ ANY)+ }
 
 // VIBES: Make invalid boolean states impossible to express
 boolean_value = @{ 

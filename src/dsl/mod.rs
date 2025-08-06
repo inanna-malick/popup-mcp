@@ -23,41 +23,21 @@ mod conditional_grammar_tests;
 #[cfg(test)]
 mod title_removal_tests;
 
+#[cfg(test)]
+mod regression_tests;
+
 
 
 // Main parsing functions
 pub fn parse_popup_dsl(input: &str) -> Result<PopupDefinition> {
     // Use the new simple parser with intelligent widget detection
     simple_parser::parse_popup_dsl(input)
-        .map(|mut def| {
-            ensure_button_safety(&mut def);
-            def
-        })
 }
 
 pub fn parse_popup_dsl_with_title(input: &str, title: Option<String>) -> Result<PopupDefinition> {
     simple_parser::parse_popup_dsl_with_title(input, title)
-        .map(|mut def| {
-            ensure_button_safety(&mut def);
-            def
-        })
 }
 
-// Ensure buttons have Force Yield
-fn ensure_button_safety(popup: &mut PopupDefinition) {
-    let has_buttons = popup.elements.iter().any(|e| matches!(e, Element::Buttons(_)));
-    
-    if has_buttons {
-        for element in &mut popup.elements {
-            if let Element::Buttons(ref mut labels) = element {
-                if !labels.contains(&"Force Yield".to_string()) {
-                    labels.push("Force Yield".to_string());
-                }
-                break;
-            }
-        }
-    }
-}
 
 // Format helpful error messages for users (currently unused)
 #[allow(dead_code)]
@@ -169,17 +149,12 @@ fn serialize_element(element: &Element, indent: usize) -> String {
             result
         }
         Element::Buttons(labels) => {
-            let filtered: Vec<String> = labels.iter()
-                .filter(|l| *l != "Force Yield")
-                .cloned()
-                .collect();
-            
-            if filtered.len() == 1 {
-                format!("→ {}", filtered[0])
-            } else if filtered.is_empty() {
-                "[Force Yield]".to_string()
+            if labels.len() == 1 {
+                format!("→ {}", labels[0])
+            } else if labels.is_empty() {
+                "[]".to_string()
             } else {
-                format!("[{}]", filtered.join(" | "))
+                format!("[{}]", labels.join(" | "))
             }
         }
         Element::Conditional { condition, elements } => {

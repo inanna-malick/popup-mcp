@@ -97,7 +97,7 @@ mod tests {
 
     macro_rules! buttons {
         ([$($btn:expr),* $(,)?]) => {
-            Element::Buttons(vec![$($btn.to_string()),*, "Force Yield".to_string()])
+            Element::Buttons(vec![$($btn.to_string()),*])
         };
     }
 

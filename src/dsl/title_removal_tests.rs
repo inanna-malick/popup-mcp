@@ -80,7 +80,6 @@ mod tests {
         if let Element::Buttons(labels) = &popup.elements[0] {
             assert!(labels.contains(&"Yes".to_string()));
             assert!(labels.contains(&"No".to_string()));
-            assert!(labels.contains(&"Force Yield".to_string())); // Auto-added
         } else {
             panic!("Expected buttons");
         }

@@ -1,0 +1,18 @@
+Advanced Settings
+Show advanced options: no
+
+[if Show advanced options] {
+  Debug mode: off
+  Log level: 0-10 = 3
+  Output: Console | File | Both
+  Max threads: 1-16 = 4
+}
+
+Performance mode: yes
+
+[if Performance mode] {
+  GPU acceleration: enabled
+  Cache size: 0-1000 = 256
+}
+
+[Apply | Reset | Cancel]

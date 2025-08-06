@@ -143,6 +143,13 @@ impl PopupState {
             _ => None,
         }
     }
+    
+    pub fn get_text(&self, label: &str) -> Option<&String> {
+        match self.values.get(label) {
+            Some(ElementValue::Text(s)) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 /// Result that gets serialized to JSON

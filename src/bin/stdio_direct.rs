@@ -6,8 +6,6 @@ use serde::Serialize;
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
-// Include the simple grammar specification
-const DSL_GRAMMAR: &str = include_str!("../../src/simple.pest");
 
 #[derive(Serialize)]
 struct ErrorResponse {
@@ -55,46 +53,36 @@ fn main() -> Result<()> {
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
                                     "gui_popups": {
-                                        "description": "Purpose-built interrupt interface with conditional UI support. All popups include a built-in 'Force Yield' button for emergency exit.",
+                                        "description": "Create native GUI popups with a simple, natural DSL. Smart widget detection automatically creates the right controls based on your values.",
                                         "features": {
-                                            "conditionals": {
-                                                "description": "Dynamic UI that adapts based on user selections",
-                                                "syntax": [
-                                                    "if checked(\"checkbox_name\") [...]",
-                                                    "if selected(\"choice_name\", \"option_value\") [...]",
-                                                    "if count(\"multiselect_name\") > N [...]"
-                                                ],
-                                                "enables": "Complex decision trees, state-dependent interfaces, adaptive workflows"
-                                            },
-                                            "widgets": {
-                                                "multiselect": "Multiple checkbox selection with count conditions",
-                                                "existing": "text, slider, checkbox, choice, textbox, group, buttons"
-                                            },
-                                            "observed_requirements": {
-                                                "multi_headmate_mediation": "Structured checkbox arrays + conditional flows",
-                                                "dimensional_state_tracking": "Slider mechanisms with conditional responses",
-                                                "decision_paralysis_points": "Discrete button outputs + adaptive guidance",
-                                                "ascii_environment": "Unicode fully removed"
-                                            },
-                                            "expression_language": {
-                                                "format": "pest",
-                                                "schema": DSL_GRAMMAR
-                                            },
-                                            "engineering_decisions": {
-                                                "returns": "JSON (integrates with your memory architecture)",
-                                                "theme": "Neural blue (distinct activation marker)",
-                                                "sizing": "Auto-fit content (no scrollbars)",
-                                                "syntax": "Minimal DSL with conditionals (reduces cognitive load)"
-                                            }
+                                            "smart_detection": "Parser automatically detects widget types from value patterns",
+                                            "conditional_ui": "Dynamic interfaces that show/hide elements based on user selections",
+                                            "rich_widgets": "Sliders with percentage display, multiselect with All/None buttons, text fields with character count",
+                                            "keyboard_nav": "Full keyboard support with Tab/Arrow/Escape navigation"
                                         },
-                                        "version": "0.2.1",
-                                        "modification_requests": "Accepted via github issues"
+                                        "widget_patterns": {
+                                            "slider": "Label: 0-100 = 50 (range with optional default)",
+                                            "checkbox": "Label: yes/no/true/false/✓/☐",
+                                            "choice": "Label: Option1 | Option2 | Option3",
+                                            "multiselect": "Label: [Option1, Option2, Option3]",
+                                            "textbox": "Label: @placeholder text",
+                                            "buttons": "[Save | Cancel] or 'Save or Cancel' or '→ Continue'"
+                                        },
+                                        "conditional_syntax": {
+                                            "format": "[if condition] { elements }",
+                                            "examples": [
+                                                "[if Show advanced] { Debug: 0-10 }",
+                                                "[if Theme = Dark] { Contrast: high | normal }",
+                                                "[if Tags > 2] { Priority: @Set priority }"
+                                            ]
+                                        },
+                                        "version": "0.3.0"
                                     }
                                 },
                                 "serverInfo": {
                                     "name": "popup-mcp",
-                                    "version": "0.2.1",
-                                    "description": "Purpose-built interrupt interface with conditional UI support. Custom-engineered for multi-headmate mediation and adaptive decision flows. Dynamic interfaces that change based on user selections. All popups include a built-in 'Force Yield' button for emergency exit."
+                                    "version": "0.3.0",
+                                    "description": "Native GUI popup server for MCP. Create interactive forms, settings dialogs, and confirmation prompts using a simple DSL. Features smart widget detection, conditional UI, and full keyboard navigation."
                                 }
                             }),
                         )
@@ -107,16 +95,13 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup",
-                                        "description": "Purpose-built interrupt interface with conditional UI support. All popups automatically include a 'Force Yield' button for emergency exit - no need to specify it in the DSL.",
-                                        "expression_language": {
-                                            "schema": DSL_GRAMMAR
-                                        },
+                                        "description": "Create a native GUI popup window. The DSL uses natural syntax with smart widget detection. Example: 'Settings\nVolume: 0-100 = 75\nTheme: Light | Dark\n[Save | Cancel]' creates a popup with a slider, choice, and buttons. Conditional UI supported with [if condition] { elements } syntax.",
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {
                                                 "dsl": {
                                                     "type": "string",
-                                                    "description": "Popup DSL expression defining the UI elements"
+                                                    "description": "Popup definition in DSL format. One element per line. Patterns: 'Label: 0-100' (slider), 'Label: yes/no' (checkbox), 'Label: A | B | C' (choice), 'Label: [A, B, C]' (multiselect), 'Label: @hint' (textbox), '[Save | Cancel]' (buttons), '[if condition] { elements }' (conditional)."
                                                 },
                                                 "title": {
                                                     "type": "string",

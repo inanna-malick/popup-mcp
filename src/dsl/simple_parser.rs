@@ -117,9 +117,6 @@ fn parse_popup(pair: pest::iterators::Pair<Rule>, title: Option<String>) -> Resu
         }
     }
     
-    // Add Force Yield button if there are any buttons
-    ensure_force_yield(&mut elements);
-    
     let title = title.unwrap_or_else(|| "Popup".to_string());
     Ok(PopupDefinition { title, elements })
 }
@@ -420,102 +417,95 @@ fn parse_conditional(pair: pest::iterators::Pair<Rule>) -> Result<Element> {
     Ok(Element::Conditional { condition, elements })
 }
 
+// Normalize labels for consistent matching
+fn normalize_label(label: &str) -> String {
+    label.trim()
+         .trim_end_matches(':')
+         .to_string()
+}
+
 fn parse_condition_text(condition_text: &str) -> Result<Condition> {
     // Parse condition patterns
     if condition_text.starts_with("not ") {
         let label = condition_text.strip_prefix("not ").unwrap().trim();
-        Ok(Condition::Selected(label.to_string(), "false".to_string()))
+        Ok(Condition::Selected(normalize_label(label), "false".to_string()))
     } else if condition_text.contains(" has ") {
         let parts: Vec<&str> = condition_text.splitn(2, " has ").collect();
         if parts.len() == 2 {
-            Ok(Condition::Selected(format!("{}:has", parts[0].trim()), parts[1].trim().to_string()))
+            Ok(Condition::Selected(format!("{}:has", normalize_label(parts[0])), parts[1].trim().to_string()))
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     // Check >= and <= before > and < to avoid wrong matches
     } else if condition_text.contains(" >= ") {
         let parts: Vec<&str> = condition_text.splitn(2, " >= ").collect();
         if parts.len() == 2 {
-            let label = parts[0].trim();
+            let label = normalize_label(parts[0]);
             let value = parts[1].trim();
             if let Ok(num) = value.parse::<i32>() {
-                Ok(Condition::Count(label.to_string(), ComparisonOp::GreaterEqual, num))
+                Ok(Condition::Count(label, ComparisonOp::GreaterEqual, num))
             } else {
-                Ok(Condition::Selected(label.to_string(), value.to_string()))
+                Ok(Condition::Selected(label, value.to_string()))
             }
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     } else if condition_text.contains(" <= ") {
         let parts: Vec<&str> = condition_text.splitn(2, " <= ").collect();
         if parts.len() == 2 {
-            let label = parts[0].trim();
+            let label = normalize_label(parts[0]);
             let value = parts[1].trim();
             if let Ok(num) = value.parse::<i32>() {
-                Ok(Condition::Count(label.to_string(), ComparisonOp::LessEqual, num))
+                Ok(Condition::Count(label, ComparisonOp::LessEqual, num))
             } else {
-                Ok(Condition::Selected(label.to_string(), value.to_string()))
+                Ok(Condition::Selected(label, value.to_string()))
             }
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     } else if condition_text.contains(" = ") {
         let parts: Vec<&str> = condition_text.splitn(2, " = ").collect();
         if parts.len() == 2 {
-            let label = parts[0].trim();
+            let label = normalize_label(parts[0]);
             let value = parts[1].trim();
             if let Ok(num) = value.parse::<i32>() {
-                Ok(Condition::Count(label.to_string(), ComparisonOp::Equal, num))
+                Ok(Condition::Count(label, ComparisonOp::Equal, num))
             } else {
-                Ok(Condition::Selected(label.to_string(), value.to_string()))
+                Ok(Condition::Selected(label, value.to_string()))
             }
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     } else if condition_text.contains(" > ") {
         let parts: Vec<&str> = condition_text.splitn(2, " > ").collect();
         if parts.len() == 2 {
-            let label = parts[0].trim();
+            let label = normalize_label(parts[0]);
             let value = parts[1].trim();
             if let Ok(num) = value.parse::<i32>() {
-                Ok(Condition::Count(label.to_string(), ComparisonOp::Greater, num))
+                Ok(Condition::Count(label, ComparisonOp::Greater, num))
             } else {
-                Ok(Condition::Selected(label.to_string(), value.to_string()))
+                Ok(Condition::Selected(label, value.to_string()))
             }
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     } else if condition_text.contains(" < ") {
         let parts: Vec<&str> = condition_text.splitn(2, " < ").collect();
         if parts.len() == 2 {
-            let label = parts[0].trim();
+            let label = normalize_label(parts[0]);
             let value = parts[1].trim();
             if let Ok(num) = value.parse::<i32>() {
-                Ok(Condition::Count(label.to_string(), ComparisonOp::Less, num))
+                Ok(Condition::Count(label, ComparisonOp::Less, num))
             } else {
-                Ok(Condition::Selected(label.to_string(), value.to_string()))
+                Ok(Condition::Selected(label, value.to_string()))
             }
         } else {
-            Ok(Condition::Checked(condition_text.to_string()))
+            Ok(Condition::Checked(normalize_label(condition_text)))
         }
     } else {
         // Simple condition - just a checkbox name
-        Ok(Condition::Checked(condition_text.to_string()))
+        Ok(Condition::Checked(normalize_label(condition_text)))
     }
 }
 
 
-fn ensure_force_yield(elements: &mut Vec<Element>) {
-    let has_buttons = elements.iter().any(|e| matches!(e, Element::Buttons(_)));
-    
-    if has_buttons {
-        for element in elements {
-            if let Element::Buttons(ref mut labels) = element {
-                if !labels.contains(&"Force Yield".to_string()) {
-                    labels.push("Force Yield".to_string());
-                }
-                break;
-            }
-        }
-    }
-}

@@ -14,10 +14,9 @@ Yes or No"#;
                 assert_eq!(popup.elements.len(), 1);
                 
                 if let Element::Buttons(labels) = &popup.elements[0] {
-                    assert_eq!(labels.len(), 3); // Yes, No, Force Yield
+                    assert_eq!(labels.len(), 2); // Yes, No
                     assert!(labels.contains(&"Yes".to_string()));
                     assert!(labels.contains(&"No".to_string()));
-                    assert!(labels.contains(&"Force Yield".to_string()));
                 } else {
                     panic!("Expected buttons element");
                 }
@@ -140,7 +139,6 @@ Modified: 3 files
                                 labels
                             );
                         }
-                        assert!(labels.contains(&"Force Yield".to_string()));
                     } else {
                         panic!("Expected buttons element for: {}", button_line);
                     }
@@ -485,7 +483,6 @@ Multiselect: [Work, Personal]
                     Element::Buttons(labels) => {
                         assert!(labels.contains(&"Save".to_string()));
                         assert!(labels.contains(&"Cancel".to_string()));
-                        assert!(labels.contains(&"Force Yield".to_string()));
                     }
                     _ => panic!("Expected buttons"),
                 }

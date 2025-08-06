@@ -88,6 +88,11 @@ impl eframe::App for PopupApp {
         // Apply theme
         self.theme.apply_to_egui(ctx);
         
+        // Handle Escape key for cancel
+        if ctx.input(|i| i.key_pressed(Key::Escape)) {
+            self.state.button_clicked = Some("Cancel".to_string());
+        }
+        
         // Check if we should close
         if self.state.button_clicked.is_some() {
             self.send_result_and_close(ctx);
@@ -170,17 +175,23 @@ fn render_elements_with_context(
             Element::Slider { label, min, max, default: _ } => {
                 if let Some(value) = state.get_number_mut(label) {
                     ui.vertical(|ui| {
+                        // Label with value display
                         ui.horizontal(|ui| {
                             EmojiLabel::new(RichText::new(label).color(theme.text_primary)).show(ui);
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                EmojiLabel::new(RichText::new(format!("[{}]", value)).color(theme.neon_pink).monospace()).show(ui);
+                                let percentage = (((*value - min) / (max - min)) * 100.0) as i32;
+                                EmojiLabel::new(RichText::new(format!("[{} • {}%]", value, percentage)).color(theme.neon_pink).monospace()).show(ui);
                             });
                         });
                         
+                        // Full-width slider with custom styling
                         let slider = egui::Slider::new(value, *min..=*max)
                             .show_value(false)
                             .clamping(egui::SliderClamping::Always);
-                        let response = ui.add(slider);
+                        let response = ui.add_sized(
+                            Vec2::new(ui.available_width(), ui.spacing().interact_size.y),
+                            slider
+                        );
                         
                         // Store the response ID for focus
                         if first_widget_id.is_none() && !widget_focused {
@@ -219,7 +230,15 @@ fn render_elements_with_context(
             
             Element::Textbox { label, placeholder, rows } => {
                 ui.group(|ui| {
-                    EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.electric_blue)).show(ui);
+                    ui.set_width(ui.available_width());
+                    ui.horizontal(|ui| {
+                        EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.electric_blue)).show(ui);
+                        if let Some(value) = state.get_text(label) {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.small(format!("{} chars", value.len()));
+                            });
+                        }
+                    });
                     if let Some(value) = state.get_text_mut(label) {
                         let height = rows.unwrap_or(1) as f32 * 20.0;
                         let text_edit = egui::TextEdit::multiline(value)
@@ -242,18 +261,34 @@ fn render_elements_with_context(
             
             Element::Choice { label, options } => {
                 ui.group(|ui| {
+                    ui.set_width(ui.available_width());
                     EmojiLabel::new(RichText::new(format!("◆ {}", label)).color(theme.neon_purple)).show(ui);
                     if let Some(selected) = state.get_choice_mut(label) {
                         ui.vertical(|ui| {
+                            // Handle arrow key navigation
+                            let up_pressed = ui.input(|i| i.key_pressed(Key::ArrowUp));
+                            let down_pressed = ui.input(|i| i.key_pressed(Key::ArrowDown));
+                            let has_focus = options.iter().enumerate().any(|(i, _)| {
+                                ui.ctx().memory(|mem| mem.has_focus(egui::Id::new(format!("choice_{}_{}", label, i))))
+                            });
+                            
+                            if has_focus {
+                                if up_pressed && *selected > 0 {
+                                    *selected -= 1;
+                                } else if down_pressed && *selected < options.len() - 1 {
+                                    *selected += 1;
+                                }
+                            }
+                            
                             for (i, option) in options.iter().enumerate() {
-                                
                                 let is_selected = *selected == i;
                                 let option_text = if is_selected {
                                     RichText::new(format!("▸ {}", option)).color(theme.neon_cyan)
                                 } else {
                                     RichText::new(format!("  {}", option)).color(theme.text_secondary)
                                 };
-                                let response = ui.selectable_label(is_selected, option_text);
+                                let response = ui.selectable_label(is_selected, option_text)
+                                    .on_hover_text(format!("Option {} of {}", i + 1, options.len()));
                                 if response.clicked() {
                                     *selected = i;
                                 }
@@ -275,8 +310,26 @@ fn render_elements_with_context(
             
             Element::Multiselect { label, options } => {
                 ui.group(|ui| {
-                    EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.warning_orange)).show(ui);
+                    ui.set_width(ui.available_width());
                     if let Some(selections) = state.get_multichoice_mut(label) {
+                        ui.horizontal(|ui| {
+                            EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.warning_orange)).show(ui);
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let selected_count = selections.iter().filter(|&&x| x).count();
+                                if selected_count > 0 {
+                                    ui.small(format!("{} selected", selected_count));
+                                }
+                            });
+                        });
+                        // Add Select All/None buttons
+                        ui.horizontal(|ui| {
+                            if ui.small_button("All").clicked() {
+                                selections.iter_mut().for_each(|s| *s = true);
+                            }
+                            if ui.small_button("None").clicked() {
+                                selections.iter_mut().for_each(|s| *s = false);
+                            }
+                        });
                         ui.vertical(|ui| {
                             for (i, option) in options.iter().enumerate() {
                                 if i < selections.len() {
@@ -329,8 +382,9 @@ fn render_elements_with_context(
                 ui.add_space(4.0);
                 
                 ui.with_layout(Layout::left_to_right(egui::Align::Center), |ui| {
-                    // Center the buttons
-                    let button_width = 90.0;
+                    // Calculate dynamic button width based on text content
+                    let max_text_len = buttons.iter().map(|b| b.len()).max().unwrap_or(8);
+                    let button_width = (max_text_len as f32 * 7.0 + 20.0).min(120.0).max(80.0);
                     let total_width = buttons.len() as f32 * (button_width + 8.0);
                     let available_width = ui.available_width();
                     if available_width > total_width {
