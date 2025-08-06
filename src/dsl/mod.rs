@@ -26,6 +26,9 @@ mod title_removal_tests;
 #[cfg(test)]
 mod regression_tests;
 
+#[cfg(test)]
+pub mod test_builders;
+
 
 
 // Main parsing functions
