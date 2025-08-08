@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Popup-MCP: Native GUI Popups via MCP
 
-Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using a simple, natural domain-specific language (DSL).
+Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using JSON structure.
 
 ## Common Development Commands
 
@@ -22,16 +22,13 @@ cargo test -- --nocapture
 cargo test test_simple_confirmation
 
 # Run tests in a specific module
-cargo test dsl::simple_parser_tests
+cargo test tests::json_parser_tests
 
 # Build and install locally
 cargo install --path .
 
-# Test popup directly from command line
-echo "confirm Delete?\nYes or No" | cargo run
-
-# Test with validation mode to see AST
-echo "Settings\nVolume: 0-100" | cargo run -- --validate
+# Test popup directly from command line with JSON
+echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run
 
 # Build MCP server binary
 cargo build --bin popup-mcp-server
@@ -44,10 +41,10 @@ cargo run --bin stdio_direct
 
 ### Core Components
 
-1. **DSL Parser** (`src/dsl/`)
-   - `simple.pest`: PEG grammar defining the DSL syntax structure
-   - `simple_parser.rs`: Smart parser that detects widget types from value patterns
-   - Separation of concerns: Grammar handles syntax, parser handles semantic widget detection
+1. **JSON Parser** (`src/json_parser.rs`)
+   - Direct deserialization from JSON to `PopupDefinition`
+   - Clean, explicit structure with no ambiguity
+   - Supports nested conditionals and groups naturally
 
 2. **GUI Renderer** (`src/gui/`)
    - `mod.rs`: Main popup window logic using egui framework
@@ -57,80 +54,195 @@ cargo run --bin stdio_direct
 3. **MCP Server** (`src/bin/stdio_direct.rs`)
    - Implements Model Context Protocol for AI assistant integration
    - Handles JSON-RPC communication with Claude Desktop
-   - Provides `popup` tool for creating GUI popups from DSL
+   - Provides `popup` tool for creating GUI popups from JSON
 
 4. **Models** (`src/models.rs`)
    - Core data structures: `PopupDefinition`, `Element`, `PopupResult`
-   - Supports various widget types: Slider, Checkbox, Choice, Multiselect, Textbox, Buttons
+   - All types have Serialize/Deserialize for JSON compatibility
+   - Supports various widget types: Slider, Checkbox, Choice, Multiselect, Textbox, Buttons, Group, Conditional
 
 ### Key Design Decisions
 
-- **Smart Widget Detection**: Instead of complex grammar rules, the parser intelligently infers widget types from value patterns (e.g., `0-100` → slider, `yes/no` → checkbox)
-- **Error Tolerance**: Grammar focuses on structure while parser handles edge cases and provides helpful error messages
-- **Force Yield**: Every popup automatically includes a "Force Yield" escape button
-- **Natural Language Support**: Multiple ways to express the same concepts (e.g., buttons can be `[A|B]`, `A or B`, `→ Continue`)
-- **Title as Parameter**: Title is not part of the DSL grammar but passed as a parameter to the parser
+- **JSON-based structure**: Clean, explicit definition with no parsing ambiguities
+- **Type safety**: JSON schema provides clear structure validation
+- **Nested support**: Natural support for conditionals and groups through JSON nesting
+- **Simple implementation**: No complex parsing logic, just JSON deserialization
 
 ### Testing Strategy
 
-Tests are organized by functionality in `src/dsl/`:
-- `simple_parser_tests.rs`: Core parser functionality tests
-- `conditional_tests.rs`: Conditional logic testing (`[if condition] { ... }`)
-- `grammar_debug_tests.rs`: Grammar rule verification
-- `exact_ast_tests.rs`: Precise AST structure validation
+Tests are organized in `src/tests/`:
+- `json_parser_tests.rs`: Core JSON parsing tests for all widget types
+- `integration_tests.rs`: Integration tests with example files and state management
 
-## DSL Widget Pattern Reference
+## JSON Structure Reference
 
-The parser automatically detects widget types from value patterns:
-
-| Pattern | Creates | Example |
-|---------|---------|---------|
-| `Label: 0-100` | Slider | `Volume: 0-100` |
-| `Label: 0..100` | Slider | `Progress: 0..100` |
-| `Label: 0 to 100` | Slider | `Score: 0 to 100` |
-| `Label: 0-100 = 50` | Slider with default | `Brightness: 0-100 = 75` |
-| `Label: yes/no/true/false` | Checkbox | `Subscribe: yes` |
-| `Label: ✓/☐/[x]/[ ]` | Checkbox | `Complete: ✓` |
-| `Label: A \| B \| C` | Choice | `Size: Small \| Medium \| Large` |
-| `Label: [A, B, C]` | Multiselect | `Tags: [Work, Personal, Urgent]` |
-| `Label: @hint` | Textbox | `Name: @Enter your name` |
-| `Label: anything else` | Text display | `Status: Active` |
-
-### Button Formats
-
-- `[OK | Cancel]` - Bracket format
-- `→ Continue` - Arrow format  
-- `Save or Discard` - Natural language
-- `buttons: Submit or Reset` - Explicit format
-
-### Message Prefixes
-
-- `!` → Warning message (⚠️)
-- `>` → Information message (ℹ️)
-- `?` → Question (❓)
-- `•` → Bullet point
-
-### Conditional Blocks
-
-```
-Advanced: no
-[if Advanced] {
-  Debug level: 0-10
-  Log file: @/tmp/debug.log
+### Basic Structure
+```json
+{
+  "title": "Popup Title",
+  "elements": [
+    // Array of element objects
+  ]
 }
 ```
 
-Supports conditions:
-- Simple: `[if Advanced]`
-- Negation: `[if not Advanced]`
-- Comparison: `[if Value > 50]`, `[if Theme = Dark]`
-- Count: `[if Tags > 2]`
-- Has: `[if Tags has Important]`
+### Element Types
+
+#### Text
+```json
+{"type": "text", "content": "Display text"}
+```
+
+#### Slider
+```json
+{
+  "type": "slider",
+  "label": "Volume",
+  "min": 0,
+  "max": 100,
+  "default": 50  // Optional, defaults to midpoint
+}
+```
+
+#### Checkbox
+```json
+{
+  "type": "checkbox",
+  "label": "Enable feature",
+  "default": true  // Optional, defaults to false
+}
+```
+
+#### Textbox
+```json
+{
+  "type": "textbox",
+  "label": "Name",
+  "placeholder": "Enter your name",  // Optional
+  "rows": 5  // Optional, for multiline
+}
+```
+
+#### Choice (Single Selection)
+```json
+{
+  "type": "choice",
+  "label": "Theme",
+  "options": ["Light", "Dark", "Auto"]
+}
+```
+
+#### Multiselect
+```json
+{
+  "type": "multiselect",
+  "label": "Features",
+  "options": ["Feature A", "Feature B", "Feature C"]
+}
+```
+
+#### Buttons
+```json
+{"type": "buttons", "labels": ["OK", "Cancel"]}
+```
+
+#### Group
+```json
+{
+  "type": "group",
+  "label": "Settings",
+  "elements": [
+    // Nested elements
+  ]
+}
+```
+
+#### Conditional
+```json
+{
+  "type": "conditional",
+  "condition": "Checkbox Label",  // Simple form
+  "elements": [
+    // Elements shown when condition is true
+  ]
+}
+```
+
+Complex conditions:
+```json
+{
+  "type": "conditional",
+  "condition": {
+    "type": "selected",
+    "label": "Mode",
+    "value": "Advanced"
+  },
+  "elements": [...]
+}
+```
+
+```json
+{
+  "type": "conditional",
+  "condition": {
+    "type": "count",
+    "label": "Items",
+    "value": 5,
+    "op": ">"  // Operators: >, <, >=, <=, =
+  },
+  "elements": [...]
+}
+```
+
+## Example Popups
+
+### Simple Confirmation
+```json
+{
+  "title": "Delete File?",
+  "elements": [
+    {"type": "text", "content": "This action cannot be undone."},
+    {"type": "buttons", "labels": ["Yes", "No"]}
+  ]
+}
+```
+
+### Settings Form
+```json
+{
+  "title": "Settings",
+  "elements": [
+    {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
+    {"type": "checkbox", "label": "Notifications", "default": true},
+    {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
+    {"type": "buttons", "labels": ["Save", "Cancel"]}
+  ]
+}
+```
+
+### Conditional UI
+```json
+{
+  "title": "Advanced Settings",
+  "elements": [
+    {"type": "checkbox", "label": "Show advanced", "default": false},
+    {
+      "type": "conditional",
+      "condition": "Show advanced",
+      "elements": [
+        {"type": "slider", "label": "Debug level", "min": 0, "max": 10},
+        {"type": "textbox", "label": "Log file", "placeholder": "/tmp/debug.log"}
+      ]
+    },
+    {"type": "buttons", "labels": ["Apply", "Cancel"]}
+  ]
+}
+```
 
 ## Development Principles
 
 - **ALWAYS write unit tests, not main methods**. No main methods unless explicitly requested.
-- Use the existing test patterns in `src/dsl/simple_parser_tests.rs` as examples
+- Use the existing test patterns in `src/tests/` as examples
 - Prefer iterators and for loops over manual iteration in Rust
 - Avoid early optimizations without benchmarks
 - **Wherever possible, write unit tests instead of using cargo run to test changes**

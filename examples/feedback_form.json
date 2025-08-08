@@ -1,0 +1,13 @@
+{
+  "title": "Feedback Form",
+  "elements": [
+    {"type": "text", "content": "We'd love to hear from you!"},
+    {"type": "textbox", "label": "Name", "placeholder": "Your name"},
+    {"type": "textbox", "label": "Email", "placeholder": "your@email.com"},
+    {"type": "choice", "label": "Rating", "options": ["Excellent", "Good", "Fair", "Poor"]},
+    {"type": "textbox", "label": "Comments", "placeholder": "Tell us what you think...", "rows": 5},
+    {"type": "multiselect", "label": "Topics", "options": ["UI/UX", "Performance", "Features", "Documentation", "Support"]},
+    {"type": "checkbox", "label": "Subscribe to newsletter", "default": false},
+    {"type": "buttons", "labels": ["Submit", "Cancel"]}
+  ]
+}

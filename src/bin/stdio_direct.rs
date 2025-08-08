@@ -53,36 +53,31 @@ fn main() -> Result<()> {
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
                                     "gui_popups": {
-                                        "description": "Create native GUI popups with a simple, natural DSL. Smart widget detection automatically creates the right controls based on your values.",
+                                        "description": "Create native GUI popups using JSON structure for precise control.",
                                         "features": {
-                                            "smart_detection": "Parser automatically detects widget types from value patterns",
+                                            "json_based": "Clean JSON structure for defining GUI elements",
                                             "conditional_ui": "Dynamic interfaces that show/hide elements based on user selections",
                                             "rich_widgets": "Sliders with percentage display, multiselect with All/None buttons, text fields with character count",
                                             "keyboard_nav": "Full keyboard support with Tab/Arrow/Escape navigation"
                                         },
-                                        "widget_patterns": {
-                                            "slider": "Label: 0-100 = 50 (range with optional default)",
-                                            "checkbox": "Label: yes/no/true/false/✓/☐",
-                                            "choice": "Label: Option1 | Option2 | Option3",
-                                            "multiselect": "Label: [Option1, Option2, Option3]",
-                                            "textbox": "Label: @placeholder text",
-                                            "buttons": "[Save | Cancel] or 'Save or Cancel' or '→ Continue'"
+                                        "element_types": {
+                                            "text": "Static text display",
+                                            "slider": "Numeric range selector with min/max/default",
+                                            "checkbox": "Boolean toggle with default state",
+                                            "choice": "Single selection from options",
+                                            "multiselect": "Multiple selection from options",
+                                            "textbox": "Text input with optional placeholder",
+                                            "buttons": "Action buttons",
+                                            "conditional": "Show/hide elements based on conditions",
+                                            "group": "Group related elements"
                                         },
-                                        "conditional_syntax": {
-                                            "format": "[if condition] { elements }",
-                                            "examples": [
-                                                "[if Show advanced] { Debug: 0-10 }",
-                                                "[if Theme = Dark] { Contrast: high | normal }",
-                                                "[if Tags > 2] { Priority: @Set priority }"
-                                            ]
-                                        },
-                                        "version": "0.3.0"
+                                        "version": "0.4.0"
                                     }
                                 },
                                 "serverInfo": {
                                     "name": "popup-mcp",
-                                    "version": "0.3.0",
-                                    "description": "Native GUI popup server for MCP. Create interactive forms, settings dialogs, and confirmation prompts using a simple DSL. Features smart widget detection, conditional UI, and full keyboard navigation."
+                                    "version": "0.4.0",
+                                    "description": "Native GUI popup server for MCP. Create interactive forms, settings dialogs, and confirmation prompts using JSON structure. Features conditional UI, rich widgets, and full keyboard navigation."
                                 }
                             }),
                         )
@@ -95,20 +90,27 @@ fn main() -> Result<()> {
                                 "tools": [
                                     {
                                         "name": "popup",
-                                        "description": "Create a native GUI popup window. The DSL uses natural syntax with smart widget detection. Example: 'Settings\nVolume: 0-100 = 75\nTheme: Light | Dark\n[Save | Cancel]' creates a popup with a slider, choice, and buttons. Conditional UI supported with [if condition] { elements } syntax.",
+                                        "description": "Create a native GUI popup window using JSON structure. Elements require 'type' field. Example: {\"title\": \"Settings\", \"elements\": [{\"type\": \"text\", \"content\": \"Configure:\"}, {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50}, {\"type\": \"checkbox\", \"label\": \"Mute\", \"default\": false}, {\"type\": \"buttons\", \"labels\": [\"Save\", \"Cancel\"]}]}. Conditionals use simple strings: {\"type\": \"conditional\", \"condition\": \"ShowAdvanced\", \"elements\": [...]}",
                                         "inputSchema": {
                                             "type": "object",
                                             "properties": {
-                                                "dsl": {
-                                                    "type": "string",
-                                                    "description": "Popup definition in DSL format. One element per line. Patterns: 'Label: 0-100' (slider), 'Label: yes/no' (checkbox), 'Label: A | B | C' (choice), 'Label: [A, B, C]' (multiselect), 'Label: @hint' (textbox), '[Save | Cancel]' (buttons), '[if condition] { elements }' (conditional)."
-                                                },
-                                                "title": {
-                                                    "type": "string",
-                                                    "description": "Optional title for the popup window"
+                                                "json": {
+                                                    "type": "object",
+                                                    "description": "Popup definition with 'title' and 'elements' array. Each element needs a 'type' field. Types: text (content), slider (label, min, max, default), checkbox (label, default), textbox (label, placeholder), choice (label, options), multiselect (label, options), buttons (labels), conditional (condition, elements), group (label, elements).",
+                                                    "properties": {
+                                                        "title": {
+                                                            "type": "string",
+                                                            "description": "Title of the popup window"
+                                                        },
+                                                        "elements": {
+                                                            "type": "array",
+                                                            "description": "Array of GUI elements"
+                                                        }
+                                                    },
+                                                    "required": ["title", "elements"]
                                                 }
                                             },
-                                            "required": ["dsl"]
+                                            "required": ["json"]
                                         }
                                     }
                                 ]
@@ -132,84 +134,82 @@ fn main() -> Result<()> {
 
                         let result = match tool_name {
                             "popup" => {
-                                let dsl = tool_args.get("dsl").and_then(|d| d.as_str()).unwrap_or("");
-                                let title = tool_args.get("title").and_then(|t| t.as_str());
+                                let json_value = tool_args.get("json").cloned();
                                 
-                                log::info!("Showing popup with DSL: {}", dsl);
-                                if let Some(title) = title {
-                                    log::info!("Title: {}", title);
-                                }
+                                log::info!("Showing popup with JSON: {:?}", json_value);
                                 
-                                // Just spawn the popup-mcp binary and pipe the DSL
-                                // First try to find popup-mcp in the same directory as this binary
-                                let popup_path = std::env::current_exe()
-                                    .ok()
-                                    .and_then(|path| {
-                                        log::info!("Current exe: {:?}", path);
-                                        let dir = path.parent()?;
-                                        log::info!("Parent dir: {:?}", dir);
-                                        let popup = dir.join("popup-mcp");
-                                        log::info!("Looking for popup binary at: {:?}", popup);
-                                        if popup.exists() {
-                                            log::info!("Found popup binary!");
-                                            Some(popup)
-                                        } else {
-                                            log::warn!("Popup binary not found at {:?}", popup);
-                                            // Try absolute path as fallback
-                                            let fallback = std::path::PathBuf::from("/Users/inannamalick/claude_accessible/popup-mcp/target/release/popup-mcp");
-                                            if fallback.exists() {
-                                                log::info!("Using fallback path: {:?}", fallback);
-                                                Some(fallback)
-                                            } else {
-                                                None
-                                            }
-                                        }
-                                    });
-                                
-                                // Spawn popup binary directly without shell
-                                let child = if let Some(binary_path) = popup_path {
-                                    log::info!("Spawning popup binary directly: {:?}", binary_path);
-                                    let mut cmd = std::process::Command::new(binary_path);
-                                    if let Some(title) = title {
-                                        cmd.args(&["--title", title]);
-                                    }
-                                    cmd
-                                        .stdin(std::process::Stdio::piped())
-                                        .stdout(std::process::Stdio::piped())
-                                        .stderr(std::process::Stdio::piped())
-                                        .spawn()
-                                        .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
+                                // Check JSON value exists
+                                if json_value.is_none() {
+                                    log::error!("No JSON provided in tool arguments");
+                                    error("Missing 'json' parameter in tool arguments")
                                 } else {
-                                    // Fallback to cargo run for development
-                                    log::info!("Falling back to cargo run for popup");
-                                    let mut args = vec!["run", "--release", "--bin", "popup-mcp", "--quiet", "--"];
-                                    if let Some(title) = title {
-                                        args.extend(&["--title", title]);
-                                    }
-                                    std::process::Command::new("cargo")
-                                        .args(&args)
-                                        .current_dir(env!("CARGO_MANIFEST_DIR"))
-                                        .stdin(std::process::Stdio::piped())
-                                        .stdout(std::process::Stdio::piped())
-                                        .stderr(std::process::Stdio::piped())
-                                        .spawn()
-                                        .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
-                                };
+                                    let json_str = serde_json::to_string(&json_value.unwrap()).unwrap_or_else(|e| {
+                                        log::error!("Failed to serialize JSON: {}", e);
+                                        "{}".to_string()
+                                    });
+                                    
+                                    // Just spawn the popup-mcp binary and pipe the JSON
+                                    // First try to find popup-mcp in the same directory as this binary
+                                    let popup_path = std::env::current_exe()
+                                        .ok()
+                                        .and_then(|path| {
+                                            log::info!("Current exe: {:?}", path);
+                                            let dir = path.parent()?;
+                                            log::info!("Parent dir: {:?}", dir);
+                                            let popup = dir.join("popup-mcp");
+                                            log::info!("Looking for popup binary at: {:?}", popup);
+                                            if popup.exists() {
+                                                log::info!("Found popup binary!");
+                                                Some(popup)
+                                            } else {
+                                                log::warn!("Popup binary not found at {:?}", popup);
+                                                // Try absolute path as fallback
+                                                let fallback = std::path::PathBuf::from("/Users/inannamalick/claude_accessible/popup-mcp/target/release/popup-mcp");
+                                                if fallback.exists() {
+                                                    log::info!("Using fallback path: {:?}", fallback);
+                                                    Some(fallback)
+                                                } else {
+                                                    None
+                                                }
+                                            }
+                                        });
                                 
-                                match child {
-                                    Ok(mut child) => {
-                                        log::info!("Subprocess spawned with PID: {:?}", child.id());
-                                        
-                                        // Write DSL to stdin
-                                        match child.stdin.take() {
-                                            Some(mut stdin) => {
-                                                use std::io::Write;
-                                                log::info!("Writing DSL to subprocess stdin...");
-                                                match stdin.write_all(dsl.as_bytes()) {
+                                    // Spawn popup binary directly without shell
+                                    let child = if let Some(binary_path) = popup_path {
+                                        log::info!("Spawning popup binary directly: {:?}", binary_path);
+                                        std::process::Command::new(binary_path)
+                                            .stdin(std::process::Stdio::piped())
+                                            .stdout(std::process::Stdio::piped())
+                                            .stderr(std::process::Stdio::piped())
+                                            .spawn()
+                                            .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
+                                    } else {
+                                        // Fallback to cargo run for development
+                                        log::info!("Falling back to cargo run for popup");
+                                        std::process::Command::new("cargo")
+                                            .args(&["run", "--release", "--bin", "popup-mcp", "--quiet"])
+                                            .current_dir(env!("CARGO_MANIFEST_DIR"))
+                                            .stdin(std::process::Stdio::piped())
+                                            .stdout(std::process::Stdio::piped())
+                                            .stderr(std::process::Stdio::piped())
+                                            .spawn()
+                                            .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
+                                    };
+                                
+                                    match child {
+                                        Ok(mut child) => {
+                                            log::info!("Subprocess spawned with PID: {:?}", child.id());
+                                            
+                                            // Write JSON to stdin
+                                            match child.stdin.take() {
+                                                Some(mut stdin) => {
+                                                    use std::io::Write;
+                                                    log::info!("Writing JSON to subprocess stdin...");
+                                                    match stdin.write_all(json_str.as_bytes()) {
                                                     Ok(_) => {
                                                         // Close stdin to signal EOF
                                                         drop(stdin);
-                                                        log::info!("DSL written successfully");
+                                                        log::info!("JSON written successfully");
                                                         
                                                         // Wait for result
                                                         match child.wait_with_output() {
@@ -239,13 +239,14 @@ fn main() -> Result<()> {
                                             Err(e) => error(format!("Failed to wait for popup: {}", e))
                                         }
                                                     }
-                                                    Err(e) => error(format!("Failed to write DSL to subprocess: {}", e))
+                                                    Err(e) => error(format!("Failed to write JSON to subprocess: {}", e))
                                                 }
                                             }
                                             None => error("Failed to get subprocess stdin")
                                         }
+                                        }
+                                        Err(e) => error(e)
                                     }
-                                    Err(e) => error(e)
                                 }
                             }
                             _ => error(format!("Unknown tool: {}", tool_name)),

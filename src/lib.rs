@@ -1,8 +1,11 @@
-pub mod dsl;
 pub mod gui;
+pub mod json_parser;
 pub mod models;
 pub mod theme;
 
-pub use dsl::{parse_popup_dsl, parse_popup_dsl_with_title, serialize_popup_dsl};
+#[cfg(test)]
+mod tests;
+
 pub use gui::render_popup;
+pub use json_parser::{parse_popup_json, parse_popup_json_value};
 pub use models::{PopupDefinition, PopupResult};

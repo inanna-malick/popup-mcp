@@ -1,0 +1,21 @@
+{
+  "title": "Application Settings",
+  "elements": [
+    {"type": "group", "label": "General", "elements": [
+      {"type": "choice", "label": "Language", "options": ["English", "Spanish", "French", "German"]},
+      {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
+      {"type": "checkbox", "label": "Show notifications", "default": true}
+    ]},
+    {"type": "group", "label": "Performance", "elements": [
+      {"type": "slider", "label": "Cache size (MB)", "min": 50, "max": 500, "default": 200},
+      {"type": "slider", "label": "Max connections", "min": 1, "max": 10, "default": 5},
+      {"type": "checkbox", "label": "Enable hardware acceleration", "default": false}
+    ]},
+    {"type": "group", "label": "Privacy", "elements": [
+      {"type": "checkbox", "label": "Send anonymous usage data", "default": false},
+      {"type": "checkbox", "label": "Save history", "default": true},
+      {"type": "slider", "label": "History days", "min": 1, "max": 365, "default": 30}
+    ]},
+    {"type": "buttons", "labels": ["Save", "Reset", "Cancel"]}
+  ]
+}

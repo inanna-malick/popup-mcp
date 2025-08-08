@@ -2,33 +2,38 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PopupDefinition {
     pub title: String,
     pub elements: Vec<Element>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Element {
-    Text(String),
-    Slider { label: String, min: f32, max: f32, default: f32 },
-    Checkbox { label: String, default: bool },
-    Textbox { label: String, placeholder: Option<String>, rows: Option<u32> },
+    Text { content: String },
+    Slider { label: String, min: f32, max: f32, #[serde(default)] default: Option<f32> },
+    Checkbox { label: String, #[serde(default)] default: bool },
+    Textbox { label: String, #[serde(default)] placeholder: Option<String>, #[serde(default)] rows: Option<u32> },
     Choice { label: String, options: Vec<String> },
     Multiselect { label: String, options: Vec<String> },
     Group { label: String, elements: Vec<Element> },
-    Buttons(Vec<String>),
+    Buttons { labels: Vec<String> },
     Conditional { condition: Condition, elements: Vec<Element> },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Condition {
-    Checked(String),
-    Selected(String, String),
-    Count(String, ComparisonOp, i32),
+    // Simple string format: just the checkbox name
+    Simple(String),
+    // Complex conditions as objects
+    Checked { checked: String },
+    Selected { selected: String, value: String },
+    Count { count: String, op: ComparisonOp, value: i32 },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComparisonOp {
     Greater,
     Less,
@@ -64,8 +69,9 @@ impl PopupState {
     fn init_elements(&mut self, elements: &[Element]) {
         for element in elements {
             match element {
-                Element::Slider { label, default, .. } => {
-                    self.values.insert(label.clone(), ElementValue::Number(*default));
+                Element::Slider { label, min, max, default } => {
+                    let default_value = default.unwrap_or((min + max) / 2.0);
+                    self.values.insert(label.clone(), ElementValue::Number(default_value));
                 }
                 Element::Checkbox { label, default } => {
                     self.values.insert(label.clone(), ElementValue::Boolean(*default));

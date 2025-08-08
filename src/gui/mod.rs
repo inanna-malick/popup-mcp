@@ -147,7 +147,7 @@ fn render_elements_with_context(
     
     for element in elements {
         match element {
-            Element::Text(text) => {
+            Element::Text { content: text } => {
                 if is_first && text.to_uppercase() == *text {
                     // Header style with cyberpunk glow
                     ui.add_space(4.0);
@@ -259,7 +259,7 @@ fn render_elements_with_context(
                 });
             }
             
-            Element::Choice { label, options } => {
+            Element::Choice { label, options, .. } => {
                 ui.group(|ui| {
                     ui.set_width(ui.available_width());
                     EmojiLabel::new(RichText::new(format!("◆ {}", label)).color(theme.neon_purple)).show(ui);
@@ -377,7 +377,7 @@ fn render_elements_with_context(
                 }
             }
             
-            Element::Buttons(buttons) => {
+            Element::Buttons { labels: buttons } => {
                 ui.separator();
                 ui.add_space(4.0);
                 
@@ -473,19 +473,19 @@ fn evaluate_condition_with_context(
     all_elements: &[Element]
 ) -> bool {
     match condition {
-        Condition::Checked(name) => {
+        Condition::Simple(name) | Condition::Checked { checked: name } => {
             state.get_boolean(name)
         }
-        Condition::Selected(name, expected_value) => {
-            let selected_idx = state.get_choice(name);
-            if let Some(actual_value) = find_selected_option(all_elements, name, selected_idx) {
+        Condition::Selected { selected: label, value: expected_value } => {
+            let selected_idx = state.get_choice(label);
+            if let Some(actual_value) = find_selected_option(all_elements, label, selected_idx) {
                 actual_value == *expected_value
             } else {
                 false
             }
         }
-        Condition::Count(name, op, value) => {
-            if let Some(selections) = state.get_multichoice(name) {
+        Condition::Count { count: label, op, value } => {
+            if let Some(selections) = state.get_multichoice(label) {
                 let count = selections.iter().filter(|&&x| x).count() as i32;
                 match op {
                     ComparisonOp::Greater => count > *value,
@@ -504,7 +504,7 @@ fn evaluate_condition_with_context(
 fn find_selected_option(elements: &[Element], choice_name: &str, selected_idx: usize) -> Option<String> {
     for element in elements {
         match element {
-            Element::Choice { label, options } if label == choice_name => {
+            Element::Choice { label, options, .. } if label == choice_name => {
                 return options.get(selected_idx).cloned();
             }
             Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
@@ -543,7 +543,7 @@ fn calculate_elements_size(
 ) {
     for element in elements {
         match element {
-            Element::Text(text) => {
+            Element::Text { content: text } => {
                 *height += 25.0; // More space for cyberpunk styling
                 *max_width = max_width.max(text.len() as f32 * 8.0 + 40.0 + (depth as f32 * 10.0));
             }
@@ -580,9 +580,9 @@ fn calculate_elements_size(
                 if include_conditionals {
                     // Use probability heuristic
                     let probability = match condition {
-                        Condition::Selected(_, _) => 0.7,
-                        Condition::Checked(_) => 0.3,
-                        Condition::Count(_, _, _) => 0.2,
+                        Condition::Selected { .. } => 0.7,
+                        Condition::Simple(_) | Condition::Checked { .. } => 0.3,
+                        Condition::Count { .. } => 0.2,
                     };
                     
                     let start_height = *height;
@@ -591,7 +591,7 @@ fn calculate_elements_size(
                     *height = start_height + (added_height * probability);
                 }
             }
-            Element::Buttons(buttons) => {
+            Element::Buttons { labels: buttons } => {
                 *height += 45.0; // More space for cyberpunk button styling
                 let button_width = buttons.len() as f32 * 110.0; // Wider buttons
                 *max_width = max_width.max(button_width + 40.0); // Extra margins

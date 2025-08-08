@@ -1,0 +1,7 @@
+{
+  "title": "Delete File?",
+  "elements": [
+    {"type": "text", "content": "This action cannot be undone."},
+    {"type": "buttons", "labels": ["Yes", "No"]}
+  ]
+}
