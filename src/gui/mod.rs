@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Id};
+use egui::{Context, CentralPanel, Layout, RichText, ScrollArea, Vec2, Stroke, Key, Id, Color32};
 use egui_twemoji::EmojiLabel;
 use std::sync::{Arc, Mutex};
 
@@ -68,7 +68,7 @@ impl PopupApp {
         Self {
             definition,
             state,
-            theme: Theme::cyberpunk(),
+            theme: Theme::soft_focus(),
             result,
             first_interactive_widget_id: None,
             first_widget_focused: false,
@@ -77,7 +77,7 @@ impl PopupApp {
     
     
     fn send_result_and_close(&mut self, ctx: &Context) {
-        let popup_result = PopupResult::from_state(&self.state);
+        let popup_result = PopupResult::from_state_with_context(&self.state, &self.definition);
         *self.result.lock().unwrap() = Some(popup_result);
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
@@ -100,9 +100,10 @@ impl eframe::App for PopupApp {
         }
         
         CentralPanel::default().show(ctx, |ui| {
-            // Add minimal padding
-            ui.spacing_mut().item_spacing = Vec2::new(4.0, 2.0);
-            ui.spacing_mut().button_padding = Vec2::new(6.0, 2.0);
+            // Extremely compact for no-scroll layout
+            ui.spacing_mut().item_spacing = Vec2::new(4.0, 1.0);
+            ui.spacing_mut().button_padding = Vec2::new(6.0, 3.0);
+            ui.spacing_mut().indent = 8.0;  // Minimal indentation
             
             ScrollArea::vertical()
                 .auto_shrink([false, false])
@@ -166,7 +167,7 @@ fn render_elements_with_context(
                 } else {
                     ui.horizontal(|ui| {
                         ui.add_space(10.0);
-                        EmojiLabel::new(RichText::new(text).color(theme.text_secondary)).show(ui);
+                        EmojiLabel::new(RichText::new(text).color(theme.text_primary)).show(ui);
                     });
                 }
                 is_first = false;
@@ -174,24 +175,20 @@ fn render_elements_with_context(
             
             Element::Slider { label, min, max, default: _ } => {
                 if let Some(value) = state.get_number_mut(label) {
-                    ui.vertical(|ui| {
-                        // Label with value display
-                        ui.horizontal(|ui| {
-                            EmojiLabel::new(RichText::new(label).color(theme.text_primary)).show(ui);
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let percentage = (((*value - min) / (max - min)) * 100.0) as i32;
-                                EmojiLabel::new(RichText::new(format!("[{} • {}%]", value, percentage)).color(theme.neon_pink).monospace()).show(ui);
-                            });
-                        });
+                    ui.horizontal(|ui| {
+                        // Compact inline display: "Energy: [slider] 4/10"
+                        ui.label(RichText::new(format!("{}:", label)).color(theme.text_primary));
                         
-                        // Full-width slider with custom styling
+                        // Slider takes most of the space
                         let slider = egui::Slider::new(value, *min..=*max)
                             .show_value(false)
                             .clamping(egui::SliderClamping::Always);
-                        let response = ui.add_sized(
-                            Vec2::new(ui.available_width(), ui.spacing().interact_size.y),
-                            slider
-                        );
+                        let response = ui.add(slider);
+                        
+                        // Simple value display
+                        ui.label(RichText::new(format!("{}/{}", *value as i32, *max as i32))
+                            .color(theme.text_secondary)
+                            .monospace());
                         
                         // Store the response ID for focus
                         if first_widget_id.is_none() && !widget_focused {
@@ -206,9 +203,9 @@ fn render_elements_with_context(
                     ui.horizontal(|ui| {
                         
                         let checkbox_text = if *value {
-                            RichText::new(format!("☑ {}", label)).color(theme.matrix_green)
+                            RichText::new(format!("☑ {}", label)).color(theme.text_primary).strong()
                         } else {
-                            RichText::new(format!("☐ {}", label)).color(theme.text_secondary)
+                            RichText::new(format!("☐ {}", label)).color(theme.text_primary)
                         };
                         let response = ui.selectable_label(false, checkbox_text);
                         if response.clicked() {
@@ -232,7 +229,7 @@ fn render_elements_with_context(
                 ui.group(|ui| {
                     ui.set_width(ui.available_width());
                     ui.horizontal(|ui| {
-                        EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.electric_blue)).show(ui);
+                        ui.label(RichText::new(label).color(theme.text_primary).strong());
                         if let Some(value) = state.get_text(label) {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 ui.small(format!("{} chars", value.len()));
@@ -262,7 +259,7 @@ fn render_elements_with_context(
             Element::Choice { label, options, .. } => {
                 ui.group(|ui| {
                     ui.set_width(ui.available_width());
-                    EmojiLabel::new(RichText::new(format!("◆ {}", label)).color(theme.neon_purple)).show(ui);
+                    ui.label(RichText::new(label).color(theme.text_primary).strong());
                     if let Some(selected) = state.get_choice_mut(label) {
                         ui.vertical(|ui| {
                             // Handle arrow key navigation
@@ -283,9 +280,9 @@ fn render_elements_with_context(
                             for (i, option) in options.iter().enumerate() {
                                 let is_selected = *selected == i;
                                 let option_text = if is_selected {
-                                    RichText::new(format!("▸ {}", option)).color(theme.neon_cyan)
+                                    RichText::new(format!("▸ {}", option)).color(theme.text_primary).strong()
                                 } else {
-                                    RichText::new(format!("  {}", option)).color(theme.text_secondary)
+                                    RichText::new(format!("  {}", option)).color(theme.text_primary)
                                 };
                                 let response = ui.selectable_label(is_selected, option_text)
                                     .on_hover_text(format!("Option {} of {}", i + 1, options.len()));
@@ -313,7 +310,7 @@ fn render_elements_with_context(
                     ui.set_width(ui.available_width());
                     if let Some(selections) = state.get_multichoice_mut(label) {
                         ui.horizontal(|ui| {
-                            EmojiLabel::new(RichText::new(format!("◈ {}", label)).color(theme.warning_orange)).show(ui);
+                            ui.label(RichText::new(label).color(theme.text_primary).strong());
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 let selected_count = selections.iter().filter(|&&x| x).count();
                                 if selected_count > 0 {
@@ -330,42 +327,78 @@ fn render_elements_with_context(
                                 selections.iter_mut().for_each(|s| *s = false);
                             }
                         });
-                        ui.vertical(|ui| {
-                            for (i, option) in options.iter().enumerate() {
-                                if i < selections.len() {
-                                    
-                                    let checkbox_text = if selections[i] {
-                                        RichText::new(format!("☑ {}", option)).color(theme.matrix_green)
-                                    } else {
-                                        RichText::new(format!("☐ {}", option)).color(theme.text_secondary)
-                                    };
-                                    let response = ui.selectable_label(false, checkbox_text);
-                                    if response.clicked() {
-                                        selections[i] = !selections[i];
+                        // Use horizontal layout with two columns for 6 items
+                        if options.len() > 4 {
+                            ui.horizontal(|ui| {
+                                let mid = options.len() / 2;
+                                
+                                // First column
+                                ui.vertical(|ui| {
+                                    for i in 0..mid {
+                                        if i < selections.len() {
+                                            let checkbox_text = if selections[i] {
+                                                RichText::new(format!("☑ {}", options[i])).color(theme.text_primary).strong()
+                                            } else {
+                                                RichText::new(format!("☐ {}", options[i])).color(theme.text_primary)
+                                            };
+                                            let response = ui.selectable_label(false, checkbox_text);
+                                            if response.clicked() {
+                                                selections[i] = !selections[i];
+                                            }
+                                            if first_widget_id.is_none() && !widget_focused && i == 0 {
+                                                *first_widget_id = Some(response.id);
+                                            }
+                                        }
                                     }
-                                    
-                                    // Store the response ID for focus (only for first item)
-                                    if first_widget_id.is_none() && !widget_focused && i == 0 {
-                                        *first_widget_id = Some(response.id);
+                                });
+                                
+                                ui.add_space(20.0); // Space between columns
+                                
+                                // Second column
+                                ui.vertical(|ui| {
+                                    for i in mid..options.len() {
+                                        if i < selections.len() {
+                                            let checkbox_text = if selections[i] {
+                                                RichText::new(format!("☑ {}", options[i])).color(theme.text_primary).strong()
+                                            } else {
+                                                RichText::new(format!("☐ {}", options[i])).color(theme.text_primary)
+                                            };
+                                            let response = ui.selectable_label(false, checkbox_text);
+                                            if response.clicked() {
+                                                selections[i] = !selections[i];
+                                            }
+                                        }
                                     }
-                                    
-                                    // Make selectable with keyboard
-                                    if response.has_focus() && ui.input(|i| i.key_pressed(Key::Space)) {
-                                        selections[i] = !selections[i];
+                                });
+                            });
+                        } else {
+                            // Single column for 4 or fewer items
+                            ui.vertical(|ui| {
+                                for (i, option) in options.iter().enumerate() {
+                                    if i < selections.len() {
+                                        let checkbox_text = if selections[i] {
+                                            RichText::new(format!("☑ {}", option)).color(theme.text_primary).strong()
+                                        } else {
+                                            RichText::new(format!("☐ {}", option)).color(theme.text_primary)
+                                        };
+                                        let response = ui.selectable_label(false, checkbox_text);
+                                        if response.clicked() {
+                                            selections[i] = !selections[i];
+                                        }
+                                        if first_widget_id.is_none() && !widget_focused && i == 0 {
+                                            *first_widget_id = Some(response.id);
+                                        }
                                     }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }
                 });
             }
             
             Element::Group { label, elements } => {
                 ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        EmojiLabel::new(RichText::new("//").color(theme.neon_pink).monospace()).show(ui);
-                        EmojiLabel::new(RichText::new(label).color(theme.neon_cyan).strong()).show(ui);
-                    });
+                    ui.label(RichText::new(label).color(theme.text_primary).strong());
                     ui.separator();
                     render_elements_with_context(ui, elements, state, all_elements, theme, first_widget_id, widget_focused);
                 });
@@ -395,7 +428,8 @@ fn render_elements_with_context(
                         
                         let button_text = RichText::new(button.to_uppercase())
                             .size(12.0)
-                            .strong();
+                            .strong()
+                            .color(Color32::BLACK);
                         
                         let button_color = if button.contains("Force") || button.contains("Cancel") {
                             theme.neon_pink
@@ -519,17 +553,17 @@ fn find_selected_option(elements: &[Element], choice_name: &str, selected_idx: u
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 50.0; // Title bar + padding for cyberpunk style
-    let mut max_width: f32 = 400.0; // Minimum width for cyberpunk aesthetic
+    let mut height: f32 = 35.0; // Title bar with some padding
+    let mut max_width: f32 = 350.0; // Reasonable default width
     
     calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
     
-    // Add bottom padding for buttons
-    height += 20.0;
+    // Add some bottom padding
+    height += 15.0;
     
-    // Set reasonable bounds with more width for cyberpunk styling
-    max_width = max_width.min(650.0).max(400.0);
-    height = height.min(900.0);
+    // Reasonable bounds for complex UIs
+    max_width = max_width.min(450.0).max(320.0);  // Wide enough for columns
+    height = height.min(600.0);  // Should fit on most screens
     
     (max_width, height)
 }
@@ -544,37 +578,45 @@ fn calculate_elements_size(
     for element in elements {
         match element {
             Element::Text { content: text } => {
-                *height += 25.0; // More space for cyberpunk styling
-                *max_width = max_width.max(text.len() as f32 * 8.0 + 40.0 + (depth as f32 * 10.0));
+                *height += 20.0; // Compact text
+                *max_width = max_width.max(text.len() as f32 * 7.0 + 20.0);
             }
             Element::Slider { label, .. } => {
-                *height += 45.0; // Space for label + value display + slider
-                *max_width = max_width.max(label.len() as f32 * 8.0 + 250.0 + (depth as f32 * 10.0));
+                *height += 20.0; // Very compact slider line
+                *max_width = max_width.max(label.len() as f32 * 7.0 + 150.0);
             }
             Element::Checkbox { label, .. } => {
-                *height += 28.0; // More space for cyberpunk checkbox styling
-                *max_width = max_width.max(label.len() as f32 * 8.0 + 80.0 + (depth as f32 * 10.0));
+                *height += 18.0; // Tiny checkbox
+                *max_width = max_width.max(label.len() as f32 * 7.0 + 50.0);
             }
             Element::Textbox { rows, .. } => {
-                *height += 35.0 + 22.0 * (*rows).unwrap_or(1) as f32; // Label + textbox
-                *max_width = max_width.max(420.0 + (depth as f32 * 15.0));
+                *height += 20.0 + 18.0 * (*rows).unwrap_or(1) as f32; // Minimal textbox
+                *max_width = max_width.max(320.0);
             }
             Element::Choice { options, .. } => {
-                *height += 35.0; // Label with group styling
-                *height += 28.0 * options.len() as f32; // Options with cyberpunk styling
+                *height += 20.0; // Label
+                *height += 18.0 * options.len() as f32; // Tiny radio buttons
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 8.0 + 100.0 + (depth as f32 * 10.0));
+                *max_width = max_width.max((longest as f32) * 7.0 + 60.0);
             }
             Element::Multiselect { options, .. } => {
-                *height += 35.0; // Label with group styling
-                *height += 28.0 * options.len() as f32; // Options with checkbox styling
-                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 8.0 + 100.0 + (depth as f32 * 10.0));
+                *height += 20.0; // Label
+                *height += 20.0; // All/None buttons
+                // If using columns, height is reduced
+                if options.len() > 4 {
+                    let rows_per_column = (options.len() + 1) / 2;
+                    *height += 18.0 * rows_per_column as f32;
+                    *max_width = max_width.max(300.0); // Need more width for columns
+                } else {
+                    *height += 18.0 * options.len() as f32;
+                    let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
+                    *max_width = max_width.max((longest as f32) * 8.0 + 100.0);
+                }
             }
             Element::Group { elements, .. } => {
-                *height += 40.0; // Group header with cyberpunk styling
+                *height += 18.0; // Tiny group header
                 calculate_elements_size(elements, height, max_width, depth + 1, include_conditionals);
-                *height += 15.0; // Bottom padding
+                *height += 2.0; // Almost no group padding
             }
             Element::Conditional { elements, condition } => {
                 if include_conditionals {
@@ -592,11 +634,11 @@ fn calculate_elements_size(
                 }
             }
             Element::Buttons { labels: buttons } => {
-                *height += 45.0; // More space for cyberpunk button styling
-                let button_width = buttons.len() as f32 * 110.0; // Wider buttons
-                *max_width = max_width.max(button_width + 40.0); // Extra margins
+                *height += 28.0; // Small button row
+                let button_width = buttons.len() as f32 * 70.0; // Narrower buttons
+                *max_width = max_width.max(button_width + 15.0); // Tight margins
             }
         }
-        *height += 4.0; // More item spacing for cyberpunk aesthetic
+        *height += 1.0; // Almost no item spacing
     }
 }

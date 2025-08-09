@@ -193,4 +193,77 @@ impl PopupResult {
             button: state.button_clicked.clone().unwrap_or_else(|| "cancel".to_string()),
         }
     }
+    
+    pub fn from_state_with_context(state: &PopupState, definition: &PopupDefinition) -> Self {
+        let mut values = HashMap::new();
+        
+        // Helper to find element metadata by label
+        fn find_element<'a>(elements: &'a [Element], label: &str) -> Option<&'a Element> {
+            for element in elements {
+                match element {
+                    e @ Element::Slider { label: l, .. } |
+                    e @ Element::Checkbox { label: l, .. } |
+                    e @ Element::Textbox { label: l, .. } |
+                    e @ Element::Choice { label: l, .. } |
+                    e @ Element::Multiselect { label: l, .. } if l == label => return Some(e),
+                    Element::Group { elements: group_elements, .. } => {
+                        if let Some(e) = find_element(group_elements, label) {
+                            return Some(e);
+                        }
+                    }
+                    Element::Conditional { elements: cond_elements, .. } => {
+                        if let Some(e) = find_element(cond_elements, label) {
+                            return Some(e);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        
+        for (key, value) in &state.values {
+            let element = find_element(&definition.elements, key);
+            
+            let json_value = match (value, element) {
+                (ElementValue::Number(n), Some(Element::Slider { max, .. })) => {
+                    // Format as "value/max" for sliders
+                    json!(format!("{}/{}", *n as i32, *max as i32))
+                }
+                (ElementValue::Boolean(b), _) => json!(*b),
+                (ElementValue::Text(s), _) if !s.is_empty() => json!(s),
+                (ElementValue::Choice(i), Some(Element::Choice { options, .. })) => {
+                    // Return the actual option text instead of index
+                    json!(options.get(*i).cloned().unwrap_or_else(|| i.to_string()))
+                }
+                (ElementValue::MultiChoice(selections), Some(Element::Multiselect { options, .. })) => {
+                    // Return selected option texts instead of indices
+                    let selected: Vec<String> = selections.iter()
+                        .enumerate()
+                        .filter_map(|(i, &selected)| {
+                            selected.then_some(options.get(i).cloned()).flatten()
+                        })
+                        .collect();
+                    json!(selected)
+                }
+                (ElementValue::Number(n), _) => json!(*n as i32),
+                (ElementValue::Choice(i), _) => json!(*i),
+                (ElementValue::MultiChoice(selections), _) => {
+                    let indices: Vec<usize> = selections.iter()
+                        .enumerate()
+                        .filter_map(|(i, &selected)| selected.then_some(i))
+                        .collect();
+                    json!(indices)
+                }
+                _ => continue, // Skip empty text fields
+            };
+            
+            values.insert(key.clone(), json_value);
+        }
+        
+        PopupResult {
+            values,
+            button: state.button_clicked.clone().unwrap_or_else(|| "cancel".to_string()),
+        }
+    }
 }

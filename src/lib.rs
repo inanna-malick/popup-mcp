@@ -1,6 +1,7 @@
 pub mod gui;
 pub mod json_parser;
 pub mod models;
+pub mod templates;
 pub mod theme;
 
 #[cfg(test)]
