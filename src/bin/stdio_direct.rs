@@ -1,6 +1,7 @@
 //! MCP server for popup-mcp - enables AI assistants to create GUI popups
 
 use anyhow::Result;
+use clap::Parser;
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
 use popup_mcp::templates;
 use serde::Serialize;
@@ -8,6 +9,22 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 
+/// MCP server for popup-mcp with template filtering support
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Include only these templates (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    include_only: Option<Vec<String>>,
+    
+    /// Exclude these templates (comma-separated)  
+    #[arg(long, value_delimiter = ',')]
+    exclude: Option<Vec<String>>,
+    
+    /// List available templates and exit
+    #[arg(long)]
+    list_templates: bool,
+}
 
 #[derive(Serialize)]
 struct ErrorResponse {
@@ -21,7 +38,47 @@ fn error(msg: impl std::fmt::Display) -> Value {
     .unwrap()
 }
 
+fn filter_templates(
+    all_templates: Vec<templates::LoadedTemplate>, 
+    args: &Args
+) -> Result<Vec<templates::LoadedTemplate>> {
+    let mut filtered = all_templates;
+    
+    // Apply include-only filter (takes precedence)
+    if let Some(ref include_list) = args.include_only {
+        log::info!("Filtering to include only: {:?}", include_list);
+        
+        // Check that all requested templates exist
+        let available_names: std::collections::HashSet<&str> = 
+            filtered.iter().map(|t| t.config.name.as_str()).collect();
+        
+        for name in include_list {
+            if !available_names.contains(name.as_str()) {
+                return Err(anyhow::anyhow!("Template '{}' not found. Available templates: {}", 
+                    name, available_names.iter().copied().collect::<Vec<_>>().join(", ")));
+            }
+        }
+        
+        filtered.retain(|template| include_list.contains(&template.config.name));
+    }
+    // Apply exclude filter (only if include-only not specified)
+    else if let Some(ref exclude_list) = args.exclude {
+        log::info!("Excluding templates: {:?}", exclude_list);
+        filtered.retain(|template| !exclude_list.contains(&template.config.name));
+    }
+    
+    log::info!("Using {} filtered templates", filtered.len());
+    for template in &filtered {
+        log::info!("  - {}: {}", template.config.name, template.config.description);
+    }
+    
+    Ok(filtered)
+}
+
 fn main() -> Result<()> {
+    // Parse command line arguments
+    let args = Args::parse();
+    
     // Set up logging to stderr
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .target(env_logger::Target::Stderr)
@@ -30,7 +87,7 @@ fn main() -> Result<()> {
     log::info!("Popup MCP server starting...");
 
     // Load templates from config
-    let loaded_templates = match templates::load_templates() {
+    let all_templates = match templates::load_templates() {
         Ok(templates) => {
             log::info!("Loaded {} templates", templates.len());
             for template in &templates {
@@ -43,6 +100,18 @@ fn main() -> Result<()> {
             Vec::new()
         }
     };
+    
+    // Filter templates based on CLI arguments
+    let loaded_templates = filter_templates(all_templates, &args)?;
+    
+    // Handle --list-templates flag (after filtering)
+    if args.list_templates {
+        println!("Available templates:");
+        for template in &loaded_templates {
+            println!("  - {}: {}", template.config.name, template.config.description);
+        }
+        return Ok(());
+    }
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();

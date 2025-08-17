@@ -95,8 +95,8 @@ impl Theme {
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.5, self.electric_blue);
         visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, self.text_primary);
         
-        visuals.widgets.active.bg_fill = self.electric_blue.linear_multiply(0.15);
-        visuals.widgets.active.bg_stroke = Stroke::new(2.0, self.electric_blue);
+        visuals.widgets.active.bg_fill = self.neon_cyan;  // Cyan background for selection
+        visuals.widgets.active.bg_stroke = Stroke::new(2.0, Color32::BLACK);  // Black outline
         
         // Button styling for visibility
         visuals.widgets.inactive.weak_bg_fill = if is_light_theme {
