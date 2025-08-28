@@ -1,22 +1,36 @@
 use anyhow::Result;
 use clap::Parser;
-use popup_mcp::{parse_popup_json, render_popup};
+use popup_mcp::{parse_popup_json, render_popup, mcp_server};
 use std::fs;
 use std::io::{self, Read};
 
 #[derive(Parser)]
-#[command(name = "popup-mcp")]
-#[command(about = "Create native GUI popups from JSON", long_about = None)]
-struct Cli {
-    /// Optional input file (reads from stdin if not provided)
+#[command(name = "popup")]
+#[command(about = "Native GUI popups with MCP server support", long_about = None)]
+struct Args {
+    /// Test mode: read JSON and show popup
+    #[arg(long)]
+    test: bool,
+    
+    /// Input file for test mode (reads stdin if not provided)
     input_file: Option<String>,
+    
+    /// Include only these templates (comma-separated)
+    #[arg(long, value_delimiter = ',')]
+    include_only: Option<Vec<String>>,
+    
+    /// Exclude these templates (comma-separated)  
+    #[arg(long, value_delimiter = ',')]
+    exclude: Option<Vec<String>>,
+    
+    /// List available templates and exit
+    #[arg(long)]
+    list_templates: bool,
 }
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
-    
+fn run_test_mode(input_file: Option<String>) -> Result<()> {
     // Read input from file or stdin
-    let input = if let Some(path) = cli.input_file {
+    let input = if let Some(path) = input_file {
         fs::read_to_string(path)?
     } else {
         let mut buf = String::new();
@@ -36,4 +50,21 @@ fn main() -> Result<()> {
     }
     
     Ok(())
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    
+    if args.test {
+        // Test mode: read JSON and show popup
+        run_test_mode(args.input_file)
+    } else {
+        // MCP server mode
+        let server_args = mcp_server::ServerArgs {
+            include_only: args.include_only,
+            exclude: args.exclude,
+            list_templates: args.list_templates,
+        };
+        mcp_server::run(server_args)
+    }
 }

@@ -3,6 +3,7 @@ pub mod json_parser;
 pub mod models;
 pub mod templates;
 pub mod theme;
+pub mod mcp_server;
 
 #[cfg(test)]
 mod tests;

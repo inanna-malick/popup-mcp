@@ -1,30 +1,12 @@
-//! MCP server for popup-mcp - enables AI assistants to create GUI popups
+//! MCP server module for popup-mcp - enables AI assistants to create GUI popups
 
 use anyhow::Result;
-use clap::Parser;
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
-use popup_mcp::templates;
+use crate::templates;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
-
-/// MCP server for popup-mcp with template filtering support
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// Include only these templates (comma-separated)
-    #[arg(long, value_delimiter = ',')]
-    include_only: Option<Vec<String>>,
-    
-    /// Exclude these templates (comma-separated)  
-    #[arg(long, value_delimiter = ',')]
-    exclude: Option<Vec<String>>,
-    
-    /// List available templates and exit
-    #[arg(long)]
-    list_templates: bool,
-}
 
 #[derive(Serialize)]
 struct ErrorResponse {
@@ -38,9 +20,15 @@ fn error(msg: impl std::fmt::Display) -> Value {
     .unwrap()
 }
 
+pub struct ServerArgs {
+    pub include_only: Option<Vec<String>>,
+    pub exclude: Option<Vec<String>>,
+    pub list_templates: bool,
+}
+
 fn filter_templates(
     all_templates: Vec<templates::LoadedTemplate>, 
-    args: &Args
+    args: &ServerArgs
 ) -> Result<Vec<templates::LoadedTemplate>> {
     let mut filtered = all_templates;
     
@@ -75,9 +63,7 @@ fn filter_templates(
     Ok(filtered)
 }
 
-fn main() -> Result<()> {
-    // Parse command line arguments
-    let args = Args::parse();
+pub fn run(args: ServerArgs) -> Result<()> {
     
     // Set up logging to stderr
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
@@ -259,36 +245,20 @@ fn main() -> Result<()> {
                                         "{}".to_string()
                                     });
                                     
-                                    // Just spawn the popup-mcp binary and pipe the JSON
-                                    // First try to find popup-mcp in the same directory as this binary
+                                    // Spawn popup binary in test mode
+                                    // Since we're the same binary, just spawn ourselves with --test flag
                                     let popup_path = std::env::current_exe()
                                         .ok()
-                                        .and_then(|path| {
+                                        .map(|path| {
                                             log::info!("Current exe: {:?}", path);
-                                            let dir = path.parent()?;
-                                            log::info!("Parent dir: {:?}", dir);
-                                            let popup = dir.join("popup-mcp");
-                                            log::info!("Looking for popup binary at: {:?}", popup);
-                                            if popup.exists() {
-                                                log::info!("Found popup binary!");
-                                                Some(popup)
-                                            } else {
-                                                log::warn!("Popup binary not found at {:?}", popup);
-                                                // Try absolute path as fallback
-                                                let fallback = std::path::PathBuf::from("/Users/inannamalick/claude_accessible/popup-mcp/target/release/popup-mcp");
-                                                if fallback.exists() {
-                                                    log::info!("Using fallback path: {:?}", fallback);
-                                                    Some(fallback)
-                                                } else {
-                                                    None
-                                                }
-                                            }
+                                            path
                                         });
                                 
-                                    // Spawn popup binary directly without shell
+                                    // Spawn popup binary with --test flag
                                     let child = if let Some(binary_path) = popup_path {
-                                        log::info!("Spawning popup binary directly: {:?}", binary_path);
+                                        log::info!("Spawning popup binary with --test: {:?}", binary_path);
                                         std::process::Command::new(binary_path)
+                                            .arg("--test")
                                             .stdin(std::process::Stdio::piped())
                                             .stdout(std::process::Stdio::piped())
                                             .stderr(std::process::Stdio::piped())
@@ -298,7 +268,7 @@ fn main() -> Result<()> {
                                         // Fallback to cargo run for development
                                         log::info!("Falling back to cargo run for popup");
                                         std::process::Command::new("cargo")
-                                            .args(&["run", "--release", "--bin", "popup-mcp", "--quiet"])
+                                            .args(&["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
                                             .current_dir(env!("CARGO_MANIFEST_DIR"))
                                             .stdin(std::process::Stdio::piped())
                                             .stdout(std::process::Stdio::piped())
@@ -380,26 +350,12 @@ fn main() -> Result<()> {
                                             "{}".to_string()
                                         });
                                         
-                                        // Just spawn the popup-mcp binary and pipe the JSON (same code as above)
-                                        let popup_path = std::env::current_exe()
-                                            .ok()
-                                            .and_then(|path| {
-                                                let dir = path.parent()?;
-                                                let popup = dir.join("popup-mcp");
-                                                if popup.exists() {
-                                                    Some(popup)
-                                                } else {
-                                                    let fallback = std::path::PathBuf::from("/Users/inannamalick/claude_accessible/popup-mcp/target/release/popup-mcp");
-                                                    if fallback.exists() {
-                                                        Some(fallback)
-                                                    } else {
-                                                        None
-                                                    }
-                                                }
-                                            });
+                                        // Spawn popup binary in test mode (same as above)
+                                        let popup_path = std::env::current_exe().ok();
                                         
                                         let child = if let Some(binary_path) = popup_path {
                                             std::process::Command::new(binary_path)
+                                                .arg("--test")
                                                 .stdin(std::process::Stdio::piped())
                                                 .stdout(std::process::Stdio::piped())
                                                 .stderr(std::process::Stdio::piped())
@@ -407,7 +363,7 @@ fn main() -> Result<()> {
                                                 .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
                                         } else {
                                             std::process::Command::new("cargo")
-                                                .args(&["run", "--release", "--bin", "popup-mcp", "--quiet"])
+                                                .args(&["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
                                                 .current_dir(env!("CARGO_MANIFEST_DIR"))
                                                 .stdin(std::process::Stdio::piped())
                                                 .stdout(std::process::Stdio::piped())
