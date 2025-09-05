@@ -1,5 +1,5 @@
 use crate::json_parser::parse_popup_json;
-use crate::models::{Element, Condition, ComparisonOp};
+use crate::models::{ComparisonOp, Condition, Element};
 
 #[test]
 fn test_simple_confirmation() {
@@ -9,11 +9,11 @@ fn test_simple_confirmation() {
             {"type": "text", "content": "Are you sure?"}
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.title, "Confirm");
     assert_eq!(popup.elements.len(), 1);
-    
+
     match &popup.elements[0] {
         Element::Text { content } => assert_eq!(content, "Are you sure?"),
         _ => panic!("Expected text element"),
@@ -33,13 +33,18 @@ fn test_all_widget_types() {
             {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 6);
-    
+
     // Verify slider
     match &popup.elements[1] {
-        Element::Slider { label, min, max, default } => {
+        Element::Slider {
+            label,
+            min,
+            max,
+            default,
+        } => {
             assert_eq!(label, "Volume");
             assert_eq!(*min, 0.0);
             assert_eq!(*max, 100.0);
@@ -47,7 +52,7 @@ fn test_all_widget_types() {
         }
         _ => panic!("Expected slider"),
     }
-    
+
     // Verify checkbox
     match &popup.elements[2] {
         Element::Checkbox { label, default } => {
@@ -56,17 +61,21 @@ fn test_all_widget_types() {
         }
         _ => panic!("Expected checkbox"),
     }
-    
+
     // Verify textbox
     match &popup.elements[3] {
-        Element::Textbox { label, placeholder, rows } => {
+        Element::Textbox {
+            label,
+            placeholder,
+            rows,
+        } => {
             assert_eq!(label, "Name");
             assert_eq!(placeholder.as_deref(), Some("Enter name"));
             assert_eq!(*rows, None);
         }
         _ => panic!("Expected textbox"),
     }
-    
+
     // Verify choice
     match &popup.elements[4] {
         Element::Choice { label, options, .. } => {
@@ -75,7 +84,7 @@ fn test_all_widget_types() {
         }
         _ => panic!("Expected choice"),
     }
-    
+
     // Verify multiselect
     match &popup.elements[5] {
         Element::Multiselect { label, options } => {
@@ -101,12 +110,15 @@ fn test_simple_conditional() {
             }
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 2);
-    
+
     match &popup.elements[1] {
-        Element::Conditional { condition, elements } => {
+        Element::Conditional {
+            condition,
+            elements,
+        } => {
             match condition {
                 Condition::Simple(label) => assert_eq!(label, "Advanced"),
                 _ => panic!("Expected Simple condition"),
@@ -138,36 +150,32 @@ fn test_complex_conditional() {
             }
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 2);
-    
+
     // Check first conditional
     match &popup.elements[0] {
-        Element::Conditional { condition, .. } => {
-            match condition {
-                Condition::Selected { selected, value } => {
-                    assert_eq!(selected, "Mode");
-                    assert_eq!(value, "Debug");
-                }
-                _ => panic!("Expected Selected condition"),
+        Element::Conditional { condition, .. } => match condition {
+            Condition::Selected { selected, value } => {
+                assert_eq!(selected, "Mode");
+                assert_eq!(value, "Debug");
             }
-        }
+            _ => panic!("Expected Selected condition"),
+        },
         _ => panic!("Expected conditional"),
     }
-    
+
     // Check second conditional
     match &popup.elements[1] {
-        Element::Conditional { condition, .. } => {
-            match condition {
-                Condition::Count { count, op, value } => {
-                    assert_eq!(count, "Items");
-                    assert_eq!(*op, ComparisonOp::Greater);
-                    assert_eq!(*value, 5);
-                }
-                _ => panic!("Expected Count condition"),
+        Element::Conditional { condition, .. } => match condition {
+            Condition::Count { count, op, value } => {
+                assert_eq!(count, "Items");
+                assert_eq!(*op, ComparisonOp::Greater);
+                assert_eq!(*value, 5);
             }
-        }
+            _ => panic!("Expected Count condition"),
+        },
         _ => panic!("Expected conditional"),
     }
 }
@@ -187,10 +195,10 @@ fn test_nested_groups() {
             }
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 1);
-    
+
     match &popup.elements[0] {
         Element::Group { label, elements } => {
             assert_eq!(label, "Settings");
@@ -208,11 +216,15 @@ fn test_multiline_textbox() {
             {"type": "textbox", "label": "Comments", "placeholder": "Enter comments", "rows": 5}
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
-    
+
     match &popup.elements[0] {
-        Element::Textbox { label, placeholder, rows } => {
+        Element::Textbox {
+            label,
+            placeholder,
+            rows,
+        } => {
             assert_eq!(label, "Comments");
             assert_eq!(placeholder.as_deref(), Some("Enter comments"));
             assert_eq!(*rows, Some(5));
@@ -229,11 +241,16 @@ fn test_slider_without_default() {
             {"type": "slider", "label": "Progress", "min": 0, "max": 100}
         ]
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
-    
+
     match &popup.elements[0] {
-        Element::Slider { label, min, max, default } => {
+        Element::Slider {
+            label,
+            min,
+            max,
+            default,
+        } => {
             assert_eq!(label, "Progress");
             assert_eq!(*min, 0.0);
             assert_eq!(*max, 100.0);
@@ -249,7 +266,7 @@ fn test_empty_elements() {
         "title": "Empty",
         "elements": []
     }"#;
-    
+
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.title, "Empty");
     assert_eq!(popup.elements.len(), 0);
@@ -263,7 +280,7 @@ fn test_invalid_json() {
             {"type": "unknown", "label": "Test"}
         ]
     }"#;
-    
+
     // Should fail because "unknown" is not a valid element type
     assert!(parse_popup_json(json).is_err());
 }
@@ -273,14 +290,14 @@ fn test_missing_required_fields() {
     let json = r#"{
         "elements": []
     }"#;
-    
+
     // Should fail because title is missing
     assert!(parse_popup_json(json).is_err());
-    
+
     let json = r#"{
         "title": "No Elements"
     }"#;
-    
+
     // Should fail because elements is missing
     assert!(parse_popup_json(json).is_err());
 }

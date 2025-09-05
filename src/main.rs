@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use popup_mcp::{parse_popup_json, render_popup, mcp_server};
+use popup_mcp::{mcp_server, parse_popup_json, render_popup};
 use std::fs;
 use std::io::{self, Read};
 
@@ -11,18 +11,18 @@ struct Args {
     /// Test mode: read JSON and show popup
     #[arg(long)]
     test: bool,
-    
+
     /// Input file for test mode (reads stdin if not provided)
     input_file: Option<String>,
-    
+
     /// Include only these templates (comma-separated)
     #[arg(long, value_delimiter = ',')]
     include_only: Option<Vec<String>>,
-    
+
     /// Exclude these templates (comma-separated)  
     #[arg(long, value_delimiter = ',')]
     exclude: Option<Vec<String>>,
-    
+
     /// List available templates and exit
     #[arg(long)]
     list_templates: bool,
@@ -37,7 +37,7 @@ fn run_test_mode(input_file: Option<String>) -> Result<()> {
         io::stdin().read_to_string(&mut buf)?;
         buf
     };
-    
+
     // Parse JSON and render popup
     match parse_popup_json(&input).and_then(render_popup) {
         Ok(result) => {
@@ -48,13 +48,13 @@ fn run_test_mode(input_file: Option<String>) -> Result<()> {
             println!("{}", serde_json::to_string(&error)?);
         }
     }
-    
+
     Ok(())
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     if args.test {
         // Test mode: read JSON and show popup
         run_test_mode(args.input_file)

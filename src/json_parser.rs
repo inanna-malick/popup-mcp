@@ -1,6 +1,6 @@
+use crate::models::PopupDefinition;
 use anyhow::Result;
 use serde_json::Value;
-use crate::models::PopupDefinition;
 
 /// Parse JSON input into a PopupDefinition
 pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
@@ -17,7 +17,7 @@ pub fn parse_popup_json_value(value: Value) -> Result<PopupDefinition> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Element, Condition};
+    use crate::models::{Condition, Element};
 
     #[test]
     fn test_simple_popup() {
@@ -31,7 +31,7 @@ mod tests {
         let popup = parse_popup_json(json).unwrap();
         assert_eq!(popup.title, "Confirm Delete");
         assert_eq!(popup.elements.len(), 1);
-        
+
         match &popup.elements[0] {
             Element::Text { content } => assert_eq!(content, "Are you sure?"),
             _ => panic!("Expected text element"),
@@ -52,9 +52,14 @@ mod tests {
 
         let popup = parse_popup_json(json).unwrap();
         assert_eq!(popup.elements.len(), 4);
-        
+
         match &popup.elements[0] {
-            Element::Slider { label, min, max, default } => {
+            Element::Slider {
+                label,
+                min,
+                max,
+                default,
+            } => {
                 assert_eq!(label, "Volume");
                 assert_eq!(*min, 0.0);
                 assert_eq!(*max, 100.0);
@@ -82,9 +87,12 @@ mod tests {
 
         let popup = parse_popup_json(json).unwrap();
         assert_eq!(popup.elements.len(), 2);
-        
+
         match &popup.elements[1] {
-            Element::Conditional { condition, elements } => {
+            Element::Conditional {
+                condition,
+                elements,
+            } => {
                 match condition {
                     Condition::Simple(label) => assert_eq!(label, "Show advanced"),
                     _ => panic!("Expected Simple condition"),

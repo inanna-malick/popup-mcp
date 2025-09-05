@@ -1,8 +1,8 @@
 //! MCP server module for popup-mcp - enables AI assistants to create GUI popups
 
+use crate::templates;
 use anyhow::Result;
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
-use crate::templates;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -27,26 +27,33 @@ pub struct ServerArgs {
 }
 
 fn filter_templates(
-    all_templates: Vec<templates::LoadedTemplate>, 
-    args: &ServerArgs
+    all_templates: Vec<templates::LoadedTemplate>,
+    args: &ServerArgs,
 ) -> Result<Vec<templates::LoadedTemplate>> {
     let mut filtered = all_templates;
-    
+
     // Apply include-only filter (takes precedence)
     if let Some(ref include_list) = args.include_only {
         log::info!("Filtering to include only: {:?}", include_list);
-        
+
         // Check that all requested templates exist
-        let available_names: std::collections::HashSet<&str> = 
+        let available_names: std::collections::HashSet<&str> =
             filtered.iter().map(|t| t.config.name.as_str()).collect();
-        
+
         for name in include_list {
             if !available_names.contains(name.as_str()) {
-                return Err(anyhow::anyhow!("Template '{}' not found. Available templates: {}", 
-                    name, available_names.iter().copied().collect::<Vec<_>>().join(", ")));
+                return Err(anyhow::anyhow!(
+                    "Template '{}' not found. Available templates: {}",
+                    name,
+                    available_names
+                        .iter()
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
             }
         }
-        
+
         filtered.retain(|template| include_list.contains(&template.config.name));
     }
     // Apply exclude filter (only if include-only not specified)
@@ -54,17 +61,20 @@ fn filter_templates(
         log::info!("Excluding templates: {:?}", exclude_list);
         filtered.retain(|template| !exclude_list.contains(&template.config.name));
     }
-    
+
     log::info!("Using {} filtered templates", filtered.len());
     for template in &filtered {
-        log::info!("  - {}: {}", template.config.name, template.config.description);
+        log::info!(
+            "  - {}: {}",
+            template.config.name,
+            template.config.description
+        );
     }
-    
+
     Ok(filtered)
 }
 
 pub fn run(args: ServerArgs) -> Result<()> {
-    
     // Set up logging to stderr
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .target(env_logger::Target::Stderr)
@@ -77,24 +87,34 @@ pub fn run(args: ServerArgs) -> Result<()> {
         Ok(templates) => {
             log::info!("Loaded {} templates", templates.len());
             for template in &templates {
-                log::info!("  - {}: {}", template.config.name, template.config.description);
+                log::info!(
+                    "  - {}: {}",
+                    template.config.name,
+                    template.config.description
+                );
             }
             templates
         }
         Err(e) => {
-            log::warn!("Failed to load templates: {}. Continuing without templates.", e);
+            log::warn!(
+                "Failed to load templates: {}. Continuing without templates.",
+                e
+            );
             Vec::new()
         }
     };
-    
+
     // Filter templates based on CLI arguments
     let loaded_templates = filter_templates(all_templates, &args)?;
-    
+
     // Handle --list-templates flag (after filtering)
     if args.list_templates {
         println!("Available templates:");
         for template in &loaded_templates {
-            println!("  - {}: {}", template.config.name, template.config.description);
+            println!(
+                "  - {}: {}",
+                template.config.name, template.config.description
+            );
         }
         return Ok(());
     }
@@ -156,40 +176,38 @@ pub fn run(args: ServerArgs) -> Result<()> {
                     }
                     "tools/list" => {
                         log::debug!("Handling tools/list");
-                        
+
                         // Build tools array starting with the main popup tool
-                        let mut tools = vec![
-                            serde_json::json!({
-                                "name": "popup",
-                                "description": "Create a native GUI popup window using JSON structure. Elements require 'type' field. Example: {\"title\": \"Settings\", \"elements\": [{\"type\": \"text\", \"content\": \"Configure:\"}, {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50}, {\"type\": \"checkbox\", \"label\": \"Mute\", \"default\": false}, {\"type\": \"buttons\", \"labels\": [\"Save\", \"Cancel\"]}]}. Conditionals use simple strings: {\"type\": \"conditional\", \"condition\": \"ShowAdvanced\", \"elements\": [...]}",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "json": {
-                                            "type": "object",
-                                            "description": "Popup definition with 'title' and 'elements' array. Each element needs a 'type' field. Types: text (content), slider (label, min, max, default), checkbox (label, default), textbox (label, placeholder), choice (label, options), multiselect (label, options), buttons (labels), conditional (condition, elements), group (label, elements).",
-                                            "properties": {
-                                                "title": {
-                                                    "type": "string",
-                                                    "description": "Title of the popup window"
-                                                },
-                                                "elements": {
-                                                    "type": "array",
-                                                    "description": "Array of GUI elements"
-                                                }
+                        let mut tools = vec![serde_json::json!({
+                            "name": "popup",
+                            "description": "Create a native GUI popup window using JSON structure. Elements require 'type' field. Example: {\"title\": \"Settings\", \"elements\": [{\"type\": \"text\", \"content\": \"Configure:\"}, {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50}, {\"type\": \"checkbox\", \"label\": \"Mute\", \"default\": false}, {\"type\": \"buttons\", \"labels\": [\"Save\", \"Cancel\"]}]}. Conditionals use simple strings: {\"type\": \"conditional\", \"condition\": \"ShowAdvanced\", \"elements\": [...]}",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "json": {
+                                        "type": "object",
+                                        "description": "Popup definition with 'title' and 'elements' array. Each element needs a 'type' field. Types: text (content), slider (label, min, max, default), checkbox (label, default), textbox (label, placeholder), choice (label, options), multiselect (label, options), buttons (labels), conditional (condition, elements), group (label, elements).",
+                                        "properties": {
+                                            "title": {
+                                                "type": "string",
+                                                "description": "Title of the popup window"
                                             },
-                                            "required": ["title", "elements"]
-                                        }
-                                    },
-                                    "required": ["json"]
-                                }
-                            })
-                        ];
-                        
+                                            "elements": {
+                                                "type": "array",
+                                                "description": "Array of GUI elements"
+                                            }
+                                        },
+                                        "required": ["title", "elements"]
+                                    }
+                                },
+                                "required": ["json"]
+                            }
+                        })];
+
                         // Add template tools
                         for template in &loaded_templates {
                             let mut description = template.config.description.clone();
-                            
+
                             // Add examples if present
                             if !template.config.examples.is_empty() {
                                 description.push_str("\n\nExamples:\n");
@@ -197,23 +215,20 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                     description.push_str(&format!("- {}\n", example));
                                 }
                             }
-                            
+
                             // Add notes if present
                             if let Some(notes) = &template.config.notes {
                                 description.push_str(&format!("\n\nNotes: {}", notes));
                             }
-                            
+
                             tools.push(serde_json::json!({
                                 "name": template.config.name,
                                 "description": description,
                                 "inputSchema": templates::generate_tool_schema(&template.config)
                             }));
                         }
-                        
-                        JSONRPCResponse::new(
-                            req.id,
-                            serde_json::json!({ "tools": tools }),
-                        )
+
+                        JSONRPCResponse::new(req.id, serde_json::json!({ "tools": tools }))
                     }
                     "resources/list" => {
                         log::debug!("Handling resources/list");
@@ -231,128 +246,171 @@ pub fn run(args: ServerArgs) -> Result<()> {
                         let tool_args = params.get("arguments").cloned().unwrap_or(Value::Null);
 
                         let result = if tool_name == "popup" {
-                                let json_value = tool_args.get("json").cloned();
-                                
-                                log::info!("Showing popup with JSON: {:?}", json_value);
-                                
-                                // Check JSON value exists
-                                if json_value.is_none() {
-                                    log::error!("No JSON provided in tool arguments");
-                                    error("Missing 'json' parameter in tool arguments")
-                                } else {
-                                    let json_str = serde_json::to_string(&json_value.unwrap()).unwrap_or_else(|e| {
+                            let json_value = tool_args.get("json").cloned();
+
+                            log::info!("Showing popup with JSON: {:?}", json_value);
+
+                            // Check JSON value exists
+                            if json_value.is_none() {
+                                log::error!("No JSON provided in tool arguments");
+                                error("Missing 'json' parameter in tool arguments")
+                            } else {
+                                let json_str = serde_json::to_string(&json_value.unwrap())
+                                    .unwrap_or_else(|e| {
                                         log::error!("Failed to serialize JSON: {}", e);
                                         "{}".to_string()
                                     });
-                                    
-                                    // Spawn popup binary in test mode
-                                    // Since we're the same binary, just spawn ourselves with --test flag
-                                    let popup_path = std::env::current_exe()
-                                        .ok()
-                                        .map(|path| {
-                                            log::info!("Current exe: {:?}", path);
-                                            path
-                                        });
-                                
-                                    // Spawn popup binary with --test flag
-                                    let child = if let Some(binary_path) = popup_path {
-                                        log::info!("Spawning popup binary with --test: {:?}", binary_path);
-                                        std::process::Command::new(binary_path)
-                                            .arg("--test")
-                                            .stdin(std::process::Stdio::piped())
-                                            .stdout(std::process::Stdio::piped())
-                                            .stderr(std::process::Stdio::piped())
-                                            .spawn()
-                                            .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
-                                    } else {
-                                        // Fallback to cargo run for development
-                                        log::info!("Falling back to cargo run for popup");
-                                        std::process::Command::new("cargo")
-                                            .args(&["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
-                                            .current_dir(env!("CARGO_MANIFEST_DIR"))
-                                            .stdin(std::process::Stdio::piped())
-                                            .stdout(std::process::Stdio::piped())
-                                            .stderr(std::process::Stdio::piped())
-                                            .spawn()
-                                            .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
-                                    };
-                                
-                                    match child {
-                                        Ok(mut child) => {
-                                            log::info!("Subprocess spawned with PID: {:?}", child.id());
-                                            
-                                            // Write JSON to stdin
-                                            match child.stdin.take() {
-                                                Some(mut stdin) => {
-                                                    use std::io::Write;
-                                                    log::info!("Writing JSON to subprocess stdin...");
-                                                    match stdin.write_all(json_str.as_bytes()) {
+
+                                // Spawn popup binary in test mode
+                                // Since we're the same binary, just spawn ourselves with --test flag
+                                let popup_path = std::env::current_exe().ok().map(|path| {
+                                    log::info!("Current exe: {:?}", path);
+                                    path
+                                });
+
+                                // Spawn popup binary with --test flag
+                                let child = if let Some(binary_path) = popup_path {
+                                    log::info!(
+                                        "Spawning popup binary with --test: {:?}",
+                                        binary_path
+                                    );
+                                    std::process::Command::new(binary_path)
+                                        .arg("--test")
+                                        .stdin(std::process::Stdio::piped())
+                                        .stdout(std::process::Stdio::piped())
+                                        .stderr(std::process::Stdio::piped())
+                                        .spawn()
+                                        .map_err(|e| {
+                                            format!("Failed to spawn popup subprocess: {}", e)
+                                        })
+                                } else {
+                                    // Fallback to cargo run for development
+                                    log::info!("Falling back to cargo run for popup");
+                                    std::process::Command::new("cargo")
+                                        .args([
+                                            "run",
+                                            "--release",
+                                            "--bin",
+                                            "popup",
+                                            "--quiet",
+                                            "--",
+                                            "--test",
+                                        ])
+                                        .current_dir(env!("CARGO_MANIFEST_DIR"))
+                                        .stdin(std::process::Stdio::piped())
+                                        .stdout(std::process::Stdio::piped())
+                                        .stderr(std::process::Stdio::piped())
+                                        .spawn()
+                                        .map_err(|e| {
+                                            format!(
+                                                "Failed to spawn popup subprocess via cargo: {}",
+                                                e
+                                            )
+                                        })
+                                };
+
+                                match child {
+                                    Ok(mut child) => {
+                                        log::info!("Subprocess spawned with PID: {:?}", child.id());
+
+                                        // Write JSON to stdin
+                                        match child.stdin.take() {
+                                            Some(mut stdin) => {
+                                                use std::io::Write;
+                                                log::info!("Writing JSON to subprocess stdin...");
+                                                match stdin.write_all(json_str.as_bytes()) {
                                                     Ok(_) => {
                                                         // Close stdin to signal EOF
                                                         drop(stdin);
                                                         log::info!("JSON written successfully");
-                                                        
+
                                                         // Wait for result
                                                         match child.wait_with_output() {
-                                                    Ok(output) => {
-                                                        let stdout_str = String::from_utf8_lossy(&output.stdout);
-                                                        let stderr_str = String::from_utf8_lossy(&output.stderr);
-                                                        
-                                                        log::info!("Subprocess stdout: {}", stdout_str);
-                                                        if !stderr_str.is_empty() {
-                                                            log::info!("Subprocess stderr: {}", stderr_str);
-                                                        }
-                                                        
-                                                        // Add small delay to ensure window system cleanup
-                                                        std::thread::sleep(std::time::Duration::from_millis(100));
-                                                        
-                                                        if output.status.success() || !stdout_str.trim().is_empty() {
-                                                            // Try to parse JSON even if exit code is non-zero
-                                                            // (popup-mcp might exit with error code but still output JSON)
-                                                            match serde_json::from_str::<Value>(&stdout_str) {
+                                                            Ok(output) => {
+                                                                let stdout_str =
+                                                                    String::from_utf8_lossy(
+                                                                        &output.stdout,
+                                                                    );
+                                                                let stderr_str =
+                                                                    String::from_utf8_lossy(
+                                                                        &output.stderr,
+                                                                    );
+
+                                                                log::info!(
+                                                                    "Subprocess stdout: {}",
+                                                                    stdout_str
+                                                                );
+                                                                if !stderr_str.is_empty() {
+                                                                    log::info!(
+                                                                        "Subprocess stderr: {}",
+                                                                        stderr_str
+                                                                    );
+                                                                }
+
+                                                                // Add small delay to ensure window system cleanup
+                                                                std::thread::sleep(std::time::Duration::from_millis(100));
+
+                                                                if output.status.success()
+                                                                    || !stdout_str.trim().is_empty()
+                                                                {
+                                                                    // Try to parse JSON even if exit code is non-zero
+                                                                    // (popup-mcp might exit with error code but still output JSON)
+                                                                    match serde_json::from_str::<Value>(&stdout_str) {
                                                                 Ok(popup_result) => popup_result,
                                                                 Err(e) => error(format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
                                                             }
-                                                        } else {
-                                                            error(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
+                                                                } else {
+                                                                    error(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
+                                                                }
+                                                            }
+                                                            Err(e) => error(format!(
+                                                                "Failed to wait for popup: {}",
+                                                                e
+                                                            )),
                                                         }
-                                            }
-                                            Err(e) => error(format!("Failed to wait for popup: {}", e))
-                                        }
                                                     }
-                                                    Err(e) => error(format!("Failed to write JSON to subprocess: {}", e))
+                                                    Err(e) => error(format!(
+                                                        "Failed to write JSON to subprocess: {}",
+                                                        e
+                                                    )),
                                                 }
                                             }
-                                            None => error("Failed to get subprocess stdin")
+                                            None => error("Failed to get subprocess stdin"),
                                         }
-                                        }
-                                        Err(e) => error(e)
                                     }
+                                    Err(e) => error(e),
                                 }
+                            }
                         } else {
                             // Check if it's a template tool
-                            if let Some(template) = loaded_templates.iter().find(|t| t.config.name == tool_name) {
+                            if let Some(template) =
+                                loaded_templates.iter().find(|t| t.config.name == tool_name)
+                            {
                                 log::info!("Invoking template: {}", tool_name);
-                                
+
                                 // Convert tool_args to HashMap<String, Value>
                                 let params = if let Some(obj) = tool_args.as_object() {
                                     obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
                                 } else {
                                     HashMap::new()
                                 };
-                                
+
                                 // Instantiate the template
                                 match templates::instantiate_template(template, &params) {
                                     Ok(popup_def) => {
                                         // Convert popup definition to JSON and run it
-                                        let json_str = serde_json::to_string(&popup_def).unwrap_or_else(|e| {
-                                            log::error!("Failed to serialize popup definition: {}", e);
-                                            "{}".to_string()
-                                        });
-                                        
+                                        let json_str = serde_json::to_string(&popup_def)
+                                            .unwrap_or_else(|e| {
+                                                log::error!(
+                                                    "Failed to serialize popup definition: {}",
+                                                    e
+                                                );
+                                                "{}".to_string()
+                                            });
+
                                         // Spawn popup binary in test mode (same as above)
                                         let popup_path = std::env::current_exe().ok();
-                                        
+
                                         let child = if let Some(binary_path) = popup_path {
                                             std::process::Command::new(binary_path)
                                                 .arg("--test")
@@ -360,10 +418,15 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                 .stdout(std::process::Stdio::piped())
                                                 .stderr(std::process::Stdio::piped())
                                                 .spawn()
-                                                .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))
+                                                .map_err(|e| {
+                                                    format!(
+                                                        "Failed to spawn popup subprocess: {}",
+                                                        e
+                                                    )
+                                                })
                                         } else {
                                             std::process::Command::new("cargo")
-                                                .args(&["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
+                                                .args(["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
                                                 .current_dir(env!("CARGO_MANIFEST_DIR"))
                                                 .stdin(std::process::Stdio::piped())
                                                 .stdout(std::process::Stdio::piped())
@@ -371,26 +434,25 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                 .spawn()
                                                 .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
                                         };
-                                        
+
                                         match child {
-                                            Ok(mut child) => {
-                                                match child.stdin.take() {
-                                                    Some(mut stdin) => {
-                                                        use std::io::Write;
-                                                        match stdin.write_all(json_str.as_bytes()) {
+                                            Ok(mut child) => match child.stdin.take() {
+                                                Some(mut stdin) => {
+                                                    use std::io::Write;
+                                                    match stdin.write_all(json_str.as_bytes()) {
                                                             Ok(_) => {
                                                                 drop(stdin);
                                                                 match child.wait_with_output() {
                                                                     Ok(output) => {
                                                                         let stdout_str = String::from_utf8_lossy(&output.stdout);
                                                                         let stderr_str = String::from_utf8_lossy(&output.stderr);
-                                                                        
+
                                                                         if !stderr_str.is_empty() {
                                                                             log::info!("Subprocess stderr: {}", stderr_str);
                                                                         }
-                                                                        
+
                                                                         std::thread::sleep(std::time::Duration::from_millis(100));
-                                                                        
+
                                                                         if output.status.success() || !stdout_str.trim().is_empty() {
                                                                             match serde_json::from_str::<Value>(&stdout_str) {
                                                                                 Ok(popup_result) => popup_result,
@@ -405,14 +467,15 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                             }
                                                             Err(e) => error(format!("Failed to write JSON to subprocess: {}", e))
                                                         }
-                                                    }
-                                                    None => error("Failed to get subprocess stdin")
                                                 }
-                                            }
-                                            Err(e) => error(e)
+                                                None => error("Failed to get subprocess stdin"),
+                                            },
+                                            Err(e) => error(e),
                                         }
                                     }
-                                    Err(e) => error(format!("Failed to instantiate template: {}", e))
+                                    Err(e) => {
+                                        error(format!("Failed to instantiate template: {}", e))
+                                    }
                                 }
                             } else {
                                 error(format!("Unknown tool: {}", tool_name))

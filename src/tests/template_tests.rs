@@ -42,7 +42,8 @@ fn test_template_instantiation() {
                     "content": "You are {{age}} years old"
                 }
             ]
-        }"#.to_string(),
+        }"#
+        .to_string(),
         variables: vec!["name".to_string(), "age".to_string()],
     };
 
@@ -53,20 +54,23 @@ fn test_template_instantiation() {
 
     let popup = instantiate_template(&template, &params).unwrap();
     assert_eq!(popup.title, "Hello Alice");
-    
+
     // Test with default value
     let mut params = HashMap::new();
     params.insert("name".to_string(), json!("Bob"));
-    
+
     let popup = instantiate_template(&template, &params).unwrap();
     assert_eq!(popup.title, "Hello Bob");
     // Should use default age of 25
-    
+
     // Test missing required parameter
     let params = HashMap::new();
     let result = instantiate_template(&template, &params);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Required parameter 'name' not provided"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Required parameter 'name' not provided"));
 }
 
 #[test]
@@ -111,20 +115,20 @@ fn test_tool_schema_generation() {
     };
 
     let schema = generate_tool_schema(&template);
-    
+
     // Check schema structure
     assert_eq!(schema["type"], "object");
-    
+
     let properties = schema["properties"].as_object().unwrap();
     assert_eq!(properties["text_param"]["type"], "string");
     assert_eq!(properties["text_param"]["description"], "A text parameter");
-    
+
     assert_eq!(properties["num_param"]["type"], "number");
     assert_eq!(properties["num_param"]["default"], 42);
-    
+
     assert_eq!(properties["bool_param"]["type"], "boolean");
     assert_eq!(properties["bool_param"]["default"], false);
-    
+
     let required = schema["required"].as_array().unwrap();
     assert_eq!(required.len(), 1);
     assert_eq!(required[0], "text_param");
@@ -187,8 +191,13 @@ fn test_conditional_template() {
                     "content": "End of settings"
                 }
             ]
-        }"#.to_string(),
-        variables: vec!["show_advanced".to_string(), "items".to_string(), "this".to_string()],
+        }"#
+        .to_string(),
+        variables: vec![
+            "show_advanced".to_string(),
+            "items".to_string(),
+            "this".to_string(),
+        ],
     };
 
     // Test with show_advanced = true and items
@@ -198,10 +207,10 @@ fn test_conditional_template() {
 
     let popup = instantiate_template(&template, &params).unwrap();
     assert_eq!(popup.title, "Settings");
-    
+
     // Should have checkbox, conditional text, 2 item texts, and buttons
     // Note: Actual element count depends on Handlebars rendering
-    
+
     // Test with defaults
     let params = HashMap::new();
     let popup = instantiate_template(&template, &params).unwrap();
