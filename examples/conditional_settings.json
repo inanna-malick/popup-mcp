@@ -20,7 +20,6 @@
         {"type": "checkbox", "label": "GPU acceleration", "default": true},
         {"type": "slider", "label": "Cache size", "min": 0, "max": 1000, "default": 256}
       ]
-    },
-    {"type": "buttons", "labels": ["Apply", "Reset", "Cancel"]}
+    }
   ]
 }

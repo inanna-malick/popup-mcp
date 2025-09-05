@@ -15,7 +15,6 @@
       {"type": "checkbox", "label": "Send anonymous usage data", "default": false},
       {"type": "checkbox", "label": "Save history", "default": true},
       {"type": "slider", "label": "History days", "min": 1, "max": 365, "default": 30}
-    ]},
-    {"type": "buttons", "labels": ["Save", "Reset", "Cancel"]}
+    ]}
   ]
 }

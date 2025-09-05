@@ -81,7 +81,7 @@ fn test_popup_result_serialization() {
     // Modify state
     *state.get_number_mut("Value").unwrap() = 7.0;
     *state.get_text_mut("Text").unwrap() = "Hello".to_string();
-    state.button_clicked = Some("OK".to_string());
+    state.button_clicked = Some("submit".to_string());
     
     // Create result
     let result = PopupResult::from_state(&state);
@@ -94,7 +94,7 @@ fn test_popup_result_serialization() {
     assert_eq!(parsed["Value"], 7);
     assert_eq!(parsed["Enabled"], true);
     assert_eq!(parsed["Text"], "Hello");
-    assert_eq!(parsed["button"], "OK");
+    assert_eq!(parsed["button"], "submit");
 }
 
 #[test]
@@ -137,8 +137,7 @@ fn test_group_in_json() {
                     {"type": "slider", "label": "Bass", "min": -10, "max": 10, "default": 0},
                     {"type": "checkbox", "label": "Surround", "default": false}
                 ]
-            },
-            {"type": "buttons", "labels": ["Apply", "Cancel"]}
+            }
         ]
     }"#;
     
@@ -146,7 +145,7 @@ fn test_group_in_json() {
     let state = PopupState::new(&popup);
     
     // Verify group structure
-    assert_eq!(popup.elements.len(), 2);
+    assert_eq!(popup.elements.len(), 1);
     
     // State should initialize nested elements
     assert!(state.values.contains_key("Volume"));

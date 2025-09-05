@@ -6,25 +6,17 @@ fn test_simple_confirmation() {
     let json = r#"{
         "title": "Confirm",
         "elements": [
-            {"type": "text", "content": "Are you sure?"},
-            {"type": "buttons", "labels": ["Yes", "No"]}
+            {"type": "text", "content": "Are you sure?"}
         ]
     }"#;
     
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.title, "Confirm");
-    assert_eq!(popup.elements.len(), 2);
+    assert_eq!(popup.elements.len(), 1);
     
     match &popup.elements[0] {
         Element::Text { content } => assert_eq!(content, "Are you sure?"),
         _ => panic!("Expected text element"),
-    }
-    
-    match &popup.elements[1] {
-        Element::Buttons { labels } => {
-            assert_eq!(labels, &vec!["Yes".to_string(), "No".to_string()]);
-        }
-        _ => panic!("Expected buttons element"),
     }
 }
 
@@ -38,13 +30,12 @@ fn test_all_widget_types() {
             {"type": "checkbox", "label": "Enable", "default": true},
             {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
             {"type": "choice", "label": "Color", "options": ["Red", "Green", "Blue"]},
-            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]},
-            {"type": "buttons", "labels": ["OK", "Cancel"]}
+            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
         ]
     }"#;
     
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.elements.len(), 7);
+    assert_eq!(popup.elements.len(), 6);
     
     // Verify slider
     match &popup.elements[1] {

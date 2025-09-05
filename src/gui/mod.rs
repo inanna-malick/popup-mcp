@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{Context, CentralPanel, RichText, ScrollArea, Vec2, Key, Id, Color32};
+use egui::{Context, CentralPanel, TopBottomPanel, RichText, ScrollArea, Vec2, Key, Id};
 use std::sync::{Arc, Mutex};
 
 use crate::models::{Element, PopupDefinition, PopupResult, PopupState, Condition};
@@ -89,7 +89,7 @@ impl eframe::App for PopupApp {
         
         // Handle Escape key for cancel
         if ctx.input(|i| i.key_pressed(Key::Escape)) {
-            self.state.button_clicked = Some("Cancel".to_string());
+            self.state.button_clicked = Some("cancel".to_string());
         }
         
         // Check if we should close
@@ -98,6 +98,21 @@ impl eframe::App for PopupApp {
             return;
         }
         
+        // Bottom panel for Submit button
+        TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
+            ui.add_space(5.0);
+            ui.separator();
+            ui.add_space(5.0);
+            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                // Use a simpler approach - just text without RichText formatting
+                if ui.button("SUBMIT").clicked() {
+                    self.state.button_clicked = Some("submit".to_string());
+                }
+            });
+            ui.add_space(5.0);
+        });
+        
+        // Main content in central panel
         CentralPanel::default().show(ctx, |ui| {
             // Extremely compact for no-scroll layout
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 1.0);
@@ -120,7 +135,7 @@ impl eframe::App for PopupApp {
                 });
         });
         
-        // Check again after rendering in case a button was clicked
+        // Check again after rendering in case submit was clicked
         if self.state.button_clicked.is_some() {
             self.send_result_and_close(ctx);
         }
@@ -304,22 +319,6 @@ fn render_single_element(
             });
         }
         
-        Element::Buttons { labels: buttons } => {
-            ui.separator();
-            ui.horizontal(|ui| {
-                for button in buttons {
-                    let button_text = RichText::new(button.to_uppercase())
-                        .size(12.0)
-                        .strong()
-                        .color(Color32::BLACK);
-                    
-                    if ui.button(button_text).clicked() {
-                        state.button_clicked = Some(button.clone());
-                    }
-                }
-            });
-        }
-        
         _ => {}
     }
 }
@@ -332,8 +331,8 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     
     calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
     
-    // Add some bottom padding
-    height += 15.0;
+    // Add space for the Submit button panel (separator + button + padding)
+    height += 50.0; // TopBottomPanel with Submit button
     
     // Reasonable bounds for complex UIs
     max_width = max_width.min(450.0).max(320.0);  // Wide enough for columns
@@ -406,11 +405,6 @@ fn calculate_elements_size(
                     let added_height = *height - start_height;
                     *height = start_height + (added_height * probability);
                 }
-            }
-            Element::Buttons { labels: buttons } => {
-                *height += 28.0; // Small button row
-                let button_width = buttons.len() as f32 * 70.0; // Narrower buttons
-                *max_width = max_width.max(button_width + 15.0); // Tight margins
             }
         }
         *height += 1.0; // Almost no item spacing

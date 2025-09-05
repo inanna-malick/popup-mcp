@@ -13,7 +13,6 @@
       "elements": [
         {"type": "slider", "label": "Refresh interval (seconds)", "min": 5, "max": 60, "default": 30}
       ]
-    },
-    {"type": "buttons", "labels": ["Refresh Now", "Export Report", "Close"]}
+    }
   ]
 }

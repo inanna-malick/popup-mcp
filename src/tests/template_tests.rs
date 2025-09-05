@@ -9,6 +9,8 @@ fn test_template_instantiation() {
             name: "test_template".to_string(),
             description: "Test template".to_string(),
             file: "test.json".to_string(),
+            examples: vec![],
+            notes: None,
             params: {
                 let mut params = HashMap::new();
                 params.insert(
@@ -38,10 +40,6 @@ fn test_template_instantiation() {
                 {
                     "type": "text",
                     "content": "You are {{age}} years old"
-                },
-                {
-                    "type": "buttons",
-                    "labels": ["OK"]
                 }
             ]
         }"#.to_string(),
@@ -77,6 +75,8 @@ fn test_tool_schema_generation() {
         name: "test_tool".to_string(),
         description: "Test tool".to_string(),
         file: "test.json".to_string(),
+        examples: vec![],
+        notes: None,
         params: {
             let mut params = HashMap::new();
             params.insert(
@@ -137,6 +137,8 @@ fn test_conditional_template() {
             name: "conditional_test".to_string(),
             description: "Test conditional rendering".to_string(),
             file: "conditional.json".to_string(),
+            examples: vec![],
+            notes: None,
             params: {
                 let mut params = HashMap::new();
                 params.insert(
@@ -181,8 +183,8 @@ fn test_conditional_template() {
                 },
                 {{/each}}
                 {
-                    "type": "buttons",
-                    "labels": ["OK"]
+                    "type": "text",
+                    "content": "End of settings"
                 }
             ]
         }"#.to_string(),

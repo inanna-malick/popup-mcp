@@ -27,15 +27,35 @@ cargo test tests::json_parser_tests
 # Build and install locally
 cargo install --path .
 
+# Run formatting check
+cargo fmt --check
+
+# Apply formatting
+cargo fmt
+
+# Run linter
+cargo clippy
+
 # Test popup directly from command line with JSON
-echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run
+echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run -- --test
 
-# Build MCP server binary
-cargo build --bin popup-mcp-server
+# Test with example file
+cargo run -- --test examples/simple_confirm.json
 
-# Run MCP server directly
-cargo run --bin stdio_direct
+# Run MCP server (default mode)
+cargo run
+
+# List available templates
+cargo run -- --list-templates
+
+# Run with template filtering
+cargo run -- --include-only settings,feedback
+cargo run -- --exclude debug,admin
 ```
+
+## Important Note on Buttons
+
+**Buttons are no longer user-specifiable.** Every popup automatically includes a single "Submit" button at the bottom. Users can press the Submit button to confirm or use the Escape key to cancel. The PopupResult will include `"button": "submit"` or `"button": "cancel"` accordingly.
 
 ## High-Level Architecture
 
@@ -51,15 +71,21 @@ cargo run --bin stdio_direct
    - `widget_renderers.rs`: Individual widget rendering implementations
    - Native GUI popups that return structured JSON results
 
-3. **MCP Server** (`src/bin/stdio_direct.rs`)
+3. **MCP Server** (`src/mcp_server.rs`)
    - Implements Model Context Protocol for AI assistant integration
    - Handles JSON-RPC communication with Claude Desktop
    - Provides `popup` tool for creating GUI popups from JSON
+   - Main entry point is `src/main.rs` which runs as MCP server by default
 
 4. **Models** (`src/models.rs`)
    - Core data structures: `PopupDefinition`, `Element`, `PopupResult`
    - All types have Serialize/Deserialize for JSON compatibility
    - Supports various widget types: Slider, Checkbox, Choice, Multiselect, Textbox, Buttons, Group, Conditional
+
+5. **Template System** (`src/templates.rs`)
+   - Predefined popup templates for common use cases
+   - Can be filtered with `--include-only` or `--exclude` flags
+   - Templates loaded from configuration files
 
 ### Key Design Decisions
 
@@ -73,6 +99,15 @@ cargo run --bin stdio_direct
 Tests are organized in `src/tests/`:
 - `json_parser_tests.rs`: Core JSON parsing tests for all widget types
 - `integration_tests.rs`: Integration tests with example files and state management
+- `template_tests.rs`: Template system tests
+
+Example JSON files for testing in `examples/`:
+- `simple_confirm.json`: Basic confirmation dialog
+- `settings.json`: Complex settings form
+- `conditional_settings.json`: Settings with conditional visibility
+- `feedback_form.json`: User feedback collection
+- `system_status.json`: System status display
+- `user_profile.json`: User profile form
 
 ## JSON Structure Reference
 
@@ -141,11 +176,6 @@ Tests are organized in `src/tests/`:
 }
 ```
 
-#### Buttons
-```json
-{"type": "buttons", "labels": ["OK", "Cancel"]}
-```
-
 #### Group
 ```json
 {
@@ -201,8 +231,7 @@ Complex conditions:
 {
   "title": "Delete File?",
   "elements": [
-    {"type": "text", "content": "This action cannot be undone."},
-    {"type": "buttons", "labels": ["Yes", "No"]}
+    {"type": "text", "content": "This action cannot be undone."}
   ]
 }
 ```
@@ -214,8 +243,7 @@ Complex conditions:
   "elements": [
     {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
     {"type": "checkbox", "label": "Notifications", "default": true},
-    {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
-    {"type": "buttons", "labels": ["Save", "Cancel"]}
+    {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
   ]
 }
 ```
@@ -233,8 +261,7 @@ Complex conditions:
         {"type": "slider", "label": "Debug level", "min": 0, "max": 10},
         {"type": "textbox", "label": "Log file", "placeholder": "/tmp/debug.log"}
       ]
-    },
-    {"type": "buttons", "labels": ["Apply", "Cancel"]}
+    }
   ]
 }
 ```

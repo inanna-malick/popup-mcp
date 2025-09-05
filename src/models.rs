@@ -18,7 +18,6 @@ pub enum Element {
     Choice { label: String, options: Vec<String> },
     Multiselect { label: String, options: Vec<String> },
     Group { label: String, elements: Vec<Element> },
-    Buttons { labels: Vec<String> },
     Conditional { condition: Condition, elements: Vec<Element> },
 }
 

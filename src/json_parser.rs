@@ -24,27 +24,17 @@ mod tests {
         let json = r#"{
             "title": "Confirm Delete",
             "elements": [
-                {"type": "text", "content": "Are you sure?"},
-                {"type": "buttons", "labels": ["Yes", "No"]}
+                {"type": "text", "content": "Are you sure?"}
             ]
         }"#;
 
         let popup = parse_popup_json(json).unwrap();
         assert_eq!(popup.title, "Confirm Delete");
-        assert_eq!(popup.elements.len(), 2);
+        assert_eq!(popup.elements.len(), 1);
         
         match &popup.elements[0] {
             Element::Text { content } => assert_eq!(content, "Are you sure?"),
             _ => panic!("Expected text element"),
-        }
-        
-        match &popup.elements[1] {
-            Element::Buttons { labels } => {
-                assert_eq!(labels.len(), 2);
-                assert_eq!(labels[0], "Yes");
-                assert_eq!(labels[1], "No");
-            }
-            _ => panic!("Expected buttons element"),
         }
     }
 
