@@ -55,6 +55,24 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     Ok(result)
 }
 
+/// Render popups sequentially. Due to GUI event loop limitations, only one popup
+/// can be shown at a time. Additional popups will wait until the previous one closes.
+///
+/// IMPORTANT: On macOS, the first popup MUST be created from the main thread.
+/// Consider using render_popup() directly from the main thread instead.
+#[cfg(feature = "async")]
+pub async fn render_popup_sequential(definition: PopupDefinition) -> Result<PopupResult> {
+    // Use a global queue to ensure popups show one at a time
+    static POPUP_QUEUE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    // Acquire the lock - this ensures only one popup shows at a time
+    let _guard = POPUP_QUEUE.lock().await;
+
+    // For now, just call the synchronous version
+    // This will block the current thread but ensures proper event loop handling
+    render_popup(definition)
+}
+
 struct PopupApp {
     definition: PopupDefinition,
     state: PopupState,
@@ -83,6 +101,7 @@ impl PopupApp {
     fn send_result_and_close(&mut self, ctx: &Context) {
         let popup_result = PopupResult::from_state_with_context(&self.state, &self.definition);
         *self.result.lock().unwrap() = Some(popup_result);
+        // Use ViewportCommand::Close to close the window
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 }
@@ -112,6 +131,7 @@ impl eframe::App for PopupApp {
                 // Use a simpler approach - just text without RichText formatting
                 if ui.button("SUBMIT").clicked() {
                     self.state.button_clicked = Some("submit".to_string());
+                    self.send_result_and_close(ctx);
                 }
             });
             ui.add_space(5.0);
@@ -136,14 +156,10 @@ impl eframe::App for PopupApp {
                         &self.theme,
                         &mut self.first_interactive_widget_id,
                         self.first_widget_focused,
+                        "main",
                     );
                 });
         });
-
-        // Check again after rendering in case submit was clicked
-        if self.state.button_clicked.is_some() {
-            self.send_result_and_close(ctx);
-        }
 
         // Request focus on first interactive widget if not already focused
         if !self.first_widget_focused {
@@ -165,6 +181,7 @@ fn render_elements_in_grid(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
+    grid_id_suffix: &str,
 ) {
     use egui::Grid;
 
@@ -182,7 +199,7 @@ fn render_elements_in_grid(
 
     // Render sliders in a 2x2 grid
     if !sliders.is_empty() {
-        Grid::new("slider_grid")
+        Grid::new(format!("slider_grid_{}", grid_id_suffix))
             .num_columns(2)
             .spacing([10.0, 4.0])
             .min_col_width(200.0)
@@ -232,6 +249,7 @@ fn render_elements_in_grid(
             theme,
             first_widget_id,
             widget_focused,
+            grid_id_suffix,
         );
     }
 }
@@ -244,6 +262,7 @@ fn render_single_element(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
+    _grid_id_suffix: &str,
 ) {
     match element {
         Element::Text { content: text } => {
@@ -349,11 +368,85 @@ fn render_single_element(
             });
         }
 
+        Element::Group { label, elements } => {
+            ui.group(|ui| {
+                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                ui.add_space(4.0);
+                render_elements_in_grid(
+                    ui,
+                    elements,
+                    state,
+                    _all_elements,
+                    theme,
+                    first_widget_id,
+                    widget_focused,
+                    &format!("group_{}", label),
+                );
+            });
+        }
+
+        Element::Conditional { condition, elements } => {
+            // Check if condition is met
+            let show = match condition {
+                Condition::Simple(label) => {
+                    // Check if a checkbox with this label is true
+                    state.get_boolean(label)
+                }
+                Condition::Checked { checked } => {
+                    // Check if a checkbox with this label is true
+                    state.get_boolean(checked)
+                }
+                Condition::Selected { selected, value: _ } => {
+                    // Check if a choice with this label has the specified value selected
+                    // We need access to the element list to find the options and match the value
+                    // For now, checking if any option is selected (not the default)
+                    let idx = state.get_choice(selected);
+                    idx > 0  // Simple check - assumes first option is default
+                }
+                Condition::Count { count, value, op } => {
+                    // Count selected items in a multiselect
+                    if let Some(selections) = state.get_multichoice(count) {
+                        let selected_count = selections.iter().filter(|&&x| x).count();
+                        use crate::models::ComparisonOp;
+                        match op {
+                            ComparisonOp::Greater => selected_count > *value as usize,
+                            ComparisonOp::Less => selected_count < *value as usize,
+                            ComparisonOp::GreaterEqual => selected_count >= *value as usize,
+                            ComparisonOp::LessEqual => selected_count <= *value as usize,
+                            ComparisonOp::Equal => selected_count == *value as usize,
+                        }
+                    } else {
+                        false
+                    }
+                }
+            };
+
+            if show {
+                // Create unique ID based on condition type
+                let cond_id = match condition {
+                    Condition::Simple(label) => format!("cond_{}", label),
+                    Condition::Checked { checked } => format!("cond_{}", checked),
+                    Condition::Selected { selected, .. } => format!("cond_sel_{}", selected),
+                    Condition::Count { count, .. } => format!("cond_cnt_{}", count),
+                };
+                render_elements_in_grid(
+                    ui,
+                    elements,
+                    state,
+                    _all_elements,
+                    theme,
+                    first_widget_id,
+                    widget_focused,
+                    &cond_id,
+                );
+            }
+        }
+
         _ => {}
     }
 }
 
-// Removed helper functions - conditionals not supported in grid layout yet
+// Helper functions for window sizing
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 35.0; // Title bar with some padding

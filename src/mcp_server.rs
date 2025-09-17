@@ -178,31 +178,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                         log::debug!("Handling tools/list");
 
                         // Build tools array starting with the main popup tool
-                        let mut tools = vec![serde_json::json!({
-                            "name": "popup",
-                            "description": "Create a native GUI popup window using JSON structure. Elements require 'type' field. Example: {\"title\": \"Settings\", \"elements\": [{\"type\": \"text\", \"content\": \"Configure:\"}, {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50}, {\"type\": \"checkbox\", \"label\": \"Mute\", \"default\": false}, {\"type\": \"buttons\", \"labels\": [\"Save\", \"Cancel\"]}]}. Conditionals use simple strings: {\"type\": \"conditional\", \"condition\": \"ShowAdvanced\", \"elements\": [...]}",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "json": {
-                                        "type": "object",
-                                        "description": "Popup definition with 'title' and 'elements' array. Each element needs a 'type' field. Types: text (content), slider (label, min, max, default), checkbox (label, default), textbox (label, placeholder), choice (label, options), multiselect (label, options), buttons (labels), conditional (condition, elements), group (label, elements).",
-                                        "properties": {
-                                            "title": {
-                                                "type": "string",
-                                                "description": "Title of the popup window"
-                                            },
-                                            "elements": {
-                                                "type": "array",
-                                                "description": "Array of GUI elements"
-                                            }
-                                        },
-                                        "required": ["title", "elements"]
-                                    }
-                                },
-                                "required": ["json"]
-                            }
-                        })];
+                        let mut tools = vec![crate::schema::get_popup_tool_schema()];
 
                         // Add template tools
                         for template in &loaded_templates {
