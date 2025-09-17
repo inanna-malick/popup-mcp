@@ -258,7 +258,7 @@ fn render_single_element(
     ui: &mut egui::Ui,
     element: &Element,
     state: &mut PopupState,
-    _all_elements: &[Element],
+    all_elements: &[Element],
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
@@ -376,7 +376,7 @@ fn render_single_element(
                     ui,
                     elements,
                     state,
-                    _all_elements,
+                    all_elements,
                     theme,
                     first_widget_id,
                     widget_focused,
@@ -396,12 +396,19 @@ fn render_single_element(
                     // Check if a checkbox with this label is true
                     state.get_boolean(checked)
                 }
-                Condition::Selected { selected, value: _ } => {
+                Condition::Selected { selected, value } => {
                     // Check if a choice with this label has the specified value selected
-                    // We need access to the element list to find the options and match the value
-                    // For now, checking if any option is selected (not the default)
-                    let idx = state.get_choice(selected);
-                    idx > 0  // Simple check - assumes first option is default
+                    let selected_idx = state.get_choice(selected);
+
+                    // Find the Choice element with matching label to get its options
+                    if let Some(options) = find_choice_options(all_elements, selected) {
+                        options
+                            .get(selected_idx)
+                            .map(|selected_option| selected_option == value)
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
                 }
                 Condition::Count { count, value, op } => {
                     // Count selected items in a multiselect
@@ -433,7 +440,7 @@ fn render_single_element(
                     ui,
                     elements,
                     state,
-                    _all_elements,
+                    all_elements,
                     theme,
                     first_widget_id,
                     widget_focused,
@@ -446,7 +453,25 @@ fn render_single_element(
     }
 }
 
-// Helper functions for window sizing
+// Helper functions
+
+fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
+    for element in elements {
+        match element {
+            Element::Choice { label: el_label, options, .. } if el_label == label => {
+                return Some(options.clone());
+            }
+            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
+                // Recursively search in nested elements
+                if let Some(options) = find_choice_options(elements, label) {
+                    return Some(options);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 35.0; // Title bar with some padding
