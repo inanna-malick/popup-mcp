@@ -71,13 +71,50 @@ pub enum Condition {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComparisonOp {
     Greater,
     Less,
     GreaterEqual,
     LessEqual,
     Equal,
+}
+
+// Custom serialization/deserialization to handle operator strings
+impl Serialize for ComparisonOp {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            ComparisonOp::Greater => ">",
+            ComparisonOp::Less => "<",
+            ComparisonOp::GreaterEqual => ">=",
+            ComparisonOp::LessEqual => "<=",
+            ComparisonOp::Equal => "=",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for ComparisonOp {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            ">" => Ok(ComparisonOp::Greater),
+            "<" => Ok(ComparisonOp::Less),
+            ">=" => Ok(ComparisonOp::GreaterEqual),
+            "<=" => Ok(ComparisonOp::LessEqual),
+            "=" | "==" => Ok(ComparisonOp::Equal),
+            _ => Err(serde::de::Error::custom(format!(
+                "Invalid comparison operator: {}. Expected one of: >, <, >=, <=, =",
+                s
+            ))),
+        }
+    }
 }
 
 /// Unified value type for all widget states

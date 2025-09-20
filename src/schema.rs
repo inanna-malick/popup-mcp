@@ -25,228 +25,220 @@ pub fn get_input_schema() -> serde_json::Value {
     json!({
         "type": "object",
         "properties": {
-            "json": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Title of the popup window"
-                    },
-                    "elements": {
-                        "type": "array",
-                        "description": "Array of UI elements to display",
-                        "items": {
-                            "oneOf": [
-                                // Text element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "text"},
-                                        "content": {
-                                            "type": "string",
-                                            "description": "Text to display"
-                                        }
-                                    },
-                                    "required": ["type", "content"],
-                                    "additionalProperties": false
-                                },
-                                // Slider element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "slider"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the slider"
-                                        },
-                                        "min": {
-                                            "type": "number",
-                                            "description": "Minimum value"
-                                        },
-                                        "max": {
-                                            "type": "number",
-                                            "description": "Maximum value"
-                                        },
-                                        "default": {
-                                            "type": "number",
-                                            "description": "Default value (optional, defaults to midpoint)"
-                                        }
-                                    },
-                                    "required": ["type", "label", "min", "max"],
-                                    "additionalProperties": false
-                                },
-                                // Checkbox element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "checkbox"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the checkbox"
-                                        },
-                                        "default": {
-                                            "type": "boolean",
-                                            "description": "Default checked state",
-                                            "default": false
-                                        }
-                                    },
-                                    "required": ["type", "label"],
-                                    "additionalProperties": false
-                                },
-                                // Textbox element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "textbox"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the text input"
-                                        },
-                                        "placeholder": {
-                                            "type": "string",
-                                            "description": "Placeholder text (optional)"
-                                        },
-                                        "rows": {
-                                            "type": "integer",
-                                            "minimum": 1,
-                                            "description": "Number of rows for multiline input (optional)"
-                                        }
-                                    },
-                                    "required": ["type", "label"],
-                                    "additionalProperties": false
-                                },
-                                // Choice (single selection) element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "choice"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the choice selector"
-                                        },
-                                        "options": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "minItems": 1,
-                                            "description": "Array of options to choose from"
-                                        }
-                                    },
-                                    "required": ["type", "label", "options"],
-                                    "additionalProperties": false
-                                },
-                                // Multiselect element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "multiselect"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the multiselect"
-                                        },
-                                        "options": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "minItems": 1,
-                                            "description": "Array of options for multiple selection"
-                                        }
-                                    },
-                                    "required": ["type", "label", "options"],
-                                    "additionalProperties": false
-                                },
-                                // Group element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "group"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the group"
-                                        },
-                                        "elements": {
-                                            "$ref": "#/properties/json/properties/elements",
-                                            "description": "Nested elements within the group"
-                                        }
-                                    },
-                                    "required": ["type", "label", "elements"],
-                                    "additionalProperties": false
-                                },
-                                // Conditional element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "conditional"},
-                                        "condition": {
-                                            "oneOf": [
-                                                {
-                                                    "type": "string",
-                                                    "description": "Simple condition: checkbox label to check"
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "checked": {
-                                                            "type": "string",
-                                                            "description": "Checkbox label to check"
-                                                        }
-                                                    },
-                                                    "required": ["checked"],
-                                                    "additionalProperties": false
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "selected": {
-                                                            "type": "string",
-                                                            "description": "Choice element label"
-                                                        },
-                                                        "value": {
-                                                            "type": "string",
-                                                            "description": "Value that must be selected"
-                                                        }
-                                                    },
-                                                    "required": ["selected", "value"],
-                                                    "additionalProperties": false
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "count": {
-                                                            "type": "string",
-                                                            "description": "Multiselect element label"
-                                                        },
-                                                        "op": {
-                                                            "enum": [">", "<", ">=", "<=", "="],
-                                                            "description": "Comparison operator"
-                                                        },
-                                                        "value": {
-                                                            "type": "integer",
-                                                            "description": "Value to compare count against"
-                                                        }
-                                                    },
-                                                    "required": ["count", "op", "value"],
-                                                    "additionalProperties": false
-                                                }
-                                            ],
-                                            "description": "Condition for showing elements"
-                                        },
-                                        "elements": {
-                                            "$ref": "#/properties/json/properties/elements",
-                                            "description": "Elements shown when condition is true"
-                                        }
-                                    },
-                                    "required": ["type", "condition", "elements"],
-                                    "additionalProperties": false
+            "title": {
+                "type": "string",
+                "description": "Title of the popup window"
+            },
+            "elements": {
+                "type": "array",
+                "description": "Array of UI elements to display",
+                "items": {
+                    "oneOf": [
+                        // Text element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "text"},
+                                "content": {
+                                    "type": "string",
+                                    "description": "Text to display"
                                 }
-                            ]
+                            },
+                            "required": ["type", "content"],
+                            "additionalProperties": false
+                        },
+                        // Slider element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "slider"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the slider"
+                                },
+                                "min": {
+                                    "type": "number",
+                                    "description": "Minimum value"
+                                },
+                                "max": {
+                                    "type": "number",
+                                    "description": "Maximum value"
+                                },
+                                "default": {
+                                    "type": "number",
+                                    "description": "Default value (optional, defaults to midpoint)"
+                                }
+                            },
+                            "required": ["type", "label", "min", "max"],
+                            "additionalProperties": false
+                        },
+                        // Checkbox element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "checkbox"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the checkbox"
+                                },
+                                "default": {
+                                    "type": "boolean",
+                                    "description": "Default checked state",
+                                    "default": false
+                                }
+                            },
+                            "required": ["type", "label"],
+                            "additionalProperties": false
+                        },
+                        // Textbox element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "textbox"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the text input"
+                                },
+                                "placeholder": {
+                                    "type": "string",
+                                    "description": "Placeholder text (optional)"
+                                },
+                                "rows": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Number of rows for multiline input (optional)"
+                                }
+                            },
+                            "required": ["type", "label"],
+                            "additionalProperties": false
+                        },
+                        // Choice (single selection) element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "choice"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the choice selector"
+                                },
+                                "options": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "minItems": 1,
+                                    "description": "Array of options to choose from"
+                                }
+                            },
+                            "required": ["type", "label", "options"],
+                            "additionalProperties": false
+                        },
+                        // Multiselect element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "multiselect"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the multiselect"
+                                },
+                                "options": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "minItems": 1,
+                                    "description": "Array of options for multiple selection"
+                                }
+                            },
+                            "required": ["type", "label", "options"],
+                            "additionalProperties": false
+                        },
+                        // Group element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "group"},
+                                "label": {
+                                    "type": "string",
+                                    "description": "Label for the group"
+                                },
+                                "elements": {
+                                    "$ref": "#/properties/json/properties/elements",
+                                    "description": "Nested elements within the group"
+                                }
+                            },
+                            "required": ["type", "label", "elements"],
+                            "additionalProperties": false
+                        },
+                        // Conditional element
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "conditional"},
+                                "condition": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string",
+                                            "description": "Simple condition: checkbox label to check"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "checked": {
+                                                    "type": "string",
+                                                    "description": "Checkbox label to check"
+                                                }
+                                            },
+                                            "required": ["checked"],
+                                            "additionalProperties": false
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "selected": {
+                                                    "type": "string",
+                                                    "description": "Choice element label"
+                                                },
+                                                "value": {
+                                                    "type": "string",
+                                                    "description": "Value that must be selected"
+                                                }
+                                            },
+                                            "required": ["selected", "value"],
+                                            "additionalProperties": false
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "string",
+                                                    "description": "Multiselect element label"
+                                                },
+                                                "op": {
+                                                    "enum": [">", "<", ">=", "<=", "="],
+                                                    "description": "Comparison operator"
+                                                },
+                                                "value": {
+                                                    "type": "integer",
+                                                    "description": "Value to compare count against"
+                                                }
+                                            },
+                                            "required": ["count", "op", "value"],
+                                            "additionalProperties": false
+                                        }
+                                    ],
+                                    "description": "Condition for showing elements"
+                                },
+                                "elements": {
+                                    "$ref": "#/properties/json/properties/elements",
+                                    "description": "Elements shown when condition is true"
+                                }
+                            },
+                            "required": ["type", "condition", "elements"],
+                            "additionalProperties": false
                         }
-                    }
-                },
-                "required": ["title", "elements"],
-                "additionalProperties": false
+                    ]
+                }
             }
         },
-        "required": ["json"],
-        "additionalProperties": false
+        "required": ["title", "elements"],
     })
 }
 

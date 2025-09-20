@@ -91,7 +91,7 @@ impl PopupApp {
         Self {
             definition,
             state,
-            theme: Theme::soft_focus(),
+            theme: Theme::default(), // Uses solarized_dark
             result,
             first_interactive_widget_id: None,
             first_widget_focused: false,
@@ -183,75 +183,24 @@ fn render_elements_in_grid(
     widget_focused: bool,
     grid_id_suffix: &str,
 ) {
-    use egui::Grid;
+    // Render all elements in order with proper vertical layout
+    ui.vertical(|ui| {
+        for (idx, element) in elements.iter().enumerate() {
+            render_single_element(
+                ui,
+                element,
+                state,
+                all_elements,
+                theme,
+                first_widget_id,
+                widget_focused,
+                grid_id_suffix,
+            );
 
-    // Collect sliders first
-    let mut sliders = Vec::new();
-    let mut other_elements = Vec::new();
-
-    for element in elements {
-        if matches!(element, Element::Slider { .. }) {
-            sliders.push(element);
-        } else {
-            other_elements.push(element);
+            // Force line break after each element
+            ui.end_row();
         }
-    }
-
-    // Render sliders in a 2x2 grid
-    if !sliders.is_empty() {
-        Grid::new(format!("slider_grid_{}", grid_id_suffix))
-            .num_columns(2)
-            .spacing([10.0, 4.0])
-            .min_col_width(200.0)
-            .show(ui, |ui| {
-                for (idx, slider) in sliders.iter().enumerate() {
-                    if let Element::Slider {
-                        label, min, max, ..
-                    } = slider
-                    {
-                        if let Some(value) = state.get_number_mut(label) {
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new(format!("{}:", label)).color(theme.text_primary),
-                                );
-                                let slider = egui::Slider::new(value, *min..=*max)
-                                    .show_value(false)
-                                    .clamping(egui::SliderClamping::Always);
-                                let response = ui.add(slider);
-                                ui.label(
-                                    RichText::new(format!("{}/{}", *value as i32, *max as i32))
-                                        .color(theme.text_secondary)
-                                        .monospace(),
-                                );
-
-                                if first_widget_id.is_none() && !widget_focused && idx == 0 {
-                                    *first_widget_id = Some(response.id);
-                                }
-                            });
-
-                            // End row after every 2 sliders
-                            if idx % 2 == 1 {
-                                ui.end_row();
-                            }
-                        }
-                    }
-                }
-            });
-    }
-
-    // Render other elements normally
-    for element in other_elements {
-        render_single_element(
-            ui,
-            element,
-            state,
-            all_elements,
-            theme,
-            first_widget_id,
-            widget_focused,
-            grid_id_suffix,
-        );
-    }
+    });
 }
 
 fn render_single_element(
@@ -346,6 +295,29 @@ fn render_single_element(
             }
         }
 
+        Element::Slider { label, min, max, default: _ } => {
+            ui.group(|ui| {
+                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                if let Some(value) = state.get_number_mut(label) {
+                    ui.horizontal(|ui| {
+                        let slider = egui::Slider::new(value, *min..=*max)
+                            .show_value(false)
+                            .clamping(egui::SliderClamping::Always);
+                        let response = ui.add(slider);
+                        ui.label(
+                            RichText::new(format!("{:.1}/{:.1}", *value, *max))
+                                .color(theme.text_secondary)
+                                .monospace(),
+                        );
+
+                        if first_widget_id.is_none() && !widget_focused {
+                            *first_widget_id = Some(response.id);
+                        }
+                    });
+                }
+            });
+        }
+
         Element::Textbox {
             label,
             placeholder,
@@ -385,7 +357,10 @@ fn render_single_element(
             });
         }
 
-        Element::Conditional { condition, elements } => {
+        Element::Conditional {
+            condition,
+            elements,
+        } => {
             // Check if condition is met
             let show = match condition {
                 Condition::Simple(label) => {
@@ -448,8 +423,6 @@ fn render_single_element(
                 );
             }
         }
-
-        _ => {}
     }
 }
 
@@ -458,7 +431,11 @@ fn render_single_element(
 fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
     for element in elements {
         match element {
-            Element::Choice { label: el_label, options, .. } if el_label == label => {
+            Element::Choice {
+                label: el_label,
+                options,
+                ..
+            } if el_label == label => {
                 return Some(options.clone());
             }
             Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
@@ -483,7 +460,8 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     height += 50.0; // TopBottomPanel with Submit button
 
     // Reasonable bounds for complex UIs
-    max_width = max_width.min(450.0).max(320.0); // Wide enough for columns
+    // Allow wider windows for slider grids (need ~420px for 2 columns)
+    max_width = max_width.min(500.0).max(320.0); // Increased from 450 to accommodate sliders
     height = height.min(600.0); // Should fit on most screens
 
     (max_width, height)
@@ -496,6 +474,13 @@ fn calculate_elements_size(
     depth: usize,
     include_conditionals: bool,
 ) {
+    // Count sliders to see if we need grid layout
+    let slider_count = elements
+        .iter()
+        .filter(|e| matches!(e, Element::Slider { .. }))
+        .count();
+    let uses_slider_grid = slider_count > 1;
+
     for element in elements {
         match element {
             Element::Text { content: text } => {
@@ -503,6 +488,13 @@ fn calculate_elements_size(
                 *max_width = max_width.max(text.len() as f32 * 7.0 + 20.0);
             }
             Element::Slider { label, .. } => {
+                if uses_slider_grid {
+                    // For grid layout: need width for 2 columns + spacing
+                    // Each column needs: label + slider + value display
+                    *max_width = max_width.max(420.0); // 200*2 + spacing
+                                                       // Height is per row (2 sliders per row)
+                                                       // Already handled by incrementing for each slider
+                }
                 *height += 20.0; // Very compact slider line
                 *max_width = max_width.max(label.len() as f32 * 7.0 + 150.0);
             }

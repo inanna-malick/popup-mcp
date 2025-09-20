@@ -14,7 +14,7 @@ pub use gui::render_popup;
 pub use gui::render_popup_sequential;
 pub use json_parser::{parse_popup_json, parse_popup_json_value};
 pub use models::{
-    PopupDefinition, PopupResult, Element, Condition, ComparisonOp, ElementValue, PopupState
+    ComparisonOp, Condition, Element, ElementValue, PopupDefinition, PopupResult, PopupState,
 };
 pub use schema::{
     get_input_schema, get_popup_tool_schema, get_schema_description, get_simple_input_schema,
