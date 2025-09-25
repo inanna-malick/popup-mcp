@@ -8,10 +8,50 @@ use crate::theme::Theme;
 
 mod widget_renderers;
 
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    pub fn collect_active_elements_for_test(
+        elements: &[Element],
+        state: &PopupState,
+        all_elements: &[Element],
+    ) -> Vec<String> {
+        super::collect_active_elements(elements, state, all_elements)
+    }
+}
+
 fn setup_custom_fonts(ctx: &Context) {
     // Install image loaders for egui-twemoji (required for emoji rendering)
     egui_extras::install_image_loaders(ctx);
-    log::info!("Installed image loaders for emoji support");
+
+    // Configure moderately larger text sizes (40% increase = 1.4x multiplier)
+    let mut style = (*ctx.style()).clone();
+
+    // Increase all text styles by ~40%
+    style.text_styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::new(20.0, egui::FontFamily::Proportional), // was ~14.5, now 20
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Body,
+        egui::FontId::new(17.0, egui::FontFamily::Proportional), // was ~12, now 17
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Button,
+        egui::FontId::new(15.0, egui::FontFamily::Proportional), // was ~11, now 15
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Small,
+        egui::FontId::new(13.0, egui::FontFamily::Proportional), // was ~9, now 13
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Monospace,
+        egui::FontId::new(22.0, egui::FontFamily::Monospace), // was ~10, now 22
+    );
+
+    ctx.set_style(style);
+    log::info!("Installed image loaders for emoji support and configured larger text sizes");
 }
 
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
@@ -23,7 +63,7 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     let result = Arc::new(Mutex::new(None));
     let result_clone = result.clone();
 
-    let title = definition.title.clone();
+    let title = definition.effective_title().to_string();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([width, height])
@@ -99,7 +139,18 @@ impl PopupApp {
     }
 
     fn send_result_and_close(&mut self, ctx: &Context) {
-        let popup_result = PopupResult::from_state_with_context(&self.state, &self.definition);
+        // Collect only active element labels based on current state
+        let active_labels = collect_active_elements(
+            &self.definition.elements,
+            &self.state,
+            &self.definition.elements,
+        );
+
+        let popup_result = PopupResult::from_state_with_active_elements(
+            &self.state,
+            &self.definition,
+            &active_labels,
+        );
         *self.result.lock().unwrap() = Some(popup_result);
         // Use ViewportCommand::Close to close the window
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -185,7 +236,7 @@ fn render_elements_in_grid(
 ) {
     // Render all elements in order with proper vertical layout
     ui.vertical(|ui| {
-        for (idx, element) in elements.iter().enumerate() {
+        for (_idx, element) in elements.iter().enumerate() {
             render_single_element(
                 ui,
                 element,
@@ -220,13 +271,13 @@ fn render_single_element(
 
         Element::Choice { label, options, .. } => {
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                ui.label(RichText::new(label).color(theme.electric_blue).strong());
                 if let Some(selected) = state.get_choice_mut(label) {
                     for (i, option) in options.iter().enumerate() {
                         let is_selected = *selected == i;
                         let option_text = if is_selected {
                             RichText::new(format!("▸ {}", option))
-                                .color(theme.text_primary)
+                                .color(theme.neon_cyan)
                                 .strong()
                         } else {
                             RichText::new(format!("  {}", option)).color(theme.text_primary)
@@ -243,7 +294,7 @@ fn render_single_element(
         Element::Multiselect { label, options } => {
             ui.group(|ui| {
                 if let Some(selections) = state.get_multichoice_mut(label) {
-                    ui.label(RichText::new(label).color(theme.text_primary).strong());
+                    ui.label(RichText::new(label).color(theme.matrix_green).strong());
                     ui.horizontal(|ui| {
                         if ui.small_button("All").clicked() {
                             selections.iter_mut().for_each(|s| *s = true);
@@ -260,7 +311,7 @@ fn render_single_element(
                             if i < selections.len() {
                                 let checkbox_text = if selections[i] {
                                     RichText::new(format!("☑ {}", option))
-                                        .color(theme.text_primary)
+                                        .color(theme.matrix_green)
                                         .strong()
                                 } else {
                                     RichText::new(format!("☐ {}", option)).color(theme.text_primary)
@@ -283,7 +334,7 @@ fn render_single_element(
             if let Some(value) = state.get_boolean_mut(label) {
                 let checkbox_text = if *value {
                     RichText::new(format!("☑ {}", label))
-                        .color(theme.text_primary)
+                        .color(theme.matrix_green)
                         .strong()
                 } else {
                     RichText::new(format!("☐ {}", label)).color(theme.text_primary)
@@ -297,7 +348,7 @@ fn render_single_element(
 
         Element::Slider { label, min, max, default: _ } => {
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                ui.label(RichText::new(label).color(theme.warning_orange).strong());
                 if let Some(value) = state.get_number_mut(label) {
                     ui.horizontal(|ui| {
                         let slider = egui::Slider::new(value, *min..=*max)
@@ -307,7 +358,7 @@ fn render_single_element(
                         ui.label(
                             RichText::new(format!("{:.1}/{:.1}", *value, *max))
                                 .color(theme.text_secondary)
-                                .monospace(),
+                                .text_style(egui::TextStyle::Small),
                         );
 
                         if first_widget_id.is_none() && !widget_focused {
@@ -324,7 +375,7 @@ fn render_single_element(
             rows,
         } => {
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                ui.label(RichText::new(label).color(theme.neon_purple).strong());
                 if let Some(value) = state.get_text_mut(label) {
                     let height = rows.unwrap_or(1) as f32 * 20.0;
                     let text_edit = egui::TextEdit::multiline(value)
@@ -342,7 +393,7 @@ fn render_single_element(
 
         Element::Group { label, elements } => {
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.text_primary).strong());
+                ui.label(RichText::new(label).color(theme.neon_pink).strong());
                 ui.add_space(4.0);
                 render_elements_in_grid(
                     ui,
@@ -361,47 +412,8 @@ fn render_single_element(
             condition,
             elements,
         } => {
-            // Check if condition is met
-            let show = match condition {
-                Condition::Simple(label) => {
-                    // Check if a checkbox with this label is true
-                    state.get_boolean(label)
-                }
-                Condition::Checked { checked } => {
-                    // Check if a checkbox with this label is true
-                    state.get_boolean(checked)
-                }
-                Condition::Selected { selected, value } => {
-                    // Check if a choice with this label has the specified value selected
-                    let selected_idx = state.get_choice(selected);
-
-                    // Find the Choice element with matching label to get its options
-                    if let Some(options) = find_choice_options(all_elements, selected) {
-                        options
-                            .get(selected_idx)
-                            .map(|selected_option| selected_option == value)
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
-                }
-                Condition::Count { count, value, op } => {
-                    // Count selected items in a multiselect
-                    if let Some(selections) = state.get_multichoice(count) {
-                        let selected_count = selections.iter().filter(|&&x| x).count();
-                        use crate::models::ComparisonOp;
-                        match op {
-                            ComparisonOp::Greater => selected_count > *value as usize,
-                            ComparisonOp::Less => selected_count < *value as usize,
-                            ComparisonOp::GreaterEqual => selected_count >= *value as usize,
-                            ComparisonOp::LessEqual => selected_count <= *value as usize,
-                            ComparisonOp::Equal => selected_count == *value as usize,
-                        }
-                    } else {
-                        false
-                    }
-                }
-            };
+            // Check if condition is met using shared helper
+            let show = evaluate_condition(condition, state, all_elements);
 
             if show {
                 // Create unique ID based on condition type
@@ -428,6 +440,86 @@ fn render_single_element(
 
 // Helper functions
 
+/// Collect only the active elements based on current state (evaluating conditionals)
+fn collect_active_elements(
+    elements: &[Element],
+    state: &PopupState,
+    all_elements: &[Element],
+) -> Vec<String> {
+    let mut active_labels = Vec::new();
+
+    for element in elements {
+        match element {
+            Element::Slider { label, .. }
+            | Element::Checkbox { label, .. }
+            | Element::Textbox { label, .. }
+            | Element::Choice { label, .. }
+            | Element::Multiselect { label, .. } => {
+                active_labels.push(label.clone());
+            }
+            Element::Group { elements, .. } => {
+                // Recursively collect from group
+                active_labels.extend(collect_active_elements(elements, state, all_elements));
+            }
+            Element::Conditional { condition, elements } => {
+                // Only collect from conditional if condition is met
+                if evaluate_condition(condition, state, all_elements) {
+                    active_labels.extend(collect_active_elements(elements, state, all_elements));
+                }
+            }
+            Element::Text { .. } => {
+                // Text elements don't have state
+            }
+        }
+    }
+
+    active_labels
+}
+
+/// Evaluate if a condition is met based on current state
+fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
+    match condition {
+        Condition::Simple(label) => {
+            // Check if a checkbox with this label is true
+            state.get_boolean(label)
+        }
+        Condition::Checked { checked } => {
+            // Check if a checkbox with this label is true
+            state.get_boolean(checked)
+        }
+        Condition::Selected { selected, value } => {
+            // Check if a choice with this label has the specified value selected
+            let selected_idx = state.get_choice(selected);
+
+            // Find the Choice element with matching label to get its options
+            if let Some(options) = find_choice_options(all_elements, selected) {
+                options
+                    .get(selected_idx)
+                    .map(|selected_option| selected_option == value)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+        Condition::Count { count, value, op } => {
+            // Count selected items in a multiselect
+            if let Some(selections) = state.get_multichoice(count) {
+                let selected_count = selections.iter().filter(|&&x| x).count();
+                use crate::models::ComparisonOp;
+                match op {
+                    ComparisonOp::Greater => selected_count > *value as usize,
+                    ComparisonOp::Less => selected_count < *value as usize,
+                    ComparisonOp::GreaterEqual => selected_count >= *value as usize,
+                    ComparisonOp::LessEqual => selected_count <= *value as usize,
+                    ComparisonOp::Equal => selected_count == *value as usize,
+                }
+            } else {
+                false
+            }
+        }
+    }
+}
+
 fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
     for element in elements {
         match element {
@@ -451,18 +543,22 @@ fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>>
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 35.0; // Title bar with some padding
-    let mut max_width: f32 = 350.0; // Reasonable default width
+    let mut height: f32 = 60.0; // Title bar with proper padding
+    let mut max_width: f32 = 400.0; // More reasonable default width
 
     calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
 
     // Add space for the Submit button panel (separator + button + padding)
-    height += 50.0; // TopBottomPanel with Submit button
+    height += 70.0; // TopBottomPanel with Submit button and spacing
+
+    // Add base padding for window chrome and margins
+    height += 20.0; // Additional margin
+    max_width += 40.0; // Side margins
 
     // Reasonable bounds for complex UIs
     // Allow wider windows for slider grids (need ~420px for 2 columns)
-    max_width = max_width.min(500.0).max(320.0); // Increased from 450 to accommodate sliders
-    height = height.min(600.0); // Should fit on most screens
+    max_width = max_width.min(700.0).max(400.0); // Increased minimum and maximum
+    height = height.min(800.0); // Allow taller windows
 
     (max_width, height)
 }
@@ -484,50 +580,47 @@ fn calculate_elements_size(
     for element in elements {
         match element {
             Element::Text { content: text } => {
-                *height += 20.0; // Compact text
-                *max_width = max_width.max(text.len() as f32 * 7.0 + 20.0);
+                *height += 40.0; // Moderately larger text requires more height
+                *max_width = max_width.max(text.len() as f32 * 12.0 + 40.0); // Moderately larger character width
             }
             Element::Slider { label, .. } => {
                 if uses_slider_grid {
-                    // For grid layout: need width for 2 columns + spacing
+                    // For grid layout: need width for 2 columns + spacing with larger text
                     // Each column needs: label + slider + value display
-                    *max_width = max_width.max(420.0); // 200*2 + spacing
-                                                       // Height is per row (2 sliders per row)
-                                                       // Already handled by incrementing for each slider
+                    *max_width = max_width.max(550.0); // More space for grid layout with moderately larger text
                 }
-                *height += 20.0; // Very compact slider line
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 150.0);
+                *height += 50.0; // Moderately larger slider height for bigger text and spacing
+                *max_width = max_width.max(label.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
             }
             Element::Checkbox { label, .. } => {
-                *height += 18.0; // Tiny checkbox
-                *max_width = max_width.max(label.len() as f32 * 7.0 + 50.0);
+                *height += 35.0; // Moderately larger checkbox height for bigger text
+                *max_width = max_width.max(label.len() as f32 * 12.0 + 90.0); // Moderately larger character width + checkbox
             }
             Element::Textbox { rows, .. } => {
-                *height += 20.0 + 18.0 * (*rows).unwrap_or(1) as f32; // Minimal textbox
-                *max_width = max_width.max(320.0);
+                *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
+                *max_width = max_width.max(420.0); // More width for text input with moderately larger font
             }
             Element::Choice { options, .. } => {
-                *height += 20.0; // Label
-                *height += 18.0 * options.len() as f32; // Tiny radio buttons
+                *height += 35.0; // Moderately larger label with proper spacing
+                *height += 30.0 * options.len() as f32; // Moderately larger radio button height
                 let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 7.0 + 60.0);
+                *max_width = max_width.max((longest as f32) * 12.0 + 110.0); // Moderately larger character width + radio buttons
             }
             Element::Multiselect { options, .. } => {
-                *height += 20.0; // Label
-                *height += 20.0; // All/None buttons
-                                 // If using columns, height is reduced
+                *height += 35.0; // Moderately larger label with proper spacing
+                *height += 40.0; // Moderately larger All/None buttons with spacing
                 if options.len() > 4 {
                     let rows_per_column = options.len().div_ceil(2);
-                    *height += 18.0 * rows_per_column as f32;
-                    *max_width = max_width.max(300.0); // Need more width for columns
+                    *height += 30.0 * rows_per_column as f32; // Moderately larger checkbox height
+                    *max_width = max_width.max(500.0); // More width for columns with moderately larger text
                 } else {
-                    *height += 18.0 * options.len() as f32;
+                    *height += 30.0 * options.len() as f32; // Moderately larger checkbox height
                     let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                    *max_width = max_width.max((longest as f32) * 8.0 + 100.0);
+                    *max_width = max_width.max((longest as f32) * 12.0 + 130.0); // Moderately larger character width + more space
                 }
             }
             Element::Group { elements, .. } => {
-                *height += 18.0; // Tiny group header
+                *height += 40.0; // Moderately larger group header height for bigger text
                 calculate_elements_size(
                     elements,
                     height,
@@ -535,7 +628,7 @@ fn calculate_elements_size(
                     depth + 1,
                     include_conditionals,
                 );
-                *height += 2.0; // Almost no group padding
+                *height += 15.0; // Proper group padding
             }
             Element::Conditional {
                 elements,
@@ -562,6 +655,6 @@ fn calculate_elements_size(
                 }
             }
         }
-        *height += 1.0; // Almost no item spacing
+        *height += 5.0; // Proper item spacing
     }
 }

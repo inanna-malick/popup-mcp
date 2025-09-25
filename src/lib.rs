@@ -12,7 +12,10 @@ mod tests;
 pub use gui::render_popup;
 #[cfg(feature = "async")]
 pub use gui::render_popup_sequential;
-pub use json_parser::{parse_popup_json, parse_popup_json_value};
+pub use json_parser::{
+    detect_popup_format, parse_popup_from_direct, parse_popup_from_mcp_wrapper, parse_popup_json,
+    parse_popup_json_value, validate_popup_json,
+};
 pub use models::{
     ComparisonOp, Condition, Element, ElementValue, PopupDefinition, PopupResult, PopupState,
 };

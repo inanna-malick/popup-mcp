@@ -1,10 +1,9 @@
-//! Example demonstrating multiple concurrent popups from the same process
+//! Example demonstrating multiple sequential popups from the same process
 
-use popup_mcp::{render_popup_sequential, PopupDefinition, PopupResult};
+use popup_mcp::{render_popup, PopupDefinition, PopupResult};
 use serde_json::json;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define three different popups
     let popup1_def: PopupDefinition = serde_json::from_value(json!({
         "title": "User Settings",
@@ -34,31 +33,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]
     }))?;
 
-    println!("Spawning 3 popups...");
-    println!("Due to GUI limitations, popups will appear one at a time in sequence.");
+    println!("Showing 3 popups sequentially...");
     println!("Close each popup to see the next one.");
     println!();
 
-    // Spawn all three popups (they will show sequentially)
-    let handle1 = render_popup_sequential(popup1_def);
-    let handle2 = render_popup_sequential(popup2_def);
-    let handle3 = render_popup_sequential(popup3_def);
-
-    // Wait for all popups to complete
-    let (result1, result2, result3) = tokio::join!(handle1, handle2, handle3);
-
-    // Process results
-    match result1 {
+    // Show popups one at a time
+    println!("Showing User Settings popup...");
+    match render_popup(popup1_def) {
         Ok(result) => print_result("User Settings", result),
         Err(e) => println!("User Settings popup error: {}", e),
     }
 
-    match result2 {
+    println!("\nShowing Feedback Form popup...");
+    match render_popup(popup2_def) {
         Ok(result) => print_result("Feedback Form", result),
         Err(e) => println!("Feedback Form popup error: {}", e),
     }
 
-    match result3 {
+    println!("\nShowing Quick Survey popup...");
+    match render_popup(popup3_def) {
         Ok(result) => print_result("Quick Survey", result),
         Err(e) => println!("Quick Survey popup error: {}", e),
     }

@@ -27,6 +27,7 @@ struct Args {
     /// List available templates and exit
     #[arg(long)]
     list_templates: bool,
+
 }
 
 fn run_stdin_mode() -> Result<()> {

@@ -237,21 +237,21 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                         "{}".to_string()
                                     });
 
-                                // Spawn popup binary in test mode
-                                // Since we're the same binary, just spawn ourselves with --test flag
+                                // Spawn popup binary in stdin mode
+                                // Since we're the same binary, just spawn ourselves with --stdin flag
                                 let popup_path = std::env::current_exe().ok().map(|path| {
                                     log::info!("Current exe: {:?}", path);
                                     path
                                 });
 
-                                // Spawn popup binary with --test flag
+                                // Spawn popup binary with --stdin flag
                                 let child = if let Some(binary_path) = popup_path {
                                     log::info!(
-                                        "Spawning popup binary with --test: {:?}",
+                                        "Spawning popup binary with --stdin: {:?}",
                                         binary_path
                                     );
                                     std::process::Command::new(binary_path)
-                                        .arg("--test")
+                                        .arg("--stdin")
                                         .stdin(std::process::Stdio::piped())
                                         .stdout(std::process::Stdio::piped())
                                         .stderr(std::process::Stdio::piped())
@@ -270,7 +270,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                             "popup",
                                             "--quiet",
                                             "--",
-                                            "--test",
+                                            "--stdin",
                                         ])
                                         .current_dir(env!("CARGO_MANIFEST_DIR"))
                                         .stdin(std::process::Stdio::piped())
@@ -384,12 +384,12 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                 "{}".to_string()
                                             });
 
-                                        // Spawn popup binary in test mode (same as above)
+                                        // Spawn popup binary in stdin mode (same as above)
                                         let popup_path = std::env::current_exe().ok();
 
                                         let child = if let Some(binary_path) = popup_path {
                                             std::process::Command::new(binary_path)
-                                                .arg("--test")
+                                                .arg("--stdin")
                                                 .stdin(std::process::Stdio::piped())
                                                 .stdout(std::process::Stdio::piped())
                                                 .stderr(std::process::Stdio::piped())
@@ -402,7 +402,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                 })
                                         } else {
                                             std::process::Command::new("cargo")
-                                                .args(["run", "--release", "--bin", "popup", "--quiet", "--", "--test"])
+                                                .args(["run", "--release", "--bin", "popup", "--quiet", "--", "--stdin"])
                                                 .current_dir(env!("CARGO_MANIFEST_DIR"))
                                                 .stdin(std::process::Stdio::piped())
                                                 .stdout(std::process::Stdio::piped())

@@ -24,7 +24,7 @@ fn test_parse_example_files() {
 
             let popup = result.unwrap();
             assert!(
-                !popup.title.is_empty(),
+                popup.title.as_ref().map_or(false, |t| !t.is_empty()),
                 "Title should not be empty in {:?}",
                 path
             );

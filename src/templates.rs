@@ -161,11 +161,23 @@ fn extract_template_variables(template: &str) -> Vec<String> {
 
             // Parse the variable name (might have whitespace or be in #if, #each, etc.)
             let trimmed = var_name.trim();
-            if !trimmed.is_empty() && !trimmed.starts_with('#') && !trimmed.starts_with('/') {
-                // Simple variable reference
-                let var = trimmed.split_whitespace().next().unwrap_or("");
-                if !var.is_empty() && !variables.contains(&var.to_string()) {
-                    variables.push(var.to_string());
+            if !trimmed.is_empty() && !trimmed.starts_with('/') {
+                if trimmed.starts_with('#') {
+                    // Handle Handlebars helpers like #if, #each
+                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        // Extract variable from helper: "#if premium" -> "premium"
+                        let var = parts[1];
+                        if !var.is_empty() && !variables.contains(&var.to_string()) {
+                            variables.push(var.to_string());
+                        }
+                    }
+                } else {
+                    // Simple variable reference
+                    let var = trimmed.split_whitespace().next().unwrap_or("");
+                    if !var.is_empty() && !variables.contains(&var.to_string()) {
+                        variables.push(var.to_string());
+                    }
                 }
             }
         } else if in_var {

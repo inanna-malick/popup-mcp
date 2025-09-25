@@ -1,5 +1,5 @@
 use crate::json_parser::parse_popup_json;
-use crate::models::{ComparisonOp, Condition, Element};
+use crate::models::{Condition, Element};
 
 #[test]
 fn test_simple_confirmation() {
@@ -11,7 +11,7 @@ fn test_simple_confirmation() {
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.title, "Confirm");
+    assert_eq!(popup.title, Some("Confirm".to_string()));
     assert_eq!(popup.elements.len(), 1);
 
     match &popup.elements[0] {
@@ -143,7 +143,7 @@ fn test_complex_conditional() {
             },
             {
                 "type": "conditional",
-                "condition": {"count": "Items", "op": "Greater", "value": 5},
+                "condition": {"count": "Items", "op": ">", "value": 5},
                 "elements": [
                     {"type": "text", "content": "More than 5 items"}
                 ]
@@ -171,7 +171,7 @@ fn test_complex_conditional() {
         Element::Conditional { condition, .. } => match condition {
             Condition::Count { count, op, value } => {
                 assert_eq!(count, "Items");
-                assert_eq!(*op, ComparisonOp::Greater);
+                assert_eq!(*op, crate::models::ComparisonOp::Greater);
                 assert_eq!(*value, 5);
             }
             _ => panic!("Expected Count condition"),
@@ -268,7 +268,7 @@ fn test_empty_elements() {
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.title, "Empty");
+    assert_eq!(popup.title, Some("Empty".to_string()));
     assert_eq!(popup.elements.len(), 0);
 }
 
@@ -291,13 +291,15 @@ fn test_missing_required_fields() {
         "elements": []
     }"#;
 
-    // Should fail because title is missing
-    assert!(parse_popup_json(json).is_err());
+    // Should succeed because title is now optional
+    let popup = parse_popup_json(json).unwrap();
+    assert_eq!(popup.title, None);
+    assert_eq!(popup.effective_title(), "Dialog");
 
     let json = r#"{
         "title": "No Elements"
     }"#;
 
-    // Should fail because elements is missing
+    // Should fail because elements is still required
     assert!(parse_popup_json(json).is_err());
 }
