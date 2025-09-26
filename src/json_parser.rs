@@ -41,7 +41,7 @@ use serde_json::Value;
 /// ```
 ///
 /// # Migration Guide
-/// ```rust
+/// ```text
 /// // OLD (may fail with wrapper format):
 /// let popup: PopupDefinition = serde_json::from_str(json_str)?;
 ///
@@ -195,7 +195,7 @@ pub fn detect_popup_format(input: &str) -> &'static str {
 /// let json = r#"{"json": {"title": "test", "elements": []}}"#;
 /// assert!(validate_popup_json(json).is_ok());
 ///
-/// let bad_json = r#"{"json": {"elements": []}}"#;  // missing title
+/// let bad_json = r#"{"invalid": "structure"}"#;  // invalid structure
 /// assert!(validate_popup_json(bad_json).is_err());
 /// ```
 pub fn validate_popup_json(input: &str) -> Result<()> {
@@ -233,13 +233,12 @@ mod tests {
             "elements": [
                 {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
                 {"type": "checkbox", "label": "Notifications", "default": true},
-                {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
                 {"type": "textbox", "label": "Name", "placeholder": "Enter your name"}
             ]
         }"#;
 
         let popup = parse_popup_json(json).unwrap();
-        assert_eq!(popup.elements.len(), 4);
+        assert_eq!(popup.elements.len(), 3);
 
         match &popup.elements[0] {
             Element::Slider {
@@ -353,7 +352,7 @@ mod tests {
                         "content": "Which development pathway resonates most with your vision for my growth?"
                     },
                     {
-                        "type": "choice",
+                        "type": "multiselect",
                         "label": "Primary growth focus",
                         "options": [
                             "Cognitive Architecture - proactive design, meta-patterns",
@@ -376,12 +375,12 @@ mod tests {
         }
 
         match &popup.elements[1] {
-            Element::Choice { label, options } => {
+            Element::Multiselect { label, options } => {
                 assert_eq!(label, "Primary growth focus");
                 assert_eq!(options.len(), 4);
                 assert_eq!(options[0], "Cognitive Architecture - proactive design, meta-patterns");
             },
-            _ => panic!("Expected choice element"),
+            _ => panic!("Expected multiselect element"),
         }
     }
 

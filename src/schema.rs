@@ -115,25 +115,6 @@ pub fn get_input_schema() -> serde_json::Value {
                                     "required": ["type", "label"],
                                     "additionalProperties": false
                                 },
-                                // Choice (single selection) element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "choice"},
-                                        "label": {
-                                            "type": "string",
-                                            "description": "Label for the choice selector"
-                                        },
-                                        "options": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "minItems": 1,
-                                            "description": "Array of options to choose from"
-                                        }
-                                    },
-                                    "required": ["type", "label", "options"],
-                                    "additionalProperties": false
-                                },
                                 // Multiselect element
                                 {
                                     "type": "object",

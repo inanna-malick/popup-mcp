@@ -5,7 +5,7 @@
     {"type": "textbox", "label": "Full Name", "placeholder": "John Doe"},
     {"type": "textbox", "label": "Email", "placeholder": "john@example.com"},
     {"type": "textbox", "label": "Bio", "placeholder": "Tell us about yourself...", "rows": 4},
-    {"type": "choice", "label": "Country", "options": ["United States", "Canada", "United Kingdom", "Australia", "Other"]},
+    {"type": "multiselect", "label": "Country", "options": ["United States", "Canada", "United Kingdom", "Australia", "Other"]},
     {"type": "multiselect", "label": "Interests", "options": ["Technology", "Sports", "Music", "Art", "Gaming", "Travel", "Food"]},
     {"type": "checkbox", "label": "Profile visible to others", "default": true},
     {"type": "checkbox", "label": "Receive email notifications", "default": true}

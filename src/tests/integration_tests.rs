@@ -48,7 +48,6 @@ fn test_popup_state_initialization() {
             {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
             {"type": "checkbox", "label": "Mute", "default": false},
             {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
-            {"type": "choice", "label": "Quality", "options": ["Low", "Medium", "High"]},
             {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
         ]
     }"#;
@@ -65,8 +64,6 @@ fn test_popup_state_initialization() {
     // Check textbox initialization
     assert_eq!(state.get_text_mut("Name").unwrap(), "");
 
-    // Check choice initialization
-    assert_eq!(*state.get_choice_mut("Quality").unwrap(), 0);
 
     // Check multiselect initialization
     assert_eq!(state.get_multichoice_mut("Features").unwrap().len(), 3);

@@ -8,7 +8,7 @@
       "elements": [
         {"type": "checkbox", "label": "Debug mode", "default": false},
         {"type": "slider", "label": "Log level", "min": 0, "max": 10, "default": 3},
-        {"type": "choice", "label": "Output", "options": ["Console", "File", "Both"]},
+        {"type": "multiselect", "label": "Output", "options": ["Console", "File", "Both"]},
         {"type": "slider", "label": "Max threads", "min": 1, "max": 16, "default": 4}
       ]
     },

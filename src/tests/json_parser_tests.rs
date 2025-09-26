@@ -29,13 +29,12 @@ fn test_all_widget_types() {
             {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 50},
             {"type": "checkbox", "label": "Enable", "default": true},
             {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
-            {"type": "choice", "label": "Color", "options": ["Red", "Green", "Blue"]},
             {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.elements.len(), 6);
+    assert_eq!(popup.elements.len(), 5);
 
     // Verify slider
     match &popup.elements[1] {
@@ -76,17 +75,8 @@ fn test_all_widget_types() {
         _ => panic!("Expected textbox"),
     }
 
-    // Verify choice
-    match &popup.elements[4] {
-        Element::Choice { label, options, .. } => {
-            assert_eq!(label, "Color");
-            assert_eq!(options.len(), 3);
-        }
-        _ => panic!("Expected choice"),
-    }
-
     // Verify multiselect
-    match &popup.elements[5] {
+    match &popup.elements[4] {
         Element::Multiselect { label, options } => {
             assert_eq!(label, "Features");
             assert_eq!(options.len(), 3);
@@ -136,7 +126,7 @@ fn test_complex_conditional() {
         "elements": [
             {
                 "type": "conditional",
-                "condition": {"selected": "Mode", "value": "Debug"},
+                "condition": {"checked": "Debug Mode"},
                 "elements": [
                     {"type": "text", "content": "Debug mode active"}
                 ]
@@ -157,11 +147,10 @@ fn test_complex_conditional() {
     // Check first conditional
     match &popup.elements[0] {
         Element::Conditional { condition, .. } => match condition {
-            Condition::Selected { selected, value } => {
-                assert_eq!(selected, "Mode");
-                assert_eq!(value, "Debug");
+            Condition::Checked { checked } => {
+                assert_eq!(checked, "Debug Mode");
             }
-            _ => panic!("Expected Selected condition"),
+            _ => panic!("Expected Checked condition"),
         },
         _ => panic!("Expected conditional"),
     }

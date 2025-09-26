@@ -40,10 +40,6 @@ pub enum Element {
         #[serde(default)]
         rows: Option<u32>,
     },
-    Choice {
-        label: String,
-        options: Vec<String>,
-    },
     Multiselect {
         label: String,
         options: Vec<String>,
@@ -66,10 +62,6 @@ pub enum Condition {
     // Complex conditions as objects
     Checked {
         checked: String,
-    },
-    Selected {
-        selected: String,
-        value: String,
     },
     Count {
         count: String,
@@ -130,7 +122,6 @@ pub enum ElementValue {
     Number(f32),
     Boolean(bool),
     Text(String),
-    Choice(usize),
     MultiChoice(Vec<bool>),
 }
 
@@ -169,9 +160,6 @@ impl PopupState {
                     self.values
                         .insert(label.clone(), ElementValue::Text(String::new()));
                 }
-                Element::Choice { label, .. } => {
-                    self.values.insert(label.clone(), ElementValue::Choice(0));
-                }
                 Element::Multiselect { label, options } => {
                     self.values.insert(
                         label.clone(),
@@ -208,12 +196,6 @@ impl PopupState {
         }
     }
 
-    pub fn get_choice_mut(&mut self, label: &str) -> Option<&mut usize> {
-        match self.values.get_mut(label) {
-            Some(ElementValue::Choice(ref mut i)) => Some(i),
-            _ => None,
-        }
-    }
 
     pub fn get_multichoice_mut(&mut self, label: &str) -> Option<&mut Vec<bool>> {
         match self.values.get_mut(label) {
@@ -229,12 +211,6 @@ impl PopupState {
         }
     }
 
-    pub fn get_choice(&self, label: &str) -> usize {
-        match self.values.get(label) {
-            Some(ElementValue::Choice(i)) => *i,
-            _ => 0,
-        }
-    }
 
     pub fn get_multichoice(&self, label: &str) -> Option<&Vec<bool>> {
         match self.values.get(label) {
@@ -269,7 +245,6 @@ impl PopupResult {
                     ElementValue::Number(n) => json!(*n as i32),
                     ElementValue::Boolean(b) => json!(*b),
                     ElementValue::Text(s) if !s.is_empty() => json!(s),
-                    ElementValue::Choice(i) => json!(*i),
                     ElementValue::MultiChoice(selections) => {
                         let indices: Vec<usize> = selections
                             .iter()
@@ -303,7 +278,6 @@ impl PopupResult {
                     e @ Element::Slider { label: l, .. }
                     | e @ Element::Checkbox { label: l, .. }
                     | e @ Element::Textbox { label: l, .. }
-                    | e @ Element::Choice { label: l, .. }
                     | e @ Element::Multiselect { label: l, .. }
                         if l == label =>
                     {
@@ -341,10 +315,6 @@ impl PopupResult {
                 }
                 (ElementValue::Boolean(b), _) => json!(*b),
                 (ElementValue::Text(s), _) if !s.is_empty() => json!(s),
-                (ElementValue::Choice(i), Some(Element::Choice { options, .. })) => {
-                    // Return the actual option text instead of index
-                    json!(options.get(*i).cloned().unwrap_or_else(|| i.to_string()))
-                }
                 (
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
@@ -360,7 +330,6 @@ impl PopupResult {
                     json!(selected)
                 }
                 (ElementValue::Number(n), _) => json!(*n as i32),
-                (ElementValue::Choice(i), _) => json!(*i),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
                         .iter()
@@ -398,7 +367,6 @@ impl PopupResult {
                     e @ Element::Slider { label: l, .. }
                     | e @ Element::Checkbox { label: l, .. }
                     | e @ Element::Textbox { label: l, .. }
-                    | e @ Element::Choice { label: l, .. }
                     | e @ Element::Multiselect { label: l, .. }
                         if l == label =>
                     {
@@ -441,10 +409,6 @@ impl PopupResult {
                 }
                 (ElementValue::Boolean(b), _) => json!(*b),
                 (ElementValue::Text(s), _) if !s.is_empty() => json!(s),
-                (ElementValue::Choice(i), Some(Element::Choice { options, .. })) => {
-                    // Return the actual option text instead of index
-                    json!(options.get(*i).cloned().unwrap_or_else(|| i.to_string()))
-                }
                 (
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
@@ -460,7 +424,6 @@ impl PopupResult {
                     json!(selected)
                 }
                 (ElementValue::Number(n), _) => json!(*n as i32),
-                (ElementValue::Choice(i), _) => json!(*i),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
                         .iter()

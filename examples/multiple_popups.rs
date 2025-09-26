@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             {"type": "text", "content": "Configure your preferences:"},
             {"type": "checkbox", "label": "Enable notifications", "default": true},
             {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
-            {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
+            {"type": "multiselect", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
         ]
     }))?;
 
@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "title": "Feedback Form",
         "elements": [
             {"type": "text", "content": "How was your experience?"},
-            {"type": "choice", "label": "Rating", "options": ["Excellent", "Good", "Fair", "Poor"]},
+            {"type": "multiselect", "label": "Rating", "options": ["Excellent", "Good", "Fair", "Poor"]},
             {"type": "textbox", "label": "Comments", "placeholder": "Optional feedback...", "rows": 3}
         ]
     }))?;

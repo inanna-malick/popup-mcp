@@ -269,27 +269,6 @@ fn render_single_element(
             ui.label(RichText::new(text).color(theme.text_primary));
         }
 
-        Element::Choice { label, options, .. } => {
-            ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.electric_blue).strong());
-                if let Some(selected) = state.get_choice_mut(label) {
-                    for (i, option) in options.iter().enumerate() {
-                        let is_selected = *selected == i;
-                        let option_text = if is_selected {
-                            RichText::new(format!("▸ {}", option))
-                                .color(theme.neon_cyan)
-                                .strong()
-                        } else {
-                            RichText::new(format!("  {}", option)).color(theme.text_primary)
-                        };
-                        let response = ui.selectable_label(is_selected, option_text);
-                        if response.clicked() {
-                            *selected = i;
-                        }
-                    }
-                }
-            });
-        }
 
         Element::Multiselect { label, options } => {
             ui.group(|ui| {
@@ -420,7 +399,6 @@ fn render_single_element(
                 let cond_id = match condition {
                     Condition::Simple(label) => format!("cond_{}", label),
                     Condition::Checked { checked } => format!("cond_{}", checked),
-                    Condition::Selected { selected, .. } => format!("cond_sel_{}", selected),
                     Condition::Count { count, .. } => format!("cond_cnt_{}", count),
                 };
                 render_elements_in_grid(
@@ -453,7 +431,6 @@ fn collect_active_elements(
             Element::Slider { label, .. }
             | Element::Checkbox { label, .. }
             | Element::Textbox { label, .. }
-            | Element::Choice { label, .. }
             | Element::Multiselect { label, .. } => {
                 active_labels.push(label.clone());
             }
@@ -477,7 +454,7 @@ fn collect_active_elements(
 }
 
 /// Evaluate if a condition is met based on current state
-fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
+fn evaluate_condition(condition: &Condition, state: &PopupState, _all_elements: &[Element]) -> bool {
     match condition {
         Condition::Simple(label) => {
             // Check if a checkbox with this label is true
@@ -486,20 +463,6 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
         Condition::Checked { checked } => {
             // Check if a checkbox with this label is true
             state.get_boolean(checked)
-        }
-        Condition::Selected { selected, value } => {
-            // Check if a choice with this label has the specified value selected
-            let selected_idx = state.get_choice(selected);
-
-            // Find the Choice element with matching label to get its options
-            if let Some(options) = find_choice_options(all_elements, selected) {
-                options
-                    .get(selected_idx)
-                    .map(|selected_option| selected_option == value)
-                    .unwrap_or(false)
-            } else {
-                false
-            }
         }
         Condition::Count { count, value, op } => {
             // Count selected items in a multiselect
@@ -520,27 +483,6 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
     }
 }
 
-fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
-    for element in elements {
-        match element {
-            Element::Choice {
-                label: el_label,
-                options,
-                ..
-            } if el_label == label => {
-                return Some(options.clone());
-            }
-            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
-                // Recursively search in nested elements
-                if let Some(options) = find_choice_options(elements, label) {
-                    return Some(options);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 60.0; // Title bar with proper padding
@@ -600,12 +542,6 @@ fn calculate_elements_size(
                 *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
                 *max_width = max_width.max(420.0); // More width for text input with moderately larger font
             }
-            Element::Choice { options, .. } => {
-                *height += 35.0; // Moderately larger label with proper spacing
-                *height += 30.0 * options.len() as f32; // Moderately larger radio button height
-                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                *max_width = max_width.max((longest as f32) * 12.0 + 110.0); // Moderately larger character width + radio buttons
-            }
             Element::Multiselect { options, .. } => {
                 *height += 35.0; // Moderately larger label with proper spacing
                 *height += 40.0; // Moderately larger All/None buttons with spacing
@@ -637,7 +573,6 @@ fn calculate_elements_size(
                 if include_conditionals {
                     // Use probability heuristic
                     let probability = match condition {
-                        Condition::Selected { .. } => 0.7,
                         Condition::Simple(_) | Condition::Checked { .. } => 0.3,
                         Condition::Count { .. } => 0.2,
                     };

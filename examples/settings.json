@@ -2,8 +2,8 @@
   "title": "Application Settings",
   "elements": [
     {"type": "group", "label": "General", "elements": [
-      {"type": "choice", "label": "Language", "options": ["English", "Spanish", "French", "German"]},
-      {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
+      {"type": "multiselect", "label": "Language", "options": ["English", "Spanish", "French", "German"]},
+      {"type": "multiselect", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
       {"type": "checkbox", "label": "Show notifications", "default": true}
     ]},
     {"type": "group", "label": "Performance", "elements": [

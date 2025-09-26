@@ -21,6 +21,6 @@ fn main() {
     println!("- textbox: Text input field (with optional placeholder and rows)");
     println!("- multiselect: Multiple selection list");
     println!("\nExcluded from simplified schema:");
-    println!("- checkbox, slider, choice (single select)");
+    println!("- checkbox, slider");
     println!("- group, conditional");
 }

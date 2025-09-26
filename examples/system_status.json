@@ -5,7 +5,7 @@
     {"type": "slider", "label": "CPU Usage (%)", "min": 0, "max": 100, "default": 45},
     {"type": "slider", "label": "Memory Usage (%)", "min": 0, "max": 100, "default": 62},
     {"type": "slider", "label": "Disk Usage (%)", "min": 0, "max": 100, "default": 78},
-    {"type": "choice", "label": "Network Status", "options": ["Connected", "Limited", "Offline"]},
+    {"type": "multiselect", "label": "Network Status", "options": ["Connected", "Limited", "Offline"]},
     {"type": "checkbox", "label": "Auto-refresh", "default": true},
     {
       "type": "conditional",

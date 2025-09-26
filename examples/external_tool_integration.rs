@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "content": "Which development pathway resonates most with your vision for my growth?"
                 },
                 {
-                    "type": "choice",
+                    "type": "multiselect",
                     "label": "Primary growth focus",
                     "options": [
                         "Cognitive Architecture - proactive design, meta-patterns",
