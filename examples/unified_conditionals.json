@@ -1,0 +1,62 @@
+{
+  "title": "Unified Conditional Demo",
+  "elements": [
+    {
+      "type": "text",
+      "content": "This demo showcases the unified conditional API that works for both checkboxes and multiselects."
+    },
+
+    {"type": "checkbox", "label": "Enable Debug", "default": false},
+    {
+      "type": "conditional",
+      "condition": "Enable Debug",
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 1: Simple existence check - checkbox is checked"}
+      ]
+    },
+
+    {"type": "multiselect", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
+    {
+      "type": "conditional",
+      "condition": "Theme",
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 1: Simple existence check - any theme selected"}
+      ]
+    },
+
+    {
+      "type": "conditional",
+      "condition": {"field": "Theme", "value": "Dark"},
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 2: Specific value check - Dark theme selected"},
+        {"type": "slider", "label": "Contrast", "min": 0, "max": 100, "default": 75}
+      ]
+    },
+
+    {"type": "multiselect", "label": "Features", "options": ["Analytics", "Notifications", "Sync", "Backup", "Themes"]},
+    {
+      "type": "conditional",
+      "condition": {"field": "Features", "count": ">2"},
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 3: Count check - more than 2 features selected"}
+      ]
+    },
+
+    {
+      "type": "conditional",
+      "condition": {"field": "Features", "value": "Analytics"},
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 2: Specific value - Analytics feature enabled"},
+        {"type": "checkbox", "label": "Track usage", "default": true}
+      ]
+    },
+
+    {
+      "type": "conditional",
+      "condition": {"field": "Features", "count": "=1"},
+      "elements": [
+        {"type": "text", "content": "✓ Pattern 3: Exact count - exactly one feature selected"}
+      ]
+    }
+  ]
+}

@@ -126,14 +126,14 @@ fn test_complex_conditional() {
         "elements": [
             {
                 "type": "conditional",
-                "condition": {"checked": "Debug Mode"},
+                "condition": "Debug Mode",
                 "elements": [
                     {"type": "text", "content": "Debug mode active"}
                 ]
             },
             {
                 "type": "conditional",
-                "condition": {"count": "Items", "op": ">", "value": 5},
+                "condition": {"field": "Items", "count": ">5"},
                 "elements": [
                     {"type": "text", "content": "More than 5 items"}
                 ]
@@ -147,10 +147,10 @@ fn test_complex_conditional() {
     // Check first conditional
     match &popup.elements[0] {
         Element::Conditional { condition, .. } => match condition {
-            Condition::Checked { checked } => {
-                assert_eq!(checked, "Debug Mode");
+            Condition::Simple(label) => {
+                assert_eq!(label, "Debug Mode");
             }
-            _ => panic!("Expected Checked condition"),
+            _ => panic!("Expected Simple condition"),
         },
         _ => panic!("Expected conditional"),
     }
@@ -158,10 +158,9 @@ fn test_complex_conditional() {
     // Check second conditional
     match &popup.elements[1] {
         Element::Conditional { condition, .. } => match condition {
-            Condition::Count { count, op, value } => {
-                assert_eq!(count, "Items");
-                assert_eq!(*op, crate::models::ComparisonOp::Greater);
-                assert_eq!(*value, 5);
+            Condition::Count { field, count } => {
+                assert_eq!(field, "Items");
+                assert_eq!(count, ">5");
             }
             _ => panic!("Expected Count condition"),
         },

@@ -160,55 +160,40 @@ pub fn get_input_schema() -> serde_json::Value {
                                             "oneOf": [
                                                 {
                                                     "type": "string",
-                                                    "description": "Simple condition: checkbox label to check"
+                                                    "description": "Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected"
                                                 },
                                                 {
                                                     "type": "object",
                                                     "properties": {
-                                                        "checked": {
+                                                        "field": {
                                                             "type": "string",
-                                                            "description": "Checkbox label to check"
-                                                        }
-                                                    },
-                                                    "required": ["checked"],
-                                                    "additionalProperties": false
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "selected": {
-                                                            "type": "string",
-                                                            "description": "Choice element label"
+                                                            "description": "Field name (checkbox or multiselect)"
                                                         },
                                                         "value": {
                                                             "type": "string",
-                                                            "description": "Value that must be selected"
+                                                            "description": "Specific value - checkbox name must match OR multiselect option must be selected"
                                                         }
                                                     },
-                                                    "required": ["selected", "value"],
+                                                    "required": ["field", "value"],
                                                     "additionalProperties": false
                                                 },
                                                 {
                                                     "type": "object",
                                                     "properties": {
+                                                        "field": {
+                                                            "type": "string",
+                                                            "description": "Field name (checkbox or multiselect)"
+                                                        },
                                                         "count": {
                                                             "type": "string",
-                                                            "description": "Multiselect element label"
-                                                        },
-                                                        "op": {
-                                                            "enum": [">", "<", ">=", "<=", "="],
-                                                            "description": "Comparison operator"
-                                                        },
-                                                        "value": {
-                                                            "type": "integer",
-                                                            "description": "Value to compare count against"
+                                                            "description": "Count condition like '>2', '=1', '<=3' - checkbox counts as 0 or 1"
                                                         }
                                                     },
-                                                    "required": ["count", "op", "value"],
+                                                    "required": ["field", "count"],
                                                     "additionalProperties": false
                                                 }
                                             ],
-                                            "description": "Condition for showing elements"
+                                            "description": "Unified condition patterns that work for both checkbox and multiselect"
                                         },
                                         "elements": {
                                             "$ref": "#/properties/json/properties/elements",

@@ -226,9 +226,8 @@ mod tests {
                 {
                     "type": "conditional",
                     "condition": {
-                        "count": "Features",
-                        "op": ">",
-                        "value": 2
+                        "field": "Features",
+                        "count": ">2"
                     },
                     "elements": [
                         {
@@ -349,9 +348,8 @@ mod tests {
                 {
                     "type": "conditional",
                     "condition": {
-                        "count": "Items",
-                        "op": ">=",
-                        "value": 3
+                        "field": "Items",
+                        "count": ">=3"
                     },
                     "elements": [
                         {
@@ -363,9 +361,8 @@ mod tests {
                 {
                     "type": "conditional",
                     "condition": {
-                        "count": "Items",
-                        "op": "=",
-                        "value": 1
+                        "field": "Items",
+                        "count": "=1"
                     },
                     "elements": [
                         {
@@ -377,9 +374,8 @@ mod tests {
                 {
                     "type": "conditional",
                     "condition": {
-                        "count": "Items",
-                        "op": "<",
-                        "value": 2
+                        "field": "Items",
+                        "count": "<2"
                     },
                     "elements": [
                         {

@@ -398,8 +398,8 @@ fn render_single_element(
                 // Create unique ID based on condition type
                 let cond_id = match condition {
                     Condition::Simple(label) => format!("cond_{}", label),
-                    Condition::Checked { checked } => format!("cond_{}", checked),
-                    Condition::Count { count, .. } => format!("cond_cnt_{}", count),
+                    Condition::Field { field, value } => format!("cond_{}_{}", field, value),
+                    Condition::Count { field, count } => format!("cond_cnt_{}_{}", field, count),
                 };
                 render_elements_in_grid(
                     ui,
@@ -454,33 +454,84 @@ fn collect_active_elements(
 }
 
 /// Evaluate if a condition is met based on current state
-fn evaluate_condition(condition: &Condition, state: &PopupState, _all_elements: &[Element]) -> bool {
+fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
     match condition {
         Condition::Simple(label) => {
-            // Check if a checkbox with this label is true
-            state.get_boolean(label)
+            // Pattern 1: Check if checkbox is true OR any multiselect option is selected
+            if state.get_boolean(label) {
+                true // Checkbox is checked
+            } else if let Some(selections) = state.get_multichoice(label) {
+                selections.iter().any(|&selected| selected) // Any multiselect option selected
+            } else {
+                false
+            }
         }
-        Condition::Checked { checked } => {
-            // Check if a checkbox with this label is true
-            state.get_boolean(checked)
-        }
-        Condition::Count { count, value, op } => {
-            // Count selected items in a multiselect
-            if let Some(selections) = state.get_multichoice(count) {
-                let selected_count = selections.iter().filter(|&&x| x).count();
-                use crate::models::ComparisonOp;
-                match op {
-                    ComparisonOp::Greater => selected_count > *value as usize,
-                    ComparisonOp::Less => selected_count < *value as usize,
-                    ComparisonOp::GreaterEqual => selected_count >= *value as usize,
-                    ComparisonOp::LessEqual => selected_count <= *value as usize,
-                    ComparisonOp::Equal => selected_count == *value as usize,
+        Condition::Field { field, value } => {
+            // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected
+            if state.get_boolean(field) && field == value {
+                true // Checkbox checked and field name matches value
+            } else if let Some(selections) = state.get_multichoice(field) {
+                // Find multiselect options and check if the specified value is selected
+                if let Some(options) = find_multiselect_options(all_elements, field) {
+                    options
+                        .iter()
+                        .position(|opt| opt == value)
+                        .and_then(|index| selections.get(index))
+                        .copied()
+                        .unwrap_or(false)
+                } else {
+                    false
                 }
             } else {
                 false
             }
         }
+        Condition::Count { field, count } => {
+            // Pattern 3: Count-based conditions
+            use crate::models::ComparisonOp;
+
+            if let Some((op, target_value)) = ComparisonOp::parse_count_condition(count) {
+                let actual_count = if state.get_boolean(field) {
+                    1 // Checkbox counts as 1 if checked, 0 if not
+                } else if let Some(selections) = state.get_multichoice(field) {
+                    selections.iter().filter(|&&x| x).count() as i32
+                } else {
+                    0
+                };
+
+                match op {
+                    ComparisonOp::Greater => actual_count > target_value,
+                    ComparisonOp::Less => actual_count < target_value,
+                    ComparisonOp::GreaterEqual => actual_count >= target_value,
+                    ComparisonOp::LessEqual => actual_count <= target_value,
+                    ComparisonOp::Equal => actual_count == target_value,
+                }
+            } else {
+                false // Invalid count condition
+            }
+        }
     }
+}
+
+fn find_multiselect_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
+    for element in elements {
+        match element {
+            Element::Multiselect {
+                label: el_label,
+                options,
+            } if el_label == label => {
+                return Some(options.clone());
+            }
+            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
+                // Recursively search in nested elements
+                if let Some(options) = find_multiselect_options(elements, label) {
+                    return Some(options);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 
@@ -573,7 +624,8 @@ fn calculate_elements_size(
                 if include_conditionals {
                     // Use probability heuristic
                     let probability = match condition {
-                        Condition::Simple(_) | Condition::Checked { .. } => 0.3,
+                        Condition::Simple(_) => 0.3,
+                        Condition::Field { .. } => 0.4,
                         Condition::Count { .. } => 0.2,
                     };
 

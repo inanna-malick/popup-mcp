@@ -57,16 +57,17 @@ pub enum Element {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Condition {
-    // Simple string format: just the checkbox name
+    // Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected
     Simple(String),
-    // Complex conditions as objects
-    Checked {
-        checked: String,
+    // Pattern 2: Specific value check - true if checkbox name matches value OR multiselect has option selected
+    Field {
+        field: String,
+        value: String,
     },
+    // Pattern 3: Quantity check - count of selected items (checkbox: 0 or 1, multiselect: count of selected)
     Count {
-        count: String,
-        op: ComparisonOp,
-        value: i32,
+        field: String,
+        count: String, // e.g., ">2", "=1", "<=3"
     },
 }
 
@@ -77,6 +78,28 @@ pub enum ComparisonOp {
     GreaterEqual,
     LessEqual,
     Equal,
+}
+
+impl ComparisonOp {
+    /// Parse a count condition string like ">2", "=1", "<=3" into operator and value
+    pub fn parse_count_condition(count_str: &str) -> Option<(ComparisonOp, i32)> {
+        let count_str = count_str.trim();
+
+        if let Some(rest) = count_str.strip_prefix(">=") {
+            rest.parse().ok().map(|v| (ComparisonOp::GreaterEqual, v))
+        } else if let Some(rest) = count_str.strip_prefix("<=") {
+            rest.parse().ok().map(|v| (ComparisonOp::LessEqual, v))
+        } else if let Some(rest) = count_str.strip_prefix(">") {
+            rest.parse().ok().map(|v| (ComparisonOp::Greater, v))
+        } else if let Some(rest) = count_str.strip_prefix("<") {
+            rest.parse().ok().map(|v| (ComparisonOp::Less, v))
+        } else if let Some(rest) = count_str.strip_prefix("=") {
+            rest.parse().ok().map(|v| (ComparisonOp::Equal, v))
+        } else {
+            // Default to equality if no operator specified
+            count_str.parse().ok().map(|v| (ComparisonOp::Equal, v))
+        }
+    }
 }
 
 // Custom serialization/deserialization to handle operator strings
