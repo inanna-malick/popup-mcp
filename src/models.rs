@@ -44,6 +44,12 @@ pub enum Element {
         label: String,
         options: Vec<String>,
     },
+    Choice {
+        label: String,
+        options: Vec<String>,
+        #[serde(default)]
+        default: Option<usize>,
+    },
     Group {
         label: String,
         elements: Vec<Element>,
@@ -146,6 +152,7 @@ pub enum ElementValue {
     Boolean(bool),
     Text(String),
     MultiChoice(Vec<bool>),
+    Choice(Option<usize>),
 }
 
 /// Runtime state of the popup
@@ -189,6 +196,10 @@ impl PopupState {
                         ElementValue::MultiChoice(vec![false; options.len()]),
                     );
                 }
+                Element::Choice { label, default, .. } => {
+                    self.values
+                        .insert(label.clone(), ElementValue::Choice(*default));
+                }
                 Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                     self.init_elements(elements);
                 }
@@ -227,6 +238,13 @@ impl PopupState {
         }
     }
 
+    pub fn get_choice_mut(&mut self, label: &str) -> Option<&mut Option<usize>> {
+        match self.values.get_mut(label) {
+            Some(ElementValue::Choice(ref mut c)) => Some(c),
+            _ => None,
+        }
+    }
+
     pub fn get_boolean(&self, label: &str) -> bool {
         match self.values.get(label) {
             Some(ElementValue::Boolean(b)) => *b,
@@ -248,14 +266,29 @@ impl PopupState {
             _ => None,
         }
     }
+
+    pub fn get_choice(&self, label: &str) -> Option<Option<usize>> {
+        match self.values.get(label) {
+            Some(ElementValue::Choice(c)) => Some(*c),
+            _ => None,
+        }
+    }
 }
 
 /// Result that gets serialized to JSON
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PopupResult {
-    #[serde(flatten)]
-    pub values: HashMap<String, Value>,
-    pub button: String,
+#[serde(tag = "status")]
+pub enum PopupResult {
+    #[serde(rename = "completed")]
+    Completed {
+        #[serde(flatten)]
+        values: HashMap<String, Value>,
+        button: String,
+    },
+    #[serde(rename = "timeout")]
+    Timeout {
+        message: String,
+    }
 }
 
 impl PopupResult {
@@ -282,7 +315,7 @@ impl PopupResult {
             })
             .collect();
 
-        PopupResult {
+        PopupResult::Completed {
             values,
             button: state
                 .button_clicked
@@ -302,6 +335,7 @@ impl PopupResult {
                     | e @ Element::Checkbox { label: l, .. }
                     | e @ Element::Textbox { label: l, .. }
                     | e @ Element::Multiselect { label: l, .. }
+                    | e @ Element::Choice { label: l, .. }
                         if l == label =>
                     {
                         return Some(e)
@@ -352,6 +386,11 @@ impl PopupResult {
                         .collect();
                     json!(selected)
                 }
+                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
+                    // Return selected option text
+                    options.get(*idx).map(|s| json!(s)).unwrap_or_else(|| json!(null))
+                }
+                (ElementValue::Choice(None), _) => continue, // Skip unselected choice
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
@@ -367,7 +406,7 @@ impl PopupResult {
             values.insert(key.clone(), json_value);
         }
 
-        PopupResult {
+        PopupResult::Completed {
             values,
             button: state
                 .button_clicked
@@ -391,6 +430,7 @@ impl PopupResult {
                     | e @ Element::Checkbox { label: l, .. }
                     | e @ Element::Textbox { label: l, .. }
                     | e @ Element::Multiselect { label: l, .. }
+                    | e @ Element::Choice { label: l, .. }
                         if l == label =>
                     {
                         return Some(e)
@@ -446,6 +486,11 @@ impl PopupResult {
                         .collect();
                     json!(selected)
                 }
+                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
+                    // Return selected option text
+                    options.get(*idx).map(|s| json!(s)).unwrap_or_else(|| json!(null))
+                }
+                (ElementValue::Choice(None), _) => continue, // Skip unselected choice
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
@@ -461,7 +506,7 @@ impl PopupResult {
             values.insert(key.clone(), json_value);
         }
 
-        PopupResult {
+        PopupResult::Completed {
             values,
             button: state
                 .button_clicked

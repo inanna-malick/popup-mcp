@@ -309,6 +309,32 @@ fn render_single_element(
             });
         }
 
+        Element::Choice { label, options, .. } => {
+            ui.label(RichText::new(label).color(theme.text_primary));
+            if let Some(selected) = state.get_choice_mut(label) {
+                let selected_text = match *selected {
+                    Some(idx) => options.get(idx).map(|s| s.as_str()).unwrap_or("(invalid)"),
+                    None => "(none selected)",
+                };
+
+                egui::ComboBox::from_id_salt(label)
+                    .selected_text(selected_text)
+                    .show_ui(ui, |ui| {
+                        // Option to clear selection
+                        if ui.selectable_label(selected.is_none(), "(none selected)").clicked() {
+                            *selected = None;
+                        }
+                        // Show all options
+                        for (idx, option) in options.iter().enumerate() {
+                            if ui.selectable_label(*selected == Some(idx), option).clicked() {
+                                *selected = Some(idx);
+                            }
+                        }
+                    });
+            }
+            ui.add_space(6.0);
+        }
+
         Element::Checkbox { label, .. } => {
             if let Some(value) = state.get_boolean_mut(label) {
                 let checkbox_text = if *value {
@@ -431,7 +457,8 @@ fn collect_active_elements(
             Element::Slider { label, .. }
             | Element::Checkbox { label, .. }
             | Element::Textbox { label, .. }
-            | Element::Multiselect { label, .. } => {
+            | Element::Multiselect { label, .. }
+            | Element::Choice { label, .. } => {
                 active_labels.push(label.clone());
             }
             Element::Group { elements, .. } => {
@@ -457,17 +484,19 @@ fn collect_active_elements(
 fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
     match condition {
         Condition::Simple(label) => {
-            // Pattern 1: Check if checkbox is true OR any multiselect option is selected
+            // Pattern 1: Check if checkbox is true OR any multiselect option is selected OR choice has selection
             if state.get_boolean(label) {
                 true // Checkbox is checked
             } else if let Some(selections) = state.get_multichoice(label) {
                 selections.iter().any(|&selected| selected) // Any multiselect option selected
+            } else if let Some(Some(_)) = state.get_choice(label) {
+                true // Choice has a selection
             } else {
                 false
             }
         }
         Condition::Field { field, value } => {
-            // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected
+            // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected OR choice has specific option selected
             if state.get_boolean(field) && field == value {
                 true // Checkbox checked and field name matches value
             } else if let Some(selections) = state.get_multichoice(field) {
@@ -479,6 +508,13 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
                         .and_then(|index| selections.get(index))
                         .copied()
                         .unwrap_or(false)
+                } else {
+                    false
+                }
+            } else if let Some(Some(idx)) = state.get_choice(field) {
+                // Find choice options and check if the selected option matches value
+                if let Some(options) = find_choice_options(all_elements, field) {
+                    options.get(idx).map(|s| s == value).unwrap_or(false)
                 } else {
                     false
                 }
@@ -495,6 +531,8 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
                     1 // Checkbox counts as 1 if checked, 0 if not
                 } else if let Some(selections) = state.get_multichoice(field) {
                     selections.iter().filter(|&&x| x).count() as i32
+                } else if let Some(choice) = state.get_choice(field) {
+                    if choice.is_some() { 1 } else { 0 } // Choice counts as 1 if selected, 0 if not
                 } else {
                     0
                 };
@@ -525,6 +563,28 @@ fn find_multiselect_options(elements: &[Element], label: &str) -> Option<Vec<Str
             Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                 // Recursively search in nested elements
                 if let Some(options) = find_multiselect_options(elements, label) {
+                    return Some(options);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
+    for element in elements {
+        match element {
+            Element::Choice {
+                label: el_label,
+                options,
+                ..
+            } if el_label == label => {
+                return Some(options.clone());
+            }
+            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
+                // Recursively search in nested elements
+                if let Some(options) = find_choice_options(elements, label) {
                     return Some(options);
                 }
             }
@@ -605,6 +665,12 @@ fn calculate_elements_size(
                     let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
                     *max_width = max_width.max((longest as f32) * 12.0 + 130.0); // Moderately larger character width + more space
                 }
+            }
+            Element::Choice { label, options, .. } => {
+                *height += 35.0; // Label height
+                *height += 35.0; // ComboBox height
+                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0).max(label.len());
+                *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
             }
             Element::Group { elements, .. } => {
                 *height += 40.0; // Moderately larger group header height for bigger text

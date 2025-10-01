@@ -29,12 +29,13 @@ fn test_all_widget_types() {
             {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 50},
             {"type": "checkbox", "label": "Enable", "default": true},
             {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
-            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
+            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]},
+            {"type": "choice", "label": "Mode", "options": ["X", "Y", "Z"]}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.elements.len(), 5);
+    assert_eq!(popup.elements.len(), 6);
 
     // Verify slider
     match &popup.elements[1] {
@@ -82,6 +83,20 @@ fn test_all_widget_types() {
             assert_eq!(options.len(), 3);
         }
         _ => panic!("Expected multiselect"),
+    }
+
+    // Verify choice
+    match &popup.elements[5] {
+        Element::Choice {
+            label,
+            options,
+            default,
+        } => {
+            assert_eq!(label, "Mode");
+            assert_eq!(options.len(), 3);
+            assert_eq!(*default, None); // No default
+        }
+        _ => panic!("Expected choice"),
     }
 }
 
@@ -290,4 +305,84 @@ fn test_missing_required_fields() {
 
     // Should fail because elements is still required
     assert!(parse_popup_json(json).is_err());
+}
+
+#[test]
+fn test_choice_no_default() {
+    let json = r#"{
+        "title": "Choice Test",
+        "elements": [
+            {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
+        ]
+    }"#;
+
+    let popup = parse_popup_json(json).unwrap();
+    assert_eq!(popup.elements.len(), 1);
+
+    match &popup.elements[0] {
+        Element::Choice {
+            label,
+            options,
+            default,
+        } => {
+            assert_eq!(label, "Theme");
+            assert_eq!(options, &vec!["Light", "Dark", "Auto"]);
+            assert_eq!(*default, None); // No default, should be None
+        }
+        _ => panic!("Expected choice element"),
+    }
+}
+
+#[test]
+fn test_choice_with_default() {
+    let json = r#"{
+        "title": "Choice Test",
+        "elements": [
+            {"type": "choice", "label": "Mode", "options": ["Easy", "Medium", "Hard"], "default": 1}
+        ]
+    }"#;
+
+    let popup = parse_popup_json(json).unwrap();
+    assert_eq!(popup.elements.len(), 1);
+
+    match &popup.elements[0] {
+        Element::Choice {
+            label,
+            options,
+            default,
+        } => {
+            assert_eq!(label, "Mode");
+            assert_eq!(options, &vec!["Easy", "Medium", "Hard"]);
+            assert_eq!(*default, Some(1)); // Default to index 1 (Medium)
+        }
+        _ => panic!("Expected choice element"),
+    }
+}
+
+#[test]
+fn test_choice_state_initialization() {
+    use crate::models::{ElementValue, PopupState};
+
+    let json = r#"{
+        "title": "Choice State Test",
+        "elements": [
+            {"type": "choice", "label": "NoDefault", "options": ["A", "B"]},
+            {"type": "choice", "label": "WithDefault", "options": ["X", "Y", "Z"], "default": 2}
+        ]
+    }"#;
+
+    let popup = parse_popup_json(json).unwrap();
+    let state = PopupState::new(&popup);
+
+    // Check NoDefault initializes to None
+    match state.values.get("NoDefault") {
+        Some(ElementValue::Choice(None)) => {}
+        _ => panic!("Expected Choice(None) for NoDefault"),
+    }
+
+    // Check WithDefault initializes to Some(2)
+    match state.values.get("WithDefault") {
+        Some(ElementValue::Choice(Some(2))) => {}
+        _ => panic!("Expected Choice(Some(2)) for WithDefault"),
+    }
 }

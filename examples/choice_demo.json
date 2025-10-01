@@ -1,0 +1,66 @@
+{
+  "title": "Choice Element Demo",
+  "elements": [
+    {
+      "type": "text",
+      "content": "Choice elements provide dropdown selection with optional unselected state"
+    },
+    {
+      "type": "choice",
+      "label": "Theme",
+      "options": ["Light", "Dark", "Auto"]
+    },
+    {
+      "type": "choice",
+      "label": "Difficulty",
+      "options": ["Easy", "Medium", "Hard"],
+      "default": 1
+    },
+    {
+      "type": "conditional",
+      "condition": {
+        "field": "Difficulty",
+        "value": "Hard"
+      },
+      "elements": [
+        {
+          "type": "checkbox",
+          "label": "Enable expert mode",
+          "default": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "label": "Country",
+      "options": [
+        "USA",
+        "Canada",
+        "Mexico",
+        "UK",
+        "France",
+        "Germany",
+        "Spain",
+        "Italy",
+        "Japan",
+        "Australia",
+        "Brazil",
+        "India",
+        "China",
+        "South Korea",
+        "Other"
+      ]
+    },
+    {
+      "type": "conditional",
+      "condition": "Country",
+      "elements": [
+        {
+          "type": "textbox",
+          "label": "City",
+          "placeholder": "Enter your city"
+        }
+      ]
+    }
+  ]
+}

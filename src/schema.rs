@@ -134,6 +134,30 @@ pub fn get_input_schema() -> serde_json::Value {
                                     "required": ["type", "label", "options"],
                                     "additionalProperties": false
                                 },
+                                // Choice element
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {"const": "choice"},
+                                        "label": {
+                                            "type": "string",
+                                            "description": "Label for the dropdown"
+                                        },
+                                        "options": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "minItems": 1,
+                                            "description": "Array of options for single selection dropdown"
+                                        },
+                                        "default": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "description": "Default selected option index (optional, no selection if omitted)"
+                                        }
+                                    },
+                                    "required": ["type", "label", "options"],
+                                    "additionalProperties": false
+                                },
                                 // Group element
                                 {
                                     "type": "object",
@@ -160,18 +184,18 @@ pub fn get_input_schema() -> serde_json::Value {
                                             "oneOf": [
                                                 {
                                                     "type": "string",
-                                                    "description": "Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected"
+                                                    "description": "Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected OR choice has selection"
                                                 },
                                                 {
                                                     "type": "object",
                                                     "properties": {
                                                         "field": {
                                                             "type": "string",
-                                                            "description": "Field name (checkbox or multiselect)"
+                                                            "description": "Field name (checkbox, multiselect, or choice)"
                                                         },
                                                         "value": {
                                                             "type": "string",
-                                                            "description": "Specific value - checkbox name must match OR multiselect option must be selected"
+                                                            "description": "Specific value - checkbox name must match OR multiselect/choice option must be selected"
                                                         }
                                                     },
                                                     "required": ["field", "value"],
@@ -182,18 +206,18 @@ pub fn get_input_schema() -> serde_json::Value {
                                                     "properties": {
                                                         "field": {
                                                             "type": "string",
-                                                            "description": "Field name (checkbox or multiselect)"
+                                                            "description": "Field name (checkbox, multiselect, or choice)"
                                                         },
                                                         "count": {
                                                             "type": "string",
-                                                            "description": "Count condition like '>2', '=1', '<=3' - checkbox counts as 0 or 1"
+                                                            "description": "Count condition like '>2', '=1', '<=3' - checkbox/choice count as 0 or 1, multiselect counts selections"
                                                         }
                                                     },
                                                     "required": ["field", "count"],
                                                     "additionalProperties": false
                                                 }
                                             ],
-                                            "description": "Unified condition patterns that work for both checkbox and multiselect"
+                                            "description": "Unified condition patterns that work for checkbox, multiselect, and choice"
                                         },
                                         "elements": {
                                             "$ref": "#/properties/json/properties/elements",

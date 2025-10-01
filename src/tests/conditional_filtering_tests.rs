@@ -188,9 +188,13 @@ mod tests {
         );
 
         // Should only have the visible elements
-        assert!(result.values.contains_key("Show Options"));
-        assert!(result.values.contains_key("Always Visible"));
-        assert!(!result.values.contains_key("Hidden Slider"));
+        let values = match result {
+            crate::models::PopupResult::Completed { values, .. } => values,
+            _ => panic!("Expected Completed result"),
+        };
+        assert!(values.contains_key("Show Options"));
+        assert!(values.contains_key("Always Visible"));
+        assert!(!values.contains_key("Hidden Slider"));
 
         // Enable the checkbox
         *state.get_boolean_mut("Show Options").unwrap() = true;
@@ -208,9 +212,13 @@ mod tests {
         );
 
         // Now should include the conditional slider
-        assert!(result.values.contains_key("Show Options"));
-        assert!(result.values.contains_key("Always Visible"));
-        assert!(result.values.contains_key("Hidden Slider"));
+        let values = match result {
+            crate::models::PopupResult::Completed { values, .. } => values,
+            _ => panic!("Expected Completed result"),
+        };
+        assert!(values.contains_key("Show Options"));
+        assert!(values.contains_key("Always Visible"));
+        assert!(values.contains_key("Hidden Slider"));
     }
 
     #[test]
@@ -493,26 +501,36 @@ mod tests {
             &active_labels,
         );
 
+        // Destructure results to get values
+        let old_values = match old_result {
+            crate::models::PopupResult::Completed { values, .. } => values,
+            _ => panic!("Expected Completed result"),
+        };
+        let new_values = match new_result {
+            crate::models::PopupResult::Completed { values, .. } => values,
+            _ => panic!("Expected Completed result"),
+        };
+
         // Old method includes phantom values from inactive conditional
-        assert!(old_result.values.contains_key("Enable Advanced"));
-        assert!(old_result.values.contains_key("Basic Setting"));
-        assert!(old_result.values.contains_key("Advanced Setting")); // Phantom!
-        assert!(!old_result.values.contains_key("Advanced Config")); // Empty text skipped
+        assert!(old_values.contains_key("Enable Advanced"));
+        assert!(old_values.contains_key("Basic Setting"));
+        assert!(old_values.contains_key("Advanced Setting")); // Phantom!
+        assert!(!old_values.contains_key("Advanced Config")); // Empty text skipped
 
         // New method excludes inactive conditional values
-        assert!(new_result.values.contains_key("Enable Advanced"));
-        assert!(new_result.values.contains_key("Basic Setting"));
-        assert!(!new_result.values.contains_key("Advanced Setting")); // Correctly filtered!
-        assert!(!new_result.values.contains_key("Advanced Config"));
+        assert!(new_values.contains_key("Enable Advanced"));
+        assert!(new_values.contains_key("Basic Setting"));
+        assert!(!new_values.contains_key("Advanced Setting")); // Correctly filtered!
+        assert!(!new_values.contains_key("Advanced Config"));
 
         // Verify values match for active elements
         assert_eq!(
-            old_result.values.get("Enable Advanced"),
-            new_result.values.get("Enable Advanced")
+            old_values.get("Enable Advanced"),
+            new_values.get("Enable Advanced")
         );
         assert_eq!(
-            old_result.values.get("Basic Setting"),
-            new_result.values.get("Basic Setting")
+            old_values.get("Basic Setting"),
+            new_values.get("Basic Setting")
         );
     }
 }
