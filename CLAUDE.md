@@ -97,12 +97,31 @@ The project implements a distributed popup system with three main components:
 
 ```
 MCP Client (Claude Desktop)
-  ↓ (SSE/HTTP)
-Cloudflare Worker → PopupSession Durable Object
-  ↓ (WebSocket)
+  ↓ (1) Streamable HTTP with GitHub OAuth
+Cloudflare Worker (MCP Agent DO)
+  ↓ (2) Internal HTTP to PopupSession DO
+PopupSession Durable Object
+  ↓ (3) WebSocket broadcast to clients
+popup-client daemon (wss://)
+  ↓ (4) Spawn subprocess with --stdin
+popup binary (native egui window)
+  ↓ (5) JSON result to stdout
 popup-client daemon
-  ↓ (subprocess spawn)
-popup-gui (native window)
+  ↓ (6) WebSocket result back to DO
+PopupSession DO
+  ↓ (7) HTTP response to MCP Agent
+MCP Client (receives result)
+```
+
+**Local MCP Usage (no Cloudflare):**
+```
+MCP Client
+  ↓ JSON-RPC over stdio
+popup binary (MCP server mode)
+  ↓ Spawns itself with --stdin
+popup binary (renders window)
+  ↓ JSON result
+MCP Client (receives result)
 ```
 
 ### Rust Workspace Structure
@@ -116,10 +135,10 @@ popup-gui (native window)
 - `json_parser.rs`: JSON → PopupDefinition deserialization
 - `gui/mod.rs`: egui window logic and event loop
 - `gui/widget_renderers.rs`: Individual widget rendering
-- `mcp_server.rs`: Local MCP server (JSON-RPC over stdio)
+- `mcp_server.rs`: MCP server (JSON-RPC over stdio)
 - `schema.rs`: MCP tool schema definitions
-- `templates.rs`: Predefined popup templates
-- Binaries: `popup` (main GUI), MCP server variants
+- `templates.rs`: Dynamic template system with Handlebars
+- Binary: `popup` (operates in 3 modes: MCP server, stdin, file)
 
 **crates/popup-client** - Remote client daemon
 - WebSocket client connecting to Cloudflare relay
@@ -131,13 +150,15 @@ popup-gui (native window)
 ### Cloudflare Workers Structure
 
 **cloudflare/src/index.ts** - Worker entry point
-- Routes `/sse` → MCP SSE endpoint (no auth currently)
-- Routes `/connect` → WebSocket upgrade for clients (no auth currently)
-- Routes `/show-popup` → HTTP POST to create popup (no auth currently)
-- **Auth Model (Current)**: Authless - following pattern from `/Users/inannamalick/dev/cf-ai/demos/remote-mcp-authless`
-- **Auth Model (Future)**: To be added incrementally
-  - Options include: CF Access, OAuth via `@cloudflare/workers-oauth-provider`, API keys
-  - References in `/Users/inannamalick/dev/cf-ai/demos/` (remote-mcp-cf-access, remote-mcp-auth0, etc.)
+- Routes `/authorize`, `/callback`, `/token` → GitHub OAuth flow
+- Routes `/sse` → MCP SSE endpoint (deprecated protocol)
+- Routes `/mcp` → MCP Streamable HTTP endpoint (current protocol)
+- Routes `/connect` → WebSocket upgrade for popup-client daemons
+- Routes `/show-popup` → Internal HTTP POST to PopupSession DO
+- **Auth Model**: GitHub OAuth via `@cloudflare/workers-oauth-provider`
+  - Consent dialog with approval tracking (signed cookies)
+  - User props (login, name, email, accessToken) passed to MCP agent
+  - Pattern from `/Users/inannamalick/dev/cf-ai/demos/remote-mcp-github-oauth`
 
 **cloudflare/src/popup-session.ts** - Durable Object implementation
 - Hibernatable WebSocket server for persistent connections
@@ -147,10 +168,12 @@ popup-gui (native window)
 - Timeout handling with automatic cleanup
 - State survives Worker restarts via hibernation API
 
-**cloudflare/src/mcp-server.ts** - MCP over SSE
-- Implements MCP protocol via Server-Sent Events
-- Provides `show_popup` tool for AI assistants
-- Forwards requests to Durable Object via internal HTTP
+**cloudflare/src/mcp-server.ts** - MCP agent implementation
+- Extends `McpAgent` from `agents/mcp` package
+- Implements Streamable HTTP protocol (current) and SSE (deprecated)
+- Provides `show_popup` tool to MCP clients
+- Receives user props from OAuth (login, name, email, accessToken)
+- Forwards popup requests to PopupSession DO via internal HTTP
 - Returns popup results or timeout errors
 
 **cloudflare/src/protocol.ts** - TypeScript protocol types
@@ -159,12 +182,21 @@ popup-gui (native window)
 
 ### Protocol Flow
 
-1. **Client Connect**: popup-client → WebSocket → PopupSession DO
-2. **Client Ready**: Sends `ClientMessage::Ready` with device name
-3. **Show Popup**: MCP client → SSE → DO → `ServerMessage::ShowPopup` → client
-4. **Render**: Client spawns popup-gui subprocess, monitors stdout
-5. **Result**: GUI exits with JSON → client sends `ClientMessage::Result` → DO
-6. **Cleanup**: DO resolves pending promise, broadcasts `ServerMessage::ClosePopup`
+**Remote (Cloudflare relay):**
+1. **OAuth**: User authorizes via GitHub OAuth flow, gets access token
+2. **Client Connect**: popup-client → wss:// → PopupSession DO (hibernatable WebSocket)
+3. **Client Ready**: Sends `ClientMessage::Ready { device_name }`
+4. **MCP Request**: Claude Desktop → Streamable HTTP → MCP Agent DO
+5. **Show Popup**: MCP Agent → internal HTTP → PopupSession DO → `ServerMessage::ShowPopup` → WebSocket broadcast
+6. **Render**: popup-client spawns `popup --stdin`, writes JSON, monitors stdout
+7. **Result**: popup exits with JSON → client sends `ClientMessage::Result` → DO
+8. **Cleanup**: DO resolves promise, broadcasts `ServerMessage::ClosePopup`
+
+**Local (stdio MCP server):**
+1. **MCP Request**: Client → JSON-RPC via stdin
+2. **Spawn Renderer**: MCP server spawns `popup --stdin` subprocess
+3. **Render**: Subprocess renders window, exits with JSON result
+4. **Result**: MCP server reads stdout, returns to client via JSON-RPC
 
 ### Key Design Decisions
 
@@ -175,6 +207,9 @@ popup-gui (native window)
 - **JSON-based structure**: Clean, explicit definition with no parsing ambiguities
 - **Type safety**: JSON schema provides clear structure validation
 - **Nested support**: Natural support for conditionals and groups through JSON nesting
+- **Self-spawning architecture**: MCP server spawns itself with --stdin for rendering
+- **Template-driven tools**: Dynamic MCP tool generation from user config files
+- **OAuth integration**: GitHub OAuth for remote access with user context propagation
 
 ### Testing Strategy
 
@@ -355,6 +390,103 @@ Complex conditions:
 }
 ```
 
+## Cloudflare Deployment
+
+### Prerequisites
+
+1. **GitHub OAuth App** (for remote MCP access)
+   - Create at: https://github.com/settings/developers
+   - Set Authorization callback URL: `https://your-worker.workers.dev/callback`
+   - Note Client ID and Client Secret
+
+2. **Cloudflare Secrets** (set via wrangler)
+   ```bash
+   cd cloudflare
+   npx wrangler secret put GITHUB_CLIENT_ID
+   npx wrangler secret put GITHUB_CLIENT_SECRET
+   npx wrangler secret put COOKIE_ENCRYPTION_KEY  # Generate with: openssl rand -hex 32
+   ```
+
+3. **Deploy Worker**
+   ```bash
+   npm run deploy
+   ```
+
+### Claude Desktop Configuration
+
+Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "popup-remote": {
+      "url": "https://your-worker.workers.dev/mcp",
+      "transport": {
+        "type": "streamableHttp"
+      }
+    }
+  }
+}
+```
+
+On first use, Claude Desktop will redirect to GitHub OAuth consent flow.
+
+### popup-client Configuration
+
+1. Create `~/.config/popup-client/config.toml`:
+   ```toml
+   server_url = "wss://your-worker.workers.dev/connect"
+   device_name = "laptop"
+   ```
+
+2. Start daemon:
+   ```bash
+   popup-client
+   ```
+
+The client maintains persistent WebSocket connection and renders popups when MCP requests arrive.
+
+## Template System
+
+The `popup` binary supports dynamic template loading for common popup patterns.
+
+**Setup:**
+1. Create `~/.config/popup-mcp/popup.toml` config file
+2. Add template definitions with parameters
+3. Create template JSON files with Handlebars placeholders
+4. Start MCP server - each template becomes a tool
+
+**Example popup.toml:**
+```toml
+[[template]]
+name = "confirm_delete"
+description = "Confirm destructive action"
+file = "confirm_delete.json"
+
+[template.params.item_name]
+type = "string"
+description = "Name of item to delete"
+required = true
+
+[[template]]
+name = "quick_settings"
+description = "Quick settings dialog"
+file = "quick_settings.json"
+```
+
+**Template JSON (confirm_delete.json):**
+```json
+{
+  "title": "Delete {{item_name}}?",
+  "elements": [
+    {"type": "text", "content": "Permanently delete {{item_name}}?"}
+  ]
+}
+```
+
+**MCP Tool Usage:**
+Each template becomes an MCP tool. When invoked, Handlebars substitutes variables and renders the popup.
+
 ## Development Principles
 
 - **ALWAYS write unit tests, not main methods**. No main methods unless explicitly requested.
@@ -362,3 +494,4 @@ Complex conditions:
 - Prefer iterators and for loops over manual iteration in Rust
 - Avoid early optimizations without benchmarks
 - **Wherever possible, write unit tests instead of using cargo run to test changes**
+- Match existing Rust/TypeScript patterns (see crate CLAUDE.md files for specifics)
