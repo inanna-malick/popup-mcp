@@ -1,37 +1,11 @@
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import type { PopupDefinition, ClientMessage, ServerMessage } from '../src/protocol';
 
 /**
- * Test Worker implementation to avoid MCP server import issues
+ * Invoke the real Worker's fetch handler
  */
 export async function testWorkerFetch(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-
-  // MCP SSE endpoint (no auth required)
-  if (url.pathname.startsWith('/sse')) {
-    return new Response('SSE endpoint (no auth)', { status: 200 });
-  }
-
-  // Auth required for other endpoints
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response('Unauthorized: Missing or invalid Authorization header', { status: 401 });
-  }
-
-  const token = authHeader.substring(7);
-  if (token !== 'test-secret-token') {
-    return new Response('Unauthorized: Invalid token', { status: 401 });
-  }
-
-  // Route to DO
-  const id = env.POPUP_SESSION.idFromName('global');
-  const stub = env.POPUP_SESSION.get(id);
-
-  if (url.pathname === '/connect' || url.pathname === '/show-popup') {
-    return stub.fetch(request);
-  }
-
-  return new Response('Not found', { status: 404 });
+  return SELF.fetch(request);
 }
 
 /**
