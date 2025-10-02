@@ -1,0 +1,234 @@
+import { env } from 'cloudflare:test';
+import type { PopupDefinition, ClientMessage, ServerMessage } from '../src/protocol';
+
+/**
+ * Test Worker implementation to avoid MCP server import issues
+ */
+export async function testWorkerFetch(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+
+  // MCP SSE endpoint (no auth required)
+  if (url.pathname.startsWith('/sse')) {
+    return new Response('SSE endpoint (no auth)', { status: 200 });
+  }
+
+  // Auth required for other endpoints
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response('Unauthorized: Missing or invalid Authorization header', { status: 401 });
+  }
+
+  const token = authHeader.substring(7);
+  if (token !== 'test-secret-token') {
+    return new Response('Unauthorized: Invalid token', { status: 401 });
+  }
+
+  // Route to DO
+  const id = env.POPUP_SESSION.idFromName('global');
+  const stub = env.POPUP_SESSION.get(id);
+
+  if (url.pathname === '/connect' || url.pathname === '/show-popup') {
+    return stub.fetch(request);
+  }
+
+  return new Response('Not found', { status: 404 });
+}
+
+/**
+ * Create an authenticated request with Bearer token
+ */
+export function createAuthenticatedRequest(
+  url: string,
+  method: string = 'GET',
+  token: string = 'test-secret-token',
+  body?: unknown
+): Request {
+  const headers: HeadersInit = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  return new Request(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * Create an unauthenticated request (no auth header)
+ */
+export function createUnauthenticatedRequest(
+  url: string,
+  method: string = 'GET',
+  body?: unknown
+): Request {
+  const headers: HeadersInit = {};
+
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  return new Request(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * Create a WebSocket upgrade request with authentication
+ */
+export function createWebSocketRequest(
+  url: string,
+  token: string = 'test-secret-token'
+): Request {
+  return new Request(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Upgrade: 'websocket',
+      Connection: 'Upgrade',
+      'Sec-WebSocket-Version': '13',
+      'Sec-WebSocket-Key': 'test-key',
+    },
+  });
+}
+
+/**
+ * Factory for creating test popup definitions
+ */
+export function createPopupDefinition(options?: {
+  title?: string;
+  includeSlider?: boolean;
+  includeCheckbox?: boolean;
+  includeTextbox?: boolean;
+}): PopupDefinition {
+  const elements: PopupDefinition['elements'] = [
+    { type: 'text', content: 'Test popup content' },
+  ];
+
+  if (options?.includeSlider) {
+    elements.push({
+      type: 'slider',
+      label: 'Volume',
+      min: 0,
+      max: 100,
+      default: 50,
+    });
+  }
+
+  if (options?.includeCheckbox) {
+    elements.push({
+      type: 'checkbox',
+      label: 'Enable notifications',
+      default: true,
+    });
+  }
+
+  if (options?.includeTextbox) {
+    elements.push({
+      type: 'textbox',
+      label: 'Name',
+      placeholder: 'Enter your name',
+    });
+  }
+
+  return {
+    title: options?.title || 'Test Popup',
+    elements,
+  };
+}
+
+/**
+ * Send a ClientMessage over WebSocket
+ */
+export async function sendClientMessage(
+  ws: WebSocket,
+  message: ClientMessage
+): Promise<void> {
+  ws.send(JSON.stringify(message));
+}
+
+/**
+ * Wait for and parse a ServerMessage from WebSocket
+ */
+export async function waitForServerMessage(
+  ws: WebSocket,
+  timeout: number = 5000
+): Promise<ServerMessage> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Timeout waiting for server message after ${timeout}ms`));
+    }, timeout);
+
+    ws.addEventListener('message', (event) => {
+      clearTimeout(timeoutId);
+      try {
+        const message = JSON.parse(event.data as string) as ServerMessage;
+        resolve(message);
+      } catch (e) {
+        reject(new Error(`Failed to parse server message: ${e}`));
+      }
+    }, { once: true });
+  });
+}
+
+/**
+ * Create a ready message
+ */
+export function createReadyMessage(deviceName?: string): ClientMessage {
+  return {
+    type: 'ready',
+    ...(deviceName && { device_name: deviceName }),
+  };
+}
+
+/**
+ * Create a result message
+ */
+export function createResultMessage(
+  popupId: string,
+  values: Record<string, unknown> = {},
+  button: string = 'submit'
+): ClientMessage {
+  return {
+    type: 'result',
+    id: popupId,
+    result: {
+      status: 'completed',
+      button,
+      ...values,
+    },
+  };
+}
+
+/**
+ * Create a cancelled result message
+ */
+export function createCancelledResultMessage(popupId: string): ClientMessage {
+  return {
+    type: 'result',
+    id: popupId,
+    result: {
+      status: 'cancelled',
+    },
+  };
+}
+
+/**
+ * Wait for response with timeout
+ */
+export async function waitForResponse<T>(
+  promise: Promise<T>,
+  timeout: number = 5000
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
+    ),
+  ]);
+}

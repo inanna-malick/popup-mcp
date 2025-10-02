@@ -67,6 +67,14 @@ export class PopupSession extends DurableObject {
     try {
       const body = await request.json() as { definition: PopupDefinition; timeout_ms: number };
 
+      // Validate required fields
+      if (!body.definition) {
+        return new Response(
+          JSON.stringify({ status: 'error', message: 'Missing required field: definition' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Check if any clients are connected
       if (this.sessions.size === 0) {
         return new Response(
