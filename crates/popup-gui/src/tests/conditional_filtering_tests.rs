@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::{
-        json_parser::parse_popup_json_value,
-        models::PopupState,
-    };
+    use crate::json_parser::parse_popup_json_value;
+    use popup_common::PopupState;
     use serde_json::json;
 
     #[test]
@@ -181,7 +179,7 @@ mod tests {
         );
 
         // Create result with active filtering
-        let result = crate::models::PopupResult::from_state_with_active_elements(
+        let result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
             &active_labels,
@@ -189,7 +187,7 @@ mod tests {
 
         // Should only have the visible elements
         let values = match result {
-            crate::models::PopupResult::Completed { values, .. } => values,
+            popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
         assert!(values.contains_key("Show Options"));
@@ -205,7 +203,7 @@ mod tests {
             &popup.elements,
         );
 
-        let result = crate::models::PopupResult::from_state_with_active_elements(
+        let result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
             &active_labels,
@@ -213,7 +211,7 @@ mod tests {
 
         // Now should include the conditional slider
         let values = match result {
-            crate::models::PopupResult::Completed { values, .. } => values,
+            popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
         assert!(values.contains_key("Show Options"));
@@ -488,14 +486,14 @@ mod tests {
         state.button_clicked = Some("submit".to_string());
 
         // Compare old method (includes all) vs new method (filters inactive)
-        let old_result = crate::models::PopupResult::from_state_with_context(&state, &popup);
+        let old_result = popup_common::PopupResult::from_state_with_context(&state, &popup);
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        let new_result = crate::models::PopupResult::from_state_with_active_elements(
+        let new_result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
             &active_labels,
@@ -503,11 +501,11 @@ mod tests {
 
         // Destructure results to get values
         let old_values = match old_result {
-            crate::models::PopupResult::Completed { values, .. } => values,
+            popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
         let new_values = match new_result {
-            crate::models::PopupResult::Completed { values, .. } => values,
+            popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
 

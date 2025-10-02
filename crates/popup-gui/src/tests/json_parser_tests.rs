@@ -1,5 +1,5 @@
 use crate::json_parser::parse_popup_json;
-use crate::models::{Condition, Element};
+use popup_common::{Condition, Element};
 
 #[test]
 fn test_simple_confirmation() {
@@ -361,7 +361,7 @@ fn test_choice_with_default() {
 
 #[test]
 fn test_choice_state_initialization() {
-    use crate::models::{ElementValue, PopupState};
+    use popup_common::{ElementValue, PopupState};
 
     let json = r#"{
         "title": "Choice State Test",

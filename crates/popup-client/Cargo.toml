@@ -1,0 +1,25 @@
+[package]
+name = "popup-client"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "popup-client"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+popup-common = { workspace = true }
+
+# Workspace dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["process", "io-util"] }
+
+# Client-specific dependencies
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+toml = "0.9"
+log = "0.4"
+env_logger = "0.11"

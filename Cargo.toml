@@ -1,38 +1,22 @@
-[package]
-name = "popup-mcp"
+[workspace]
+members = [
+    "crates/popup-common",
+    "crates/popup-gui",
+    "crates/popup-client",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.4.0"
 edition = "2021"
-build = "build.rs"
+authors = ["Inanna Malick <inanna@recursion.wtf>"]
 
-[lib]
-name = "popup_mcp"
-path = "src/lib.rs"
+[workspace.dependencies]
+# Shared dependencies
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros"] }
 
-[[bin]]
-name = "popup"
-path = "src/main.rs"
-
-[dependencies]
-anyhow = "1.0.98"
-env_logger = "0.11.8"
-eframe = "0.31"
-egui = "0.31"
-egui_extras = { version = "0.31.0", features = ["svg", "image"] }
-egui-twemoji = "0.7"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-mcpr = "0.2.3"
-log = "0.4"
-clap = { version = "4.5", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
-handlebars = "6.3.2"
-toml = "0.9.5"
-tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros"], optional = true }
-
-[dev-dependencies]
-proptest = "1.0"
-tokio = { version = "1.42", features = ["rt", "rt-multi-thread", "macros", "test-util"] }
-
-[features]
-default = []
-async = ["tokio"]
+# Workspace crates
+popup-common = { path = "crates/popup-common" }

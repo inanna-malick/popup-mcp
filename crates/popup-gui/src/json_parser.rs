@@ -1,4 +1,4 @@
-use crate::models::PopupDefinition;
+use popup_common::PopupDefinition;
 use anyhow::Result;
 use serde_json::Value;
 
@@ -14,7 +14,7 @@ use serde_json::Value;
 ///
 /// ## Direct format (traditional)
 /// ```rust
-/// use popup_mcp::parse_popup_json;
+/// use popup_gui::parse_popup_json;
 ///
 /// let json = r#"{
 ///     "title": "My Dialog",
@@ -27,7 +27,7 @@ use serde_json::Value;
 ///
 /// ## MCP wrapper format (from tools)
 /// ```rust
-/// use popup_mcp::parse_popup_json;
+/// use popup_gui::parse_popup_json;
 ///
 /// let json = r#"{
 ///     "json": {
@@ -76,7 +76,7 @@ pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
 /// # Examples
 ///
 /// ```rust
-/// use popup_mcp::parse_popup_json_value;
+/// use popup_gui::parse_popup_json_value;
 /// use serde_json::Value;
 ///
 /// let json_str = r#"{
@@ -113,7 +113,7 @@ pub fn parse_popup_json_value(value: Value) -> Result<PopupDefinition> {
 /// # Examples
 ///
 /// ```rust
-/// use popup_mcp::parse_popup_from_mcp_wrapper;
+/// use popup_gui::parse_popup_from_mcp_wrapper;
 ///
 /// let json = r#"{
 ///     "json": {
@@ -139,7 +139,7 @@ pub fn parse_popup_from_mcp_wrapper(input: &str) -> Result<PopupDefinition> {
 /// # Examples
 ///
 /// ```rust
-/// use popup_mcp::parse_popup_from_direct;
+/// use popup_gui::parse_popup_from_direct;
 ///
 /// let json = r#"{
 ///     "title": "Direct Dialog",
@@ -159,7 +159,7 @@ pub fn parse_popup_from_direct(input: &str) -> Result<PopupDefinition> {
 /// # Examples
 ///
 /// ```rust
-/// use popup_mcp::detect_popup_format;
+/// use popup_gui::detect_popup_format;
 ///
 /// let direct = r#"{"title": "test", "elements": []}"#;
 /// assert_eq!(detect_popup_format(direct), "direct");
@@ -190,7 +190,7 @@ pub fn detect_popup_format(input: &str) -> &'static str {
 /// # Examples
 ///
 /// ```rust
-/// use popup_mcp::validate_popup_json;
+/// use popup_gui::validate_popup_json;
 ///
 /// let json = r#"{"json": {"title": "test", "elements": []}}"#;
 /// assert!(validate_popup_json(json).is_ok());
@@ -205,7 +205,7 @@ pub fn validate_popup_json(input: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Condition, Element};
+    use popup_common::{Condition, Element};
 
     #[test]
     fn test_simple_popup() {

@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::json_parser::parse_popup_json;
-use crate::models::PopupDefinition;
+use popup_common::PopupDefinition;
 
 /// Configuration for all templates
 #[derive(Debug, Deserialize)]

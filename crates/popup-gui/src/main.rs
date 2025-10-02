@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use popup_mcp::{mcp_server, parse_popup_json, render_popup};
+use popup_gui::{mcp_server, parse_popup_json, render_popup};
 use std::fs;
 use std::io::{self, Read};
 

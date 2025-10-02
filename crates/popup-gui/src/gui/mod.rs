@@ -3,7 +3,7 @@ use eframe::egui;
 use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel, Vec2};
 use std::sync::{Arc, Mutex};
 
-use crate::models::{Condition, Element, PopupDefinition, PopupResult, PopupState};
+use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState};
 use crate::theme::Theme;
 
 mod widget_renderers;
@@ -524,7 +524,7 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
         }
         Condition::Count { field, count } => {
             // Pattern 3: Count-based conditions
-            use crate::models::ComparisonOp;
+            use popup_common::ComparisonOp;
 
             if let Some((op, target_value)) = ComparisonOp::parse_count_condition(count) {
                 let actual_count = if state.get_boolean(field) {

@@ -1,0 +1,44 @@
+[package]
+name = "popup-gui"
+version.workspace = true
+edition.workspace = true
+build = "build.rs"
+
+[lib]
+name = "popup_gui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "popup"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+popup-common = { workspace = true }
+
+# Workspace dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+# GUI-specific dependencies
+env_logger = "0.11"
+eframe = "0.31"
+egui = "0.31"
+egui_extras = { version = "0.31", features = ["svg", "image"] }
+egui-twemoji = "0.7"
+mcpr = "0.2.3"
+log = "0.4"
+clap = { version = "4.5", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+handlebars = "6.3"
+toml = "0.9"
+
+[dev-dependencies]
+proptest = "1.0"
+tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+default = []
+async = ["tokio"]

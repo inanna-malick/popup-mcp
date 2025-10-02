@@ -1,3 +1,5 @@
+pub mod protocol;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -276,7 +278,7 @@ impl PopupState {
 }
 
 /// Result that gets serialized to JSON
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status")]
 pub enum PopupResult {
     #[serde(rename = "completed")]
@@ -285,6 +287,8 @@ pub enum PopupResult {
         values: HashMap<String, Value>,
         button: String,
     },
+    #[serde(rename = "cancelled")]
+    Cancelled,
     #[serde(rename = "timeout")]
     Timeout {
         message: String,
