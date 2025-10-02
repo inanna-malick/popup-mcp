@@ -4,6 +4,7 @@ use futures_util::{SinkExt, StreamExt};
 use popup_common::protocol::{ClientMessage, ServerMessage};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::error::Error;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
@@ -161,14 +162,14 @@ async fn monitor_subprocess(
     }
 }
 
-async fn run_client(config: Config, auth_token: String) -> Result<()> {
+async fn run_client(config: Config) -> Result<()> {
     let mut backoff_seconds = 1;
     const MAX_BACKOFF: u64 = 60;
 
     loop {
         log::info!("Connecting to {}", config.server_url);
 
-        match connect_to_server(&config, &auth_token).await {
+        match connect_to_server(&config).await {
             Ok(_) => {
                 log::info!("Connection closed, reconnecting...");
                 backoff_seconds = 1; // Reset backoff on successful connection
@@ -186,20 +187,23 @@ async fn run_client(config: Config, auth_token: String) -> Result<()> {
     }
 }
 
-async fn connect_to_server(config: &Config, auth_token: &str) -> Result<()> {
-    // Connect with auth header
-    let (ws_stream, _) = connect_async(
-        tokio_tungstenite::tungstenite::http::Request::builder()
-            .uri(&config.server_url)
-            .header("Authorization", format!("Bearer {}", auth_token))
-            .header("Upgrade", "websocket")
-            .header("Connection", "Upgrade")
-            .header("Sec-WebSocket-Version", "13")
-            .header("Sec-WebSocket-Key", tokio_tungstenite::tungstenite::handshake::client::generate_key())
-            .body(())?,
-    )
-    .await
-    .context("Failed to connect to WebSocket server")?;
+async fn connect_to_server(config: &Config) -> Result<()> {
+    // Connect to WebSocket server
+    log::debug!("Attempting WebSocket connection to {}", config.server_url);
+
+    let (ws_stream, response) = match connect_async(&config.server_url).await {
+        Ok(result) => result,
+        Err(e) => {
+            log::error!("WebSocket connection failed: {}", e);
+            log::error!("Error type: {:?}", e);
+            if let Some(source) = e.source() {
+                log::error!("Caused by: {}", source);
+            }
+            return Err(e).context("Failed to connect to WebSocket server");
+        }
+    };
+
+    log::debug!("WebSocket handshake response: {:?}", response);
 
     log::info!("Connected to server");
 
@@ -277,10 +281,9 @@ fn load_config(args: &Args) -> Result<Config> {
     let config_path = if let Some(path) = &args.config {
         path.clone()
     } else {
-        let config_dir = dirs::config_dir()
-            .context("Could not determine config directory")?
-            .join("popup-client");
-        config_dir.join("config.toml")
+        let home = dirs::home_dir()
+            .context("Could not determine home directory")?;
+        home.join(".config").join("popup-client").join("config.toml")
     };
 
     let config_str = std::fs::read_to_string(&config_path)
@@ -310,15 +313,11 @@ async fn main() -> Result<()> {
     // Load config
     let config = load_config(&args)?;
 
-    // Get auth token from environment variable
-    let auth_token = std::env::var("POPUP_AUTH_TOKEN")
-        .context("POPUP_AUTH_TOKEN environment variable not set")?;
-
     log::info!("Starting popup client daemon");
     log::info!("Server: {}", config.server_url);
     if let Some(ref device) = config.device_name {
         log::info!("Device: {}", device);
     }
 
-    run_client(config, auth_token).await
+    run_client(config).await
 }

@@ -1,6 +1,8 @@
-import { McpServer } from '@cloudflare/mcp-server-cloudflare';
+import { McpAgent } from 'agents/mcp';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { PopupDefinition } from './protocol';
+import type { Props } from './utils';
 
 // Zod schema for popup element types
 const ElementSchema: z.ZodType<any> = z.lazy(() =>
@@ -57,31 +59,23 @@ const PopupDefinitionSchema = z.object({
   elements: z.array(ElementSchema),
 });
 
-const RemotePopupInputSchema = z.object({
-  definition: PopupDefinitionSchema,
-  timeout_ms: z.number().optional().default(30000),
-});
+// Define our MCP agent with remote_popup tool
+export class PopupMcpAgent extends McpAgent<Env, Record<string, never>, Props> {
+  server = new McpServer({
+    name: 'Remote Popup Server (GitHub OAuth)',
+    version: '1.0.0',
+  });
 
-export class PopupMcpServer {
-  private server: McpServer;
-
-  constructor() {
-    this.server = new McpServer({
-      name: 'Remote Popup Server',
-      version: '1.0.0',
-    });
-
-    this.init();
-  }
-
-  private init() {
+  async init() {
     // Define the remote_popup tool
     this.server.tool(
       'remote_popup',
-      RemotePopupInputSchema,
-      async (input, extra) => {
-        const { definition, timeout_ms } = input;
-        const env = extra.env as Env;
+      {
+        definition: PopupDefinitionSchema,
+        timeout_ms: z.number().optional().default(30000),
+      },
+      async ({ definition, timeout_ms }) => {
+        const env = this.env as Env;
 
         try {
           // Forward to Durable Object
@@ -135,19 +129,5 @@ export class PopupMcpServer {
         }
       }
     );
-
-    // Add tool description
-    this.server.setToolDescription(
-      'remote_popup',
-      'Create a native GUI popup on connected client devices. Supports text, sliders, checkboxes, text inputs, multi-select, and more. First connected client to respond wins. Returns user interaction result.'
-    );
-  }
-
-  // Serve SSE endpoint
-  serveSSE(basePath: string) {
-    return this.server.serveSSE(basePath);
   }
 }
-
-// Create singleton instance
-export const PopupMCP = new PopupMcpServer();

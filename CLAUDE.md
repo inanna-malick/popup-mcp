@@ -4,18 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Popup-MCP: Native GUI Popups via MCP
 
-Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using JSON structure.
+Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using JSON structure. The project consists of:
+- **Rust workspace**: Native GUI rendering, local MCP server, and remote client daemon
+- **Cloudflare Workers**: Distributed relay infrastructure for remote popup invocation
 
 ## Common Development Commands
 
+### Rust Workspace
+
 ```bash
-# Build the project
+# Build all workspace crates
 cargo build --release
+
+# Build specific crate
+cargo build -p popup-gui --release
+cargo build -p popup-client --release
 
 # Run all tests
 cargo test
 
-# Run tests with output (useful for debugging) 
+# Run tests with output (useful for debugging)
 cargo test -- --nocapture
 
 # Run a specific test
@@ -25,7 +33,7 @@ cargo test test_simple_confirmation
 cargo test tests::json_parser_tests
 
 # Build and install locally
-cargo install --path .
+cargo install --path crates/popup-gui
 
 # Run formatting check
 cargo fmt --check
@@ -37,20 +45,38 @@ cargo fmt
 cargo clippy
 
 # Test popup directly from command line with JSON
-echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run -- --test
+echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run -p popup-gui -- --stdin
 
 # Test with example file
-cargo run -- --test examples/simple_confirm.json
+cargo run -p popup-gui -- --file examples/simple_confirm.json
 
-# Run MCP server (default mode)
-cargo run
+# Run popup client daemon (connects to Cloudflare relay)
+cargo run -p popup-client -- --server-url wss://your-worker.workers.dev/connect
+```
 
-# List available templates
-cargo run -- --list-templates
+### Cloudflare Workers (TypeScript)
 
-# Run with template filtering
-cargo run -- --include-only settings,feedback
-cargo run -- --exclude debug,admin
+```bash
+# Navigate to cloudflare directory
+cd cloudflare
+
+# Run tests with Miniflare (includes Durable Object and WebSocket tests)
+npm test
+
+# Run specific test file
+npm test -- durable-object.test.ts
+
+# Run tests in watch mode
+npm run test:watch
+
+# Local development server
+npm run dev
+
+# Deploy to Cloudflare
+npm run deploy
+
+# Type check
+npx tsc --noEmit
 ```
 
 ## Important Note on Buttons
@@ -59,55 +85,118 @@ cargo run -- --exclude debug,admin
 
 ## High-Level Architecture
 
-### Core Components
+### System Overview
 
-1. **JSON Parser** (`src/json_parser.rs`)
-   - Direct deserialization from JSON to `PopupDefinition`
-   - Clean, explicit structure with no ambiguity
-   - Supports nested conditionals and groups naturally
+The project implements a distributed popup system with three main components:
 
-2. **GUI Renderer** (`src/gui/`)
-   - `mod.rs`: Main popup window logic using egui framework
-   - `widget_renderers.rs`: Individual widget rendering implementations
-   - Native GUI popups that return structured JSON results
+1. **Local GUI** (`crates/popup-gui`): Native egui-based popup renderer
+2. **Remote Client** (`crates/popup-client`): WebSocket daemon that connects to Cloudflare relay
+3. **Cloudflare Relay** (`cloudflare/`): Durable Object-based WebSocket bridge for remote invocation
 
-3. **MCP Server** (`src/mcp_server.rs`)
-   - Implements Model Context Protocol for AI assistant integration
-   - Handles JSON-RPC communication with Claude Desktop
-   - Provides `popup` tool for creating GUI popups from JSON
-   - Main entry point is `src/main.rs` which runs as MCP server by default
+### Architecture Flow
 
-4. **Models** (`src/models.rs`)
-   - Core data structures: `PopupDefinition`, `Element`, `PopupResult`
-   - All types have Serialize/Deserialize for JSON compatibility
-   - Supports various widget types: Slider, Checkbox, Choice, Multiselect, Textbox, Buttons, Group, Conditional
+```
+MCP Client (Claude Desktop)
+  ↓ (SSE/HTTP)
+Cloudflare Worker → PopupSession Durable Object
+  ↓ (WebSocket)
+popup-client daemon
+  ↓ (subprocess spawn)
+popup-gui (native window)
+```
 
-5. **Template System** (`src/templates.rs`)
-   - Predefined popup templates for common use cases
-   - Can be filtered with `--include-only` or `--exclude` flags
-   - Templates loaded from configuration files
+### Rust Workspace Structure
+
+**crates/popup-common** - Shared protocol types
+- `PopupDefinition`, `Element`, `PopupResult` - Core data structures
+- `ServerMessage`, `ClientMessage` - WebSocket protocol types
+- Serialization via serde for JSON/MessagePack compatibility
+
+**crates/popup-gui** - Native GUI implementation
+- `json_parser.rs`: JSON → PopupDefinition deserialization
+- `gui/mod.rs`: egui window logic and event loop
+- `gui/widget_renderers.rs`: Individual widget rendering
+- `mcp_server.rs`: Local MCP server (JSON-RPC over stdio)
+- `schema.rs`: MCP tool schema definitions
+- `templates.rs`: Predefined popup templates
+- Binaries: `popup` (main GUI), MCP server variants
+
+**crates/popup-client** - Remote client daemon
+- WebSocket client connecting to Cloudflare relay
+- Spawns popup-gui subprocesses for each popup request
+- Manages popup lifecycle (show, monitor, close)
+- Streams results back to Cloudflare relay
+- Config: `~/.config/popup-client/config.toml`
+
+### Cloudflare Workers Structure
+
+**cloudflare/src/index.ts** - Worker entry point
+- Routes `/sse` → MCP SSE endpoint (no auth currently)
+- Routes `/connect` → WebSocket upgrade for clients (no auth currently)
+- Routes `/show-popup` → HTTP POST to create popup (no auth currently)
+- **Auth Model (Current)**: Authless - following pattern from `/Users/inannamalick/dev/cf-ai/demos/remote-mcp-authless`
+- **Auth Model (Future)**: To be added incrementally
+  - Options include: CF Access, OAuth via `@cloudflare/workers-oauth-provider`, API keys
+  - References in `/Users/inannamalick/dev/cf-ai/demos/` (remote-mcp-cf-access, remote-mcp-auth0, etc.)
+
+**cloudflare/src/popup-session.ts** - Durable Object implementation
+- Hibernatable WebSocket server for persistent connections
+- Manages multiple client connections with session metadata
+- Broadcasts popup requests to all connected clients
+- First-response-wins pattern for popup results
+- Timeout handling with automatic cleanup
+- State survives Worker restarts via hibernation API
+
+**cloudflare/src/mcp-server.ts** - MCP over SSE
+- Implements MCP protocol via Server-Sent Events
+- Provides `show_popup` tool for AI assistants
+- Forwards requests to Durable Object via internal HTTP
+- Returns popup results or timeout errors
+
+**cloudflare/src/protocol.ts** - TypeScript protocol types
+- Mirrors Rust protocol types from popup-common
+- Ensures wire format compatibility between Rust and TypeScript
+
+### Protocol Flow
+
+1. **Client Connect**: popup-client → WebSocket → PopupSession DO
+2. **Client Ready**: Sends `ClientMessage::Ready` with device name
+3. **Show Popup**: MCP client → SSE → DO → `ServerMessage::ShowPopup` → client
+4. **Render**: Client spawns popup-gui subprocess, monitors stdout
+5. **Result**: GUI exits with JSON → client sends `ClientMessage::Result` → DO
+6. **Cleanup**: DO resolves pending promise, broadcasts `ServerMessage::ClosePopup`
 
 ### Key Design Decisions
 
+- **Hibernatable WebSockets**: Durable Objects persist connections across Worker restarts
+- **First-response-wins**: Multiple clients can connect; first result completes the request
+- **Subprocess isolation**: Each popup runs in separate process, clean lifecycle
+- **Shared protocol types**: popup-common ensures Rust/TypeScript compatibility
 - **JSON-based structure**: Clean, explicit definition with no parsing ambiguities
 - **Type safety**: JSON schema provides clear structure validation
 - **Nested support**: Natural support for conditionals and groups through JSON nesting
-- **Simple implementation**: No complex parsing logic, just JSON deserialization
 
 ### Testing Strategy
 
-Tests are organized in `src/tests/`:
+**Rust Tests** (`crates/popup-gui/src/tests/`):
 - `json_parser_tests.rs`: Core JSON parsing tests for all widget types
 - `integration_tests.rs`: Integration tests with example files and state management
+- `conditional_filtering_tests.rs`: Conditional visibility logic
 - `template_tests.rs`: Template system tests
 
-Example JSON files for testing in `examples/`:
+**TypeScript Tests** (`cloudflare/test/`):
+- `durable-object.test.ts`: Durable Object lifecycle, hibernation, broadcast
+- `websocket.test.ts`: WebSocket protocol message handling
+- `integration.test.ts`: End-to-end popup flow
+- `mcp-server.test.ts`: MCP SSE endpoint behavior
+- `auth.test.ts`: Bearer token authentication
+- Uses Miniflare for local Durable Object testing
+
+**Example JSON files** (`examples/`):
 - `simple_confirm.json`: Basic confirmation dialog
 - `settings.json`: Complex settings form
 - `conditional_settings.json`: Settings with conditional visibility
-- `feedback_form.json`: User feedback collection
-- `system_status.json`: System status display
-- `user_profile.json`: User profile form
+- `choice_demo.json`: Choice widget demonstrations
 
 ## JSON Structure Reference
 
