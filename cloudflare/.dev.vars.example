@@ -1,0 +1,3 @@
+# Copy this to .dev.vars and fill in your secret
+# For production, use: wrangler secret put POPUP_AUTH_SECRET
+POPUP_AUTH_SECRET=your-secret-token-here

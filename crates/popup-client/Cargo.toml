@@ -15,11 +15,13 @@ popup-common = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["process", "io-util"] }
+tokio = { workspace = true, features = ["process", "io-util", "sync", "time"] }
 
 # Client-specific dependencies
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 toml = "0.9"
+clap = { version = "4.5", features = ["derive"] }
+dirs = "5.0"
 log = "0.4"
 env_logger = "0.11"

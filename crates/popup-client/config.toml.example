@@ -1,0 +1,11 @@
+# Example configuration for popup-client daemon
+# Copy to ~/.config/popup-client/config.toml
+
+# WebSocket server URL (Cloudflare Worker endpoint)
+server_url = "wss://your-worker.workers.dev/connect"
+
+# Optional device name for identification
+device_name = "laptop-1"
+
+# Path to popup-gui binary (default: "popup-gui" from PATH)
+# gui_binary = "/path/to/popup-gui"
