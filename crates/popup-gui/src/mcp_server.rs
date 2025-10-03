@@ -20,6 +20,61 @@ fn error(msg: impl std::fmt::Display) -> Value {
     .unwrap()
 }
 
+fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
+    // Get the current executable path
+    let popup_path = std::env::current_exe().ok();
+
+    if let Some(binary_path) = popup_path {
+        log::info!("Spawning popup binary with --stdin: {:?}", binary_path);
+
+        // Spawn the popup binary with --stdin flag
+        let mut child = std::process::Command::new(binary_path)
+            .arg("--stdin")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))?;
+
+        log::info!("Subprocess spawned with PID: {:?}", child.id());
+
+        // Write JSON to stdin
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            log::info!("Writing JSON to subprocess stdin...");
+            stdin.write_all(json_str.as_bytes())
+                .map_err(|e| format!("Failed to write JSON to subprocess: {}", e))?;
+            drop(stdin); // Close stdin to signal EOF
+
+            // Wait for subprocess to complete and get output
+            let output = child.wait_with_output()
+                .map_err(|e| format!("Failed to wait for popup: {}", e))?;
+
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+
+            if !stderr_str.is_empty() {
+                log::info!("Subprocess stderr: {}", stderr_str);
+            }
+
+            // Small delay to ensure window cleanup
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Parse the output
+            if output.status.success() || !stdout_str.trim().is_empty() {
+                serde_json::from_str::<Value>(&stdout_str)
+                    .map_err(|e| format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
+            } else {
+                Err(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
+            }
+        } else {
+            Err("Failed to get subprocess stdin".to_string())
+        }
+    } else {
+        Err("Could not determine current executable path".to_string())
+    }
+}
+
 pub struct ServerArgs {
     pub include_only: Option<Vec<String>>,
     pub exclude: Option<Vec<String>>,
@@ -226,135 +281,24 @@ pub fn run(args: ServerArgs) -> Result<()> {
 
                             log::info!("Showing popup with JSON: {:?}", json_value);
 
-                            // Check JSON value exists
-                            if json_value.is_none() {
-                                log::error!("No JSON provided in tool arguments");
-                                error("Missing 'json' parameter in tool arguments")
-                            } else {
-                                let json_str = serde_json::to_string(&json_value.unwrap())
-                                    .unwrap_or_else(|e| {
-                                        log::error!("Failed to serialize JSON: {}", e);
-                                        "{}".to_string()
-                                    });
+                            // Check JSON value exists and process it
+                            match json_value {
+                                Some(value) => {
+                                    let json_str = serde_json::to_string(&value)
+                                        .unwrap_or_else(|e| {
+                                            log::error!("Failed to serialize JSON: {}", e);
+                                            "{}".to_string()
+                                        });
 
-                                // Spawn popup binary in stdin mode
-                                // Since we're the same binary, just spawn ourselves with --stdin flag
-                                let popup_path = std::env::current_exe().ok().map(|path| {
-                                    log::info!("Current exe: {:?}", path);
-                                    path
-                                });
-
-                                // Spawn popup binary with --stdin flag
-                                let child = if let Some(binary_path) = popup_path {
-                                    log::info!(
-                                        "Spawning popup binary with --stdin: {:?}",
-                                        binary_path
-                                    );
-                                    std::process::Command::new(binary_path)
-                                        .arg("--stdin")
-                                        .stdin(std::process::Stdio::piped())
-                                        .stdout(std::process::Stdio::piped())
-                                        .stderr(std::process::Stdio::piped())
-                                        .spawn()
-                                        .map_err(|e| {
-                                            format!("Failed to spawn popup subprocess: {}", e)
-                                        })
-                                } else {
-                                    // Fallback to cargo run for development
-                                    log::info!("Falling back to cargo run for popup");
-                                    std::process::Command::new("cargo")
-                                        .args([
-                                            "run",
-                                            "--release",
-                                            "--bin",
-                                            "popup",
-                                            "--quiet",
-                                            "--",
-                                            "--stdin",
-                                        ])
-                                        .current_dir(env!("CARGO_MANIFEST_DIR"))
-                                        .stdin(std::process::Stdio::piped())
-                                        .stdout(std::process::Stdio::piped())
-                                        .stderr(std::process::Stdio::piped())
-                                        .spawn()
-                                        .map_err(|e| {
-                                            format!(
-                                                "Failed to spawn popup subprocess via cargo: {}",
-                                                e
-                                            )
-                                        })
-                                };
-
-                                match child {
-                                    Ok(mut child) => {
-                                        log::info!("Subprocess spawned with PID: {:?}", child.id());
-
-                                        // Write JSON to stdin
-                                        match child.stdin.take() {
-                                            Some(mut stdin) => {
-                                                use std::io::Write;
-                                                log::info!("Writing JSON to subprocess stdin...");
-                                                match stdin.write_all(json_str.as_bytes()) {
-                                                    Ok(_) => {
-                                                        // Close stdin to signal EOF
-                                                        drop(stdin);
-                                                        log::info!("JSON written successfully");
-
-                                                        // Wait for result
-                                                        match child.wait_with_output() {
-                                                            Ok(output) => {
-                                                                let stdout_str =
-                                                                    String::from_utf8_lossy(
-                                                                        &output.stdout,
-                                                                    );
-                                                                let stderr_str =
-                                                                    String::from_utf8_lossy(
-                                                                        &output.stderr,
-                                                                    );
-
-                                                                log::info!(
-                                                                    "Subprocess stdout: {}",
-                                                                    stdout_str
-                                                                );
-                                                                if !stderr_str.is_empty() {
-                                                                    log::info!(
-                                                                        "Subprocess stderr: {}",
-                                                                        stderr_str
-                                                                    );
-                                                                }
-
-                                                                // Add small delay to ensure window system cleanup
-                                                                std::thread::sleep(std::time::Duration::from_millis(100));
-
-                                                                if output.status.success()
-                                                                    || !stdout_str.trim().is_empty()
-                                                                {
-                                                                    // Try to parse JSON even if exit code is non-zero
-                                                                    // (popup-mcp might exit with error code but still output JSON)
-                                                                    match serde_json::from_str::<Value>(&stdout_str) {
-                                                                Ok(popup_result) => popup_result,
-                                                                Err(e) => error(format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
-                                                            }
-                                                                } else {
-                                                                    error(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
-                                                                }
-                                                            }
-                                                            Err(e) => error(format!(
-                                                                "Failed to wait for popup: {}",
-                                                                e
-                                                            )),
-                                                        }
-                                                    }
-                                                    Err(e) => error(format!(
-                                                        "Failed to write JSON to subprocess: {}",
-                                                        e
-                                                    )),
-                                                }
-                                            }
-                                            None => error("Failed to get subprocess stdin"),
-                                        }
+                                    // Spawn popup subprocess and get result
+                                    match spawn_popup_subprocess(&json_str) {
+                                        Ok(popup_result) => popup_result,
+                                        Err(e) => error(e)
                                     }
-                                    Err(e) => error(e),
+                                }
+                                None => {
+                                    log::error!("No JSON provided in tool arguments");
+                                    error("Missing 'json' parameter in tool arguments")
                                 }
                             }
                         } else {
@@ -384,69 +328,10 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                                 "{}".to_string()
                                             });
 
-                                        // Spawn popup binary in stdin mode (same as above)
-                                        let popup_path = std::env::current_exe().ok();
-
-                                        let child = if let Some(binary_path) = popup_path {
-                                            std::process::Command::new(binary_path)
-                                                .arg("--stdin")
-                                                .stdin(std::process::Stdio::piped())
-                                                .stdout(std::process::Stdio::piped())
-                                                .stderr(std::process::Stdio::piped())
-                                                .spawn()
-                                                .map_err(|e| {
-                                                    format!(
-                                                        "Failed to spawn popup subprocess: {}",
-                                                        e
-                                                    )
-                                                })
-                                        } else {
-                                            std::process::Command::new("cargo")
-                                                .args(["run", "--release", "--bin", "popup", "--quiet", "--", "--stdin"])
-                                                .current_dir(env!("CARGO_MANIFEST_DIR"))
-                                                .stdin(std::process::Stdio::piped())
-                                                .stdout(std::process::Stdio::piped())
-                                                .stderr(std::process::Stdio::piped())
-                                                .spawn()
-                                                .map_err(|e| format!("Failed to spawn popup subprocess via cargo: {}", e))
-                                        };
-
-                                        match child {
-                                            Ok(mut child) => match child.stdin.take() {
-                                                Some(mut stdin) => {
-                                                    use std::io::Write;
-                                                    match stdin.write_all(json_str.as_bytes()) {
-                                                            Ok(_) => {
-                                                                drop(stdin);
-                                                                match child.wait_with_output() {
-                                                                    Ok(output) => {
-                                                                        let stdout_str = String::from_utf8_lossy(&output.stdout);
-                                                                        let stderr_str = String::from_utf8_lossy(&output.stderr);
-
-                                                                        if !stderr_str.is_empty() {
-                                                                            log::info!("Subprocess stderr: {}", stderr_str);
-                                                                        }
-
-                                                                        std::thread::sleep(std::time::Duration::from_millis(100));
-
-                                                                        if output.status.success() || !stdout_str.trim().is_empty() {
-                                                                            match serde_json::from_str::<Value>(&stdout_str) {
-                                                                                Ok(popup_result) => popup_result,
-                                                                                Err(e) => error(format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
-                                                                            }
-                                                                        } else {
-                                                                            error(format!("Popup process failed with status: {}. Stderr: {}", output.status, stderr_str))
-                                                                        }
-                                                                    }
-                                                                    Err(e) => error(format!("Failed to wait for popup: {}", e))
-                                                                }
-                                                            }
-                                                            Err(e) => error(format!("Failed to write JSON to subprocess: {}", e))
-                                                        }
-                                                }
-                                                None => error("Failed to get subprocess stdin"),
-                                            },
-                                            Err(e) => error(e),
+                                        // Spawn popup subprocess and get result
+                                        match spawn_popup_subprocess(&json_str) {
+                                            Ok(popup_result) => popup_result,
+                                            Err(e) => error(e)
                                         }
                                     }
                                     Err(e) => {

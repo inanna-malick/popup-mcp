@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use crate::theme::Theme;
 use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState};
 
-mod widget_renderers;
 
 #[cfg(test)]
 pub mod tests {
@@ -95,23 +94,6 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     Ok(result)
 }
 
-/// Render popups sequentially. Due to GUI event loop limitations, only one popup
-/// can be shown at a time. Additional popups will wait until the previous one closes.
-///
-/// IMPORTANT: On macOS, the first popup MUST be created from the main thread.
-/// Consider using render_popup() directly from the main thread instead.
-#[cfg(feature = "async")]
-pub async fn render_popup_sequential(definition: PopupDefinition) -> Result<PopupResult> {
-    // Use a global queue to ensure popups show one at a time
-    static POPUP_QUEUE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-    // Acquire the lock - this ensures only one popup shows at a time
-    let _guard = POPUP_QUEUE.lock().await;
-
-    // For now, just call the synchronous version
-    // This will block the current thread but ensures proper event loop handling
-    render_popup(definition)
-}
 
 struct PopupApp {
     definition: PopupDefinition,
@@ -207,7 +189,6 @@ impl eframe::App for PopupApp {
                         &self.theme,
                         &mut self.first_interactive_widget_id,
                         self.first_widget_focused,
-                        "main",
                     );
                 });
         });
@@ -232,7 +213,6 @@ fn render_elements_in_grid(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
-    grid_id_suffix: &str,
 ) {
     // Render all elements in order with proper vertical layout
     ui.vertical(|ui| {
@@ -245,7 +225,6 @@ fn render_elements_in_grid(
                 theme,
                 first_widget_id,
                 widget_focused,
-                grid_id_suffix,
             );
 
             // Force line break after each element
@@ -262,7 +241,6 @@ fn render_single_element(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
-    _grid_id_suffix: &str,
 ) {
     match element {
         Element::Text { content: text } => {
@@ -326,7 +304,6 @@ fn render_single_element(
                                     theme,
                                     first_widget_id,
                                     widget_focused,
-                                    &format!("inline_multiselect_{}_{}", label, i),
                                 );
                             });
                         }
@@ -380,7 +357,6 @@ fn render_single_element(
                                     theme,
                                     first_widget_id,
                                     widget_focused,
-                                    &format!("inline_choice_{}_{}", label, idx),
                                 );
                             });
                         }
@@ -418,7 +394,6 @@ fn render_single_element(
                                 theme,
                                 first_widget_id,
                                 widget_focused,
-                                &format!("inline_cond_{}", label),
                             );
                         });
                     }
@@ -488,7 +463,6 @@ fn render_single_element(
                     theme,
                     first_widget_id,
                     widget_focused,
-                    &format!("group_{}", label),
                 );
             });
         }
@@ -501,12 +475,6 @@ fn render_single_element(
             let show = evaluate_condition(condition, state, all_elements);
 
             if show {
-                // Create unique ID based on condition type
-                let cond_id = match condition {
-                    Condition::Simple(label) => format!("cond_{}", label),
-                    Condition::Field { field, value } => format!("cond_{}_{}", field, value),
-                    Condition::Count { field, count } => format!("cond_cnt_{}_{}", field, count),
-                };
                 render_elements_in_grid(
                     ui,
                     elements,
@@ -515,7 +483,6 @@ fn render_single_element(
                     theme,
                     first_widget_id,
                     widget_focused,
-                    &cond_id,
                 );
             }
         }
@@ -728,7 +695,7 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 60.0; // Title bar with proper padding
     let mut max_width: f32 = 400.0; // More reasonable default width
 
-    calculate_elements_size(&definition.elements, &mut height, &mut max_width, 0, true);
+    calculate_elements_size(&definition.elements, &mut height, &mut max_width, true);
 
     // Add space for the Submit button panel (separator + button + padding)
     height += 70.0; // TopBottomPanel with Submit button and spacing
@@ -739,7 +706,7 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
 
     // Reasonable bounds for complex UIs
     // Allow wider windows for slider grids (need ~420px for 2 columns)
-    max_width = max_width.min(700.0).max(400.0); // Increased minimum and maximum
+    max_width = max_width.clamp(400.0, 700.0); // Increased minimum and maximum
     height = height.min(800.0); // Allow taller windows
 
     (max_width, height)
@@ -749,7 +716,6 @@ fn calculate_elements_size(
     elements: &[Element],
     height: &mut f32,
     max_width: &mut f32,
-    depth: usize,
     include_conditionals: bool,
 ) {
     // Count sliders to see if we need grid layout
@@ -817,7 +783,6 @@ fn calculate_elements_size(
                     elements,
                     height,
                     max_width,
-                    depth + 1,
                     include_conditionals,
                 );
                 *height += 15.0; // Proper group padding
@@ -839,7 +804,6 @@ fn calculate_elements_size(
                         elements,
                         height,
                         max_width,
-                        depth,
                         include_conditionals,
                     );
                     let added_height = *height - start_height;
