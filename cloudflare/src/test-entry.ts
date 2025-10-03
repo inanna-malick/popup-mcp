@@ -16,17 +16,6 @@ export default {
       });
     }
 
-    // Auth required for WebSocket and direct HTTP endpoints
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response('Unauthorized: Missing or invalid Authorization header', { status: 401 });
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    if (token !== env.POPUP_AUTH_SECRET) {
-      return new Response('Unauthorized: Invalid token', { status: 401 });
-    }
-
     // Route to Durable Object
     // Use a fixed ID for single instance (all clients connect to same DO)
     const id = env.POPUP_SESSION.idFromName('global');

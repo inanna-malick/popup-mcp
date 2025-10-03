@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { env } from 'cloudflare:test';
 import {
-  createAuthenticatedRequest,
   createWebSocketRequest,
   createPopupDefinition,
   createResultMessage,
@@ -351,29 +350,24 @@ describe('End-to-End Integration', () => {
   });
 
   describe('Worker Routing', () => {
-    it('routes authenticated /show-popup through Worker', async () => {
-      const request = createAuthenticatedRequest(
-        'http://localhost/show-popup',
-        'POST',
-        'test-secret-token',
-        {
+    it('routes /show-popup through Worker', async () => {
+      const request = new Request('http://localhost/show-popup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           definition: createPopupDefinition(),
           timeout_ms: 100,
-        }
-      );
+        }),
+      });
 
       const response = await testWorkerFetch(request);
 
       // Should be routed to DO (will timeout due to no clients, but that's ok)
-      expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(404);
     });
 
-    it('routes authenticated /connect through Worker', async () => {
-      const request = createWebSocketRequest(
-        'http://localhost/connect',
-        'test-secret-token'
-      );
+    it('routes /connect through Worker', async () => {
+      const request = createWebSocketRequest('http://localhost/connect');
 
       const response = await testWorkerFetch(request);
 

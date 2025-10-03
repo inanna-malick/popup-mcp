@@ -14,10 +14,6 @@ export default defineWorkersConfig({
           durableObjects: {
             POPUP_SESSION: 'PopupSession',
           },
-          bindings: {
-            // Test environment variables
-            POPUP_AUTH_SECRET: 'test-secret-token',
-          },
         },
       },
     },

@@ -9,60 +9,11 @@ export async function testWorkerFetch(request: Request): Promise<Response> {
 }
 
 /**
- * Create an authenticated request with Bearer token
+ * Create a WebSocket upgrade request
  */
-export function createAuthenticatedRequest(
-  url: string,
-  method: string = 'GET',
-  token: string = 'test-secret-token',
-  body?: unknown
-): Request {
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
-  };
-
-  if (body) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  return new Request(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
-/**
- * Create an unauthenticated request (no auth header)
- */
-export function createUnauthenticatedRequest(
-  url: string,
-  method: string = 'GET',
-  body?: unknown
-): Request {
-  const headers: HeadersInit = {};
-
-  if (body) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  return new Request(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
-/**
- * Create a WebSocket upgrade request with authentication
- */
-export function createWebSocketRequest(
-  url: string,
-  token: string = 'test-secret-token'
-): Request {
+export function createWebSocketRequest(url: string): Request {
   return new Request(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
       Upgrade: 'websocket',
       Connection: 'Upgrade',
       'Sec-WebSocket-Version': '13',

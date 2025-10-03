@@ -61,7 +61,6 @@ mod tests {
         assert_eq!(active_labels.len(), 2);
     }
 
-
     #[test]
     fn test_nested_conditional_filtering() {
         let json = json!({
@@ -340,7 +339,6 @@ mod tests {
         assert!(active_labels.contains(&"Group Slider".to_string()));
     }
 
-
     #[test]
     fn test_complex_comparison_operators() {
         let json = json!({
@@ -530,5 +528,216 @@ mod tests {
             old_values.get("Basic Setting"),
             new_values.get("Basic Setting")
         );
+    }
+
+    #[test]
+    fn test_inline_checkbox_conditional() {
+        let json = json!({
+            "title": "Inline Checkbox Conditional",
+            "elements": [
+                {
+                    "type": "checkbox",
+                    "label": "Enable Features",
+                    "default": false,
+                    "conditional": [
+                        {
+                            "type": "slider",
+                            "label": "Feature Level",
+                            "min": 0,
+                            "max": 10,
+                            "default": 5
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially checkbox is unchecked, conditional should not appear
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_labels, vec!["Enable Features"]);
+
+        // Check the checkbox
+        *state.get_boolean_mut("Enable Features").unwrap() = true;
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+
+        // Both checkbox and slider should be active
+        assert!(active_labels.contains(&"Enable Features".to_string()));
+        assert!(active_labels.contains(&"Feature Level".to_string()));
+        assert_eq!(active_labels.len(), 2);
+    }
+
+    #[test]
+    fn test_inline_choice_conditional() {
+        let json = json!({
+            "title": "Inline Choice Conditional",
+            "elements": [
+                {
+                    "type": "choice",
+                    "label": "Mode",
+                    "options": [
+                        "Simple",
+                        {
+                            "value": "Advanced",
+                            "conditional": [
+                                {
+                                    "type": "slider",
+                                    "label": "Complexity",
+                                    "min": 1,
+                                    "max": 10,
+                                    "default": 5
+                                }
+                            ]
+                        }
+                    ],
+                    "default": 0
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially "Simple" is selected (index 0), no conditional
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_labels, vec!["Mode"]);
+
+        // Select "Advanced" (index 1) which has conditional
+        *state.get_choice_mut("Mode").unwrap() = Some(1);
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+
+        // Both choice and conditional slider should be active
+        assert!(active_labels.contains(&"Mode".to_string()));
+        assert!(active_labels.contains(&"Complexity".to_string()));
+        assert_eq!(active_labels.len(), 2);
+
+        // Switch back to "Simple" (index 0)
+        *state.get_choice_mut("Mode").unwrap() = Some(0);
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+
+        // Only choice should be active
+        assert_eq!(active_labels, vec!["Mode"]);
+    }
+
+    #[test]
+    fn test_inline_multiselect_conditional() {
+        let json = json!({
+            "title": "Inline Multiselect Conditional",
+            "elements": [
+                {
+                    "type": "multiselect",
+                    "label": "Features",
+                    "options": [
+                        "Basic",
+                        {
+                            "value": "Advanced",
+                            "conditional": [
+                                {
+                                    "type": "slider",
+                                    "label": "Advanced Level",
+                                    "min": 1,
+                                    "max": 5,
+                                    "default": 3
+                                }
+                            ]
+                        },
+                        {
+                            "value": "Expert",
+                            "conditional": [
+                                {
+                                    "type": "textbox",
+                                    "label": "Expert Config",
+                                    "placeholder": "Enter config"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially nothing is selected
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_labels, vec!["Features"]);
+
+        // Select "Basic" (index 0) - no conditional
+        state.get_multichoice_mut("Features").unwrap()[0] = true;
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_labels, vec!["Features"]);
+
+        // Select "Advanced" (index 1) - has conditional
+        state.get_multichoice_mut("Features").unwrap()[1] = true;
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_labels.contains(&"Features".to_string()));
+        assert!(active_labels.contains(&"Advanced Level".to_string()));
+        assert_eq!(active_labels.len(), 2);
+
+        // Also select "Expert" (index 2) - has different conditional
+        state.get_multichoice_mut("Features").unwrap()[2] = true;
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_labels.contains(&"Features".to_string()));
+        assert!(active_labels.contains(&"Advanced Level".to_string()));
+        assert!(active_labels.contains(&"Expert Config".to_string()));
+        assert_eq!(active_labels.len(), 3);
+
+        // Deselect "Advanced" (index 1)
+        state.get_multichoice_mut("Features").unwrap()[1] = false;
+
+        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_labels.contains(&"Features".to_string()));
+        assert!(!active_labels.contains(&"Advanced Level".to_string()));
+        assert!(active_labels.contains(&"Expert Config".to_string()));
+        assert_eq!(active_labels.len(), 2);
     }
 }

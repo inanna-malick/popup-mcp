@@ -272,6 +272,23 @@ MCP Client (receives result)
 }
 ```
 
+With inline conditional (shown when checked):
+```json
+{
+  "type": "checkbox",
+  "label": "Enable advanced",
+  "default": false,
+  "conditional": [
+    {
+      "type": "slider",
+      "label": "Advanced level",
+      "min": 1,
+      "max": 10
+    }
+  ]
+}
+```
+
 #### Textbox
 ```json
 {
@@ -291,12 +308,66 @@ MCP Client (receives result)
 }
 ```
 
+With per-option conditional (shown when that option is selected):
+```json
+{
+  "type": "choice",
+  "label": "Mode",
+  "options": [
+    "Simple",
+    {
+      "value": "Advanced",
+      "conditional": [
+        {
+          "type": "slider",
+          "label": "Complexity",
+          "min": 1,
+          "max": 10
+        }
+      ]
+    }
+  ]
+}
+```
+
 #### Multiselect
 ```json
 {
   "type": "multiselect",
   "label": "Features",
   "options": ["Feature A", "Feature B", "Feature C"]
+}
+```
+
+With per-option conditionals (shown when that option is checked):
+```json
+{
+  "type": "multiselect",
+  "label": "Features",
+  "options": [
+    "Basic",
+    {
+      "value": "Advanced",
+      "conditional": [
+        {
+          "type": "slider",
+          "label": "Advanced Level",
+          "min": 1,
+          "max": 5
+        }
+      ]
+    },
+    {
+      "value": "Expert",
+      "conditional": [
+        {
+          "type": "textbox",
+          "label": "Expert Config",
+          "placeholder": "Enter configuration"
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -372,7 +443,7 @@ Complex conditions:
 }
 ```
 
-### Conditional UI
+### Conditional UI (Standalone)
 ```json
 {
   "title": "Advanced Settings",
@@ -384,6 +455,36 @@ Complex conditions:
       "elements": [
         {"type": "slider", "label": "Debug level", "min": 0, "max": 10},
         {"type": "textbox", "label": "Log file", "placeholder": "/tmp/debug.log"}
+      ]
+    }
+  ]
+}
+```
+
+### Inline Conditionals
+```json
+{
+  "title": "Feature Configuration",
+  "elements": [
+    {
+      "type": "checkbox",
+      "label": "Enable advanced mode",
+      "default": false,
+      "conditional": [
+        {"type": "slider", "label": "Complexity", "min": 1, "max": 10}
+      ]
+    },
+    {
+      "type": "choice",
+      "label": "Profile",
+      "options": [
+        "Basic",
+        {
+          "value": "Pro",
+          "conditional": [
+            {"type": "textbox", "label": "License Key", "placeholder": "XXXX-XXXX-XXXX"}
+          ]
+        }
       ]
     }
   ]

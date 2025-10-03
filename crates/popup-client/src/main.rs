@@ -281,9 +281,10 @@ fn load_config(args: &Args) -> Result<Config> {
     let config_path = if let Some(path) = &args.config {
         path.clone()
     } else {
-        let home = dirs::home_dir()
-            .context("Could not determine home directory")?;
-        home.join(".config").join("popup-client").join("config.toml")
+        let home = dirs::home_dir().context("Could not determine home directory")?;
+        home.join(".config")
+            .join("popup-client")
+            .join("config.toml")
     };
 
     let config_str = std::fs::read_to_string(&config_path)

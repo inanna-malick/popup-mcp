@@ -4,6 +4,45 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
+/// Represents an option value in Choice or Multiselect elements.
+/// Can be a simple string or include inline conditional elements.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum OptionValue {
+    /// Simple string option with no conditional UI
+    Simple(String),
+    /// Option with conditional elements shown when selected
+    WithConditional {
+        value: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        conditional: Vec<Element>,
+    },
+}
+
+impl OptionValue {
+    /// Get the display value of this option
+    pub fn value(&self) -> &str {
+        match self {
+            OptionValue::Simple(s) => s,
+            OptionValue::WithConditional { value, .. } => value,
+        }
+    }
+
+    /// Get the conditional elements if present
+    pub fn conditional(&self) -> Option<&[Element]> {
+        match self {
+            OptionValue::Simple(_) => None,
+            OptionValue::WithConditional { conditional, .. } => {
+                if conditional.is_empty() {
+                    None
+                } else {
+                    Some(conditional)
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PopupDefinition {
     pub title: Option<String>,
@@ -34,6 +73,9 @@ pub enum Element {
         label: String,
         #[serde(default)]
         default: bool,
+        /// Optional inline conditional elements shown when checkbox is checked
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        conditional: Option<Vec<Element>>,
     },
     Textbox {
         label: String,
@@ -44,11 +86,11 @@ pub enum Element {
     },
     Multiselect {
         label: String,
-        options: Vec<String>,
+        options: Vec<OptionValue>,
     },
     Choice {
         label: String,
-        options: Vec<String>,
+        options: Vec<OptionValue>,
         #[serde(default)]
         default: Option<usize>,
     },
@@ -184,9 +226,17 @@ impl PopupState {
                     self.values
                         .insert(label.clone(), ElementValue::Number(default_value));
                 }
-                Element::Checkbox { label, default } => {
+                Element::Checkbox {
+                    label,
+                    default,
+                    conditional,
+                } => {
                     self.values
                         .insert(label.clone(), ElementValue::Boolean(*default));
+                    // Recursively init inline conditional elements
+                    if let Some(children) = conditional {
+                        self.init_elements(children);
+                    }
                 }
                 Element::Textbox { label, .. } => {
                     self.values
@@ -197,10 +247,26 @@ impl PopupState {
                         label.clone(),
                         ElementValue::MultiChoice(vec![false; options.len()]),
                     );
+                    // Recursively init inline conditionals from options
+                    for opt in options {
+                        if let Some(children) = opt.conditional() {
+                            self.init_elements(children);
+                        }
+                    }
                 }
-                Element::Choice { label, default, .. } => {
+                Element::Choice {
+                    label,
+                    default,
+                    options,
+                } => {
                     self.values
                         .insert(label.clone(), ElementValue::Choice(*default));
+                    // Recursively init inline conditionals from options
+                    for opt in options {
+                        if let Some(children) = opt.conditional() {
+                            self.init_elements(children);
+                        }
+                    }
                 }
                 Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                     self.init_elements(elements);
@@ -232,7 +298,6 @@ impl PopupState {
         }
     }
 
-
     pub fn get_multichoice_mut(&mut self, label: &str) -> Option<&mut Vec<bool>> {
         match self.values.get_mut(label) {
             Some(ElementValue::MultiChoice(ref mut v)) => Some(v),
@@ -253,7 +318,6 @@ impl PopupState {
             _ => false,
         }
     }
-
 
     pub fn get_multichoice(&self, label: &str) -> Option<&Vec<bool>> {
         match self.values.get(label) {
@@ -290,9 +354,7 @@ pub enum PopupResult {
     #[serde(rename = "cancelled")]
     Cancelled,
     #[serde(rename = "timeout")]
-    Timeout {
-        message: String,
-    }
+    Timeout { message: String },
 }
 
 impl PopupResult {
@@ -385,14 +447,19 @@ impl PopupResult {
                         .iter()
                         .enumerate()
                         .filter_map(|(i, &selected)| {
-                            selected.then_some(options.get(i).cloned()).flatten()
+                            selected
+                                .then_some(options.get(i).map(|opt| opt.value().to_string()))
+                                .flatten()
                         })
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
                     // Return selected option text
-                    options.get(*idx).map(|s| json!(s)).unwrap_or_else(|| json!(null))
+                    options
+                        .get(*idx)
+                        .map(|opt| json!(opt.value()))
+                        .unwrap_or_else(|| json!(null))
                 }
                 (ElementValue::Choice(None), _) => continue, // Skip unselected choice
                 (ElementValue::Number(n), _) => json!(*n as i32),
@@ -485,14 +552,19 @@ impl PopupResult {
                         .iter()
                         .enumerate()
                         .filter_map(|(i, &selected)| {
-                            selected.then_some(options.get(i).cloned()).flatten()
+                            selected
+                                .then_some(options.get(i).map(|opt| opt.value().to_string()))
+                                .flatten()
                         })
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
                     // Return selected option text
-                    options.get(*idx).map(|s| json!(s)).unwrap_or_else(|| json!(null))
+                    options
+                        .get(*idx)
+                        .map(|opt| json!(opt.value()))
+                        .unwrap_or_else(|| json!(null))
                 }
                 (ElementValue::Choice(None), _) => continue, // Skip unselected choice
                 (ElementValue::Number(n), _) => json!(*n as i32),

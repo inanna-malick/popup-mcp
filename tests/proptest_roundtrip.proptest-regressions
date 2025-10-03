@@ -1,9 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 6f5301fafb9426f79abd47485a16ee53b8a8682a0e771071fb74897cd194597f # shrinks to popup = PopupDefinition { title: "a", elements: [Text(" ")] }
-cc a86f7c9b5c2dbd5c09fbc6f1fe8a834cda397529cb2d00be4c0af7575a6189a6 # shrinks to popup = PopupDefinition { title: " ", elements: [Text(" "), Text("a")] }
-cc 43ef139eb8e42320df2a51542b19f322f7926e41722e7fe2ecc194c31d6c1000 # shrinks to popup = PopupDefinition { title: " ", elements: [Slider { label: "03MGVTX", min: 35.8954, max: 64.95322, default: 90.83363 }, Checkbox { label: "8", default: true }] }

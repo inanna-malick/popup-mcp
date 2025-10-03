@@ -1,5 +1,5 @@
-use popup_common::PopupDefinition;
 use anyhow::Result;
+use popup_common::PopupDefinition;
 use serde_json::Value;
 
 /// Parse JSON input into a PopupDefinition with fallback for both schema formats
@@ -125,7 +125,8 @@ pub fn parse_popup_json_value(value: Value) -> Result<PopupDefinition> {
 /// ```
 pub fn parse_popup_from_mcp_wrapper(input: &str) -> Result<PopupDefinition> {
     let value: Value = serde_json::from_str(input)?;
-    let json_obj = value.get("json")
+    let json_obj = value
+        .get("json")
         .ok_or_else(|| anyhow::anyhow!("Missing 'json' field in MCP wrapper format"))?;
     let popup: PopupDefinition = serde_json::from_value(json_obj.clone())?;
     Ok(popup)
@@ -370,7 +371,10 @@ mod tests {
         assert_eq!(popup.elements.len(), 2);
 
         match &popup.elements[0] {
-            Element::Text { content } => assert_eq!(content, "Which development pathway resonates most with your vision for my growth?"),
+            Element::Text { content } => assert_eq!(
+                content,
+                "Which development pathway resonates most with your vision for my growth?"
+            ),
             _ => panic!("Expected text element"),
         }
 
@@ -378,8 +382,11 @@ mod tests {
             Element::Multiselect { label, options } => {
                 assert_eq!(label, "Primary growth focus");
                 assert_eq!(options.len(), 4);
-                assert_eq!(options[0], "Cognitive Architecture - proactive design, meta-patterns");
-            },
+                assert_eq!(
+                    options[0].value(),
+                    "Cognitive Architecture - proactive design, meta-patterns"
+                );
+            }
             _ => panic!("Expected multiselect element"),
         }
     }
@@ -394,12 +401,18 @@ mod tests {
         // Test json field with wrong type
         let json = r#"{"json": "not-an-object"}"#;
         let result = parse_popup_json(json);
-        assert!(result.is_err(), "Should fail when json field is not an object");
+        assert!(
+            result.is_err(),
+            "Should fail when json field is not an object"
+        );
 
         // Test missing elements in wrapper
         let json = r#"{"json": {"title": "Test"}}"#;
         let result = parse_popup_json(json);
-        assert!(result.is_err(), "Should fail when elements missing in wrapper");
+        assert!(
+            result.is_err(),
+            "Should fail when elements missing in wrapper"
+        );
 
         // Test wrapper with extra fields
         let json = r#"{
@@ -480,11 +493,17 @@ mod tests {
 
         // Test that direct parser fails on wrapper format
         let result = parse_popup_from_direct(wrapper_json);
-        assert!(result.is_err(), "Direct parser should fail on wrapper format");
+        assert!(
+            result.is_err(),
+            "Direct parser should fail on wrapper format"
+        );
 
         // Test that wrapper parser fails on direct format
         let result = parse_popup_from_mcp_wrapper(direct_json);
-        assert!(result.is_err(), "Wrapper parser should fail on direct format");
+        assert!(
+            result.is_err(),
+            "Wrapper parser should fail on direct format"
+        );
     }
 
     #[test]

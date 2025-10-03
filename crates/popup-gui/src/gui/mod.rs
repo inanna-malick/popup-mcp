@@ -3,8 +3,8 @@ use eframe::egui;
 use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel, Vec2};
 use std::sync::{Arc, Mutex};
 
-use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState};
 use crate::theme::Theme;
+use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState};
 
 mod widget_renderers;
 
@@ -236,7 +236,7 @@ fn render_elements_in_grid(
 ) {
     // Render all elements in order with proper vertical layout
     ui.vertical(|ui| {
-        for (_idx, element) in elements.iter().enumerate() {
+        for element in elements.iter() {
             render_single_element(
                 ui,
                 element,
@@ -269,10 +269,11 @@ fn render_single_element(
             ui.label(RichText::new(text).color(theme.text_primary));
         }
 
-
         Element::Multiselect { label, options } => {
             ui.group(|ui| {
-                if let Some(selections) = state.get_multichoice_mut(label) {
+                // Clone selections to avoid borrow conflict when rendering conditionals
+                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(label)
+                {
                     ui.label(RichText::new(label).color(theme.matrix_green).strong());
                     ui.horizontal(|ui| {
                         if ui.small_button("All").clicked() {
@@ -289,11 +290,12 @@ fn render_single_element(
                             let col = &mut cols[i % 3];
                             if i < selections.len() {
                                 let checkbox_text = if selections[i] {
-                                    RichText::new(format!("☑ {}", option))
+                                    RichText::new(format!("☑ {}", option.value()))
                                         .color(theme.matrix_green)
                                         .strong()
                                 } else {
-                                    RichText::new(format!("☐ {}", option)).color(theme.text_primary)
+                                    RichText::new(format!("☐ {}", option.value()))
+                                        .color(theme.text_primary)
                                 };
                                 let response = col.selectable_label(false, checkbox_text);
                                 if response.clicked() {
@@ -305,6 +307,30 @@ fn render_single_element(
                             }
                         }
                     });
+
+                    selections.clone()
+                } else {
+                    vec![]
+                };
+
+                // Render inline conditionals for each checked option (after borrow is dropped)
+                for (i, option) in options.iter().enumerate() {
+                    if i < selections_snapshot.len() && selections_snapshot[i] {
+                        if let Some(children) = option.conditional() {
+                            ui.indent(format!("multiselect_cond_{}_{}", label, i), |ui| {
+                                render_elements_in_grid(
+                                    ui,
+                                    children,
+                                    state,
+                                    all_elements,
+                                    theme,
+                                    first_widget_id,
+                                    widget_focused,
+                                    &format!("inline_multiselect_{}_{}", label, i),
+                                );
+                            });
+                        }
+                    }
                 }
             });
         }
@@ -313,7 +339,10 @@ fn render_single_element(
             ui.label(RichText::new(label).color(theme.text_primary));
             if let Some(selected) = state.get_choice_mut(label) {
                 let selected_text = match *selected {
-                    Some(idx) => options.get(idx).map(|s| s.as_str()).unwrap_or("(invalid)"),
+                    Some(idx) => options
+                        .get(idx)
+                        .map(|opt| opt.value())
+                        .unwrap_or("(invalid)"),
                     None => "(none selected)",
                 };
 
@@ -321,21 +350,49 @@ fn render_single_element(
                     .selected_text(selected_text)
                     .show_ui(ui, |ui| {
                         // Option to clear selection
-                        if ui.selectable_label(selected.is_none(), "(none selected)").clicked() {
+                        if ui
+                            .selectable_label(selected.is_none(), "(none selected)")
+                            .clicked()
+                        {
                             *selected = None;
                         }
                         // Show all options
                         for (idx, option) in options.iter().enumerate() {
-                            if ui.selectable_label(*selected == Some(idx), option).clicked() {
+                            if ui
+                                .selectable_label(*selected == Some(idx), option.value())
+                                .clicked()
+                            {
                                 *selected = Some(idx);
                             }
                         }
                     });
+
+                // Render inline conditional for selected option
+                if let Some(idx) = *selected {
+                    if let Some(opt) = options.get(idx) {
+                        if let Some(children) = opt.conditional() {
+                            ui.indent(format!("choice_cond_{}_{}", label, idx), |ui| {
+                                render_elements_in_grid(
+                                    ui,
+                                    children,
+                                    state,
+                                    all_elements,
+                                    theme,
+                                    first_widget_id,
+                                    widget_focused,
+                                    &format!("inline_choice_{}_{}", label, idx),
+                                );
+                            });
+                        }
+                    }
+                }
             }
             ui.add_space(6.0);
         }
 
-        Element::Checkbox { label, .. } => {
+        Element::Checkbox {
+            label, conditional, ..
+        } => {
             if let Some(value) = state.get_boolean_mut(label) {
                 let checkbox_text = if *value {
                     RichText::new(format!("☑ {}", label))
@@ -348,10 +405,33 @@ fn render_single_element(
                 if response.clicked() {
                     *value = !*value;
                 }
+
+                // Render inline conditional if checkbox is checked
+                if *value {
+                    if let Some(children) = conditional {
+                        ui.indent(format!("checkbox_cond_{}", label), |ui| {
+                            render_elements_in_grid(
+                                ui,
+                                children,
+                                state,
+                                all_elements,
+                                theme,
+                                first_widget_id,
+                                widget_focused,
+                                &format!("inline_cond_{}", label),
+                            );
+                        });
+                    }
+                }
             }
         }
 
-        Element::Slider { label, min, max, default: _ } => {
+        Element::Slider {
+            label,
+            min,
+            max,
+            default: _,
+        } => {
             ui.group(|ui| {
                 ui.label(RichText::new(label).color(theme.warning_orange).strong());
                 if let Some(value) = state.get_number_mut(label) {
@@ -454,18 +534,64 @@ fn collect_active_elements(
 
     for element in elements {
         match element {
-            Element::Slider { label, .. }
-            | Element::Checkbox { label, .. }
-            | Element::Textbox { label, .. }
-            | Element::Multiselect { label, .. }
-            | Element::Choice { label, .. } => {
+            Element::Slider { label, .. } | Element::Textbox { label, .. } => {
                 active_labels.push(label.clone());
+            }
+            Element::Checkbox {
+                label, conditional, ..
+            } => {
+                active_labels.push(label.clone());
+                // If checkbox is checked and has inline conditional, collect from it
+                if state.get_boolean(label) {
+                    if let Some(children) = conditional {
+                        active_labels.extend(collect_active_elements(
+                            children,
+                            state,
+                            all_elements,
+                        ));
+                    }
+                }
+            }
+            Element::Multiselect { label, options } => {
+                active_labels.push(label.clone());
+                // For each checked option with conditional, collect from it
+                if let Some(selections) = state.get_multichoice(label) {
+                    for (i, option) in options.iter().enumerate() {
+                        if i < selections.len() && selections[i] {
+                            if let Some(children) = option.conditional() {
+                                active_labels.extend(collect_active_elements(
+                                    children,
+                                    state,
+                                    all_elements,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            Element::Choice { label, options, .. } => {
+                active_labels.push(label.clone());
+                // If there's a selected option with conditional, collect from it
+                if let Some(Some(idx)) = state.get_choice(label) {
+                    if let Some(option) = options.get(idx) {
+                        if let Some(children) = option.conditional() {
+                            active_labels.extend(collect_active_elements(
+                                children,
+                                state,
+                                all_elements,
+                            ));
+                        }
+                    }
+                }
             }
             Element::Group { elements, .. } => {
                 // Recursively collect from group
                 active_labels.extend(collect_active_elements(elements, state, all_elements));
             }
-            Element::Conditional { condition, elements } => {
+            Element::Conditional {
+                condition,
+                elements,
+            } => {
                 // Only collect from conditional if condition is met
                 if evaluate_condition(condition, state, all_elements) {
                     active_labels.extend(collect_active_elements(elements, state, all_elements));
@@ -532,7 +658,11 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
                 } else if let Some(selections) = state.get_multichoice(field) {
                     selections.iter().filter(|&&x| x).count() as i32
                 } else if let Some(choice) = state.get_choice(field) {
-                    if choice.is_some() { 1 } else { 0 } // Choice counts as 1 if selected, 0 if not
+                    if choice.is_some() {
+                        1
+                    } else {
+                        0
+                    } // Choice counts as 1 if selected, 0 if not
                 } else {
                     0
                 };
@@ -558,7 +688,7 @@ fn find_multiselect_options(elements: &[Element], label: &str) -> Option<Vec<Str
                 label: el_label,
                 options,
             } if el_label == label => {
-                return Some(options.clone());
+                return Some(options.iter().map(|opt| opt.value().to_string()).collect());
             }
             Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                 // Recursively search in nested elements
@@ -580,7 +710,7 @@ fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>>
                 options,
                 ..
             } if el_label == label => {
-                return Some(options.clone());
+                return Some(options.iter().map(|opt| opt.value().to_string()).collect());
             }
             Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
                 // Recursively search in nested elements
@@ -593,7 +723,6 @@ fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>>
     }
     None
 }
-
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     let mut height: f32 = 60.0; // Title bar with proper padding
@@ -662,14 +791,24 @@ fn calculate_elements_size(
                     *max_width = max_width.max(500.0); // More width for columns with moderately larger text
                 } else {
                     *height += 30.0 * options.len() as f32; // Moderately larger checkbox height
-                    let longest = options.iter().map(|s| s.len()).max().unwrap_or(0);
-                    *max_width = max_width.max((longest as f32) * 12.0 + 130.0); // Moderately larger character width + more space
+                    let longest = options
+                        .iter()
+                        .map(|opt| opt.value().len())
+                        .max()
+                        .unwrap_or(0);
+                    *max_width = max_width.max((longest as f32) * 12.0 + 130.0);
+                    // Moderately larger character width + more space
                 }
             }
             Element::Choice { label, options, .. } => {
                 *height += 35.0; // Label height
                 *height += 35.0; // ComboBox height
-                let longest = options.iter().map(|s| s.len()).max().unwrap_or(0).max(label.len());
+                let longest = options
+                    .iter()
+                    .map(|opt| opt.value().len())
+                    .max()
+                    .unwrap_or(0)
+                    .max(label.len());
                 *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
             }
             Element::Group { elements, .. } => {

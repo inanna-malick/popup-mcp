@@ -23,17 +23,53 @@ pub struct PopupDefinition {
 ```
 
 ### Element
-Tagged enum of widget types. Supports nesting via Group and Conditional variants.
+Tagged enum of widget types. Supports nesting via Group and Conditional variants, plus inline conditionals on interactive elements.
 
 **Variants:**
 - `Text { content: String }` - Static text display
 - `Slider { label, min, max, default? }` - Numeric input (f32)
-- `Checkbox { label, default? }` - Boolean input
+- `Checkbox { label, default?, conditional? }` - Boolean input with optional inline conditional
 - `Textbox { label, placeholder?, rows? }` - Text input (single/multi-line)
-- `Multiselect { label, options }` - Multiple choice checkboxes
-- `Choice { label, options, default? }` - Single selection dropdown
+- `Multiselect { label, options: Vec<OptionValue> }` - Multiple choice with per-option conditionals
+- `Choice { label, options: Vec<OptionValue>, default? }` - Single selection with per-option conditionals
 - `Group { label, elements }` - Labeled container
-- `Conditional { condition, elements }` - Conditional visibility
+- `Conditional { condition, elements }` - Standalone conditional visibility
+
+**Inline Conditionals:**
+- Checkbox `conditional` field: `Option<Vec<Element>>` shown when checked
+- Choice/Multiselect options: Use OptionValue to attach conditionals to individual options
+
+### OptionValue
+Enum for Choice/Multiselect options, supporting simple strings or options with inline conditionals.
+
+```rust
+#[serde(untagged)]
+pub enum OptionValue {
+    Simple(String),
+    WithConditional { value: String, conditional: Vec<Element> },
+}
+```
+
+**JSON Examples:**
+```json
+// Simple option (backwards compatible)
+"options": ["Basic", "Advanced"]
+
+// Option with inline conditional
+"options": [
+    "Basic",
+    {
+        "value": "Advanced",
+        "conditional": [
+            {"type": "slider", "label": "Level", "min": 1, "max": 10}
+        ]
+    }
+]
+```
+
+**Helper methods:**
+- `value() -> &str` - Get option text
+- `conditional() -> Option<&[Element]>` - Get attached conditional if any
 
 ### Condition
 Controls conditional element visibility.

@@ -61,14 +61,14 @@ impl Theme {
     pub fn solarized_dark() -> Self {
         Self {
             // Solarized Dark color palette
-            neon_cyan: Color32::from_rgb(42, 161, 152),    // cyan
-            neon_pink: Color32::from_rgb(211, 54, 130),    // magenta
+            neon_cyan: Color32::from_rgb(42, 161, 152), // cyan
+            neon_pink: Color32::from_rgb(211, 54, 130), // magenta
             neon_purple: Color32::from_rgb(108, 113, 196), // violet
             electric_blue: Color32::from_rgb(38, 139, 210), // blue
-            matrix_green: Color32::from_rgb(133, 153, 0),  // green
+            matrix_green: Color32::from_rgb(133, 153, 0), // green
             warning_orange: Color32::from_rgb(203, 75, 22), // orange/red
-            deep_black: Color32::from_rgb(0, 43, 54),      // base03 (darkest background)
-            dark_gray: Color32::from_rgb(7, 54, 66),       // base02 (background highlights)
+            deep_black: Color32::from_rgb(0, 43, 54),   // base03 (darkest background)
+            dark_gray: Color32::from_rgb(7, 54, 66),    // base02 (background highlights)
             text_primary: Color32::from_rgb(147, 161, 161), // base1 (primary content)
             text_secondary: Color32::from_rgb(101, 123, 131), // base0 (secondary content)
         }
@@ -77,15 +77,15 @@ impl Theme {
     pub fn solarized_light() -> Self {
         Self {
             // Solarized Light color palette
-            neon_cyan: Color32::from_rgb(42, 161, 152),    // cyan
-            neon_pink: Color32::from_rgb(211, 54, 130),    // magenta
+            neon_cyan: Color32::from_rgb(42, 161, 152), // cyan
+            neon_pink: Color32::from_rgb(211, 54, 130), // magenta
             neon_purple: Color32::from_rgb(108, 113, 196), // violet
             electric_blue: Color32::from_rgb(38, 139, 210), // blue
-            matrix_green: Color32::from_rgb(133, 153, 0),  // green
+            matrix_green: Color32::from_rgb(133, 153, 0), // green
             warning_orange: Color32::from_rgb(203, 75, 22), // orange/red
-            deep_black: Color32::from_rgb(253, 246, 227),  // base3 (lightest background)
-            dark_gray: Color32::from_rgb(238, 232, 213),   // base2 (background highlights)
-            text_primary: Color32::from_rgb(88, 110, 117),  // base01 (primary content)
+            deep_black: Color32::from_rgb(253, 246, 227), // base3 (lightest background)
+            dark_gray: Color32::from_rgb(238, 232, 213), // base2 (background highlights)
+            text_primary: Color32::from_rgb(88, 110, 117), // base01 (primary content)
             text_secondary: Color32::from_rgb(131, 148, 150), // base00 (secondary content)
         }
     }

@@ -4,7 +4,7 @@ import { createWebSocketRequest, createPopupDefinition, testWorkerFetch } from '
 import type { ServerMessage, ClientMessage } from '../src/protocol';
 
 describe('WebSocket Connection', () => {
-  it('establishes WebSocket connection with valid auth', async () => {
+  it('establishes WebSocket connection', async () => {
     const request = createWebSocketRequest('http://localhost/connect');
     const response = await testWorkerFetch(request);
 
@@ -95,9 +95,6 @@ describe('WebSocket Connection', () => {
   it('rejects non-WebSocket requests to /connect', async () => {
     const request = new Request('http://localhost/connect', {
       method: 'GET',
-      headers: {
-        Authorization: 'Bearer test-secret-token',
-      },
     });
 
     const response = await testWorkerFetch(request);

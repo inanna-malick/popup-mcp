@@ -55,7 +55,7 @@ fn test_all_widget_types() {
 
     // Verify checkbox
     match &popup.elements[2] {
-        Element::Checkbox { label, default } => {
+        Element::Checkbox { label, default, .. } => {
             assert_eq!(label, "Enable");
             assert_eq!(*default, true);
         }
@@ -326,7 +326,10 @@ fn test_choice_no_default() {
             default,
         } => {
             assert_eq!(label, "Theme");
-            assert_eq!(options, &vec!["Light", "Dark", "Auto"]);
+            assert_eq!(options.len(), 3);
+            assert_eq!(options[0].value(), "Light");
+            assert_eq!(options[1].value(), "Dark");
+            assert_eq!(options[2].value(), "Auto");
             assert_eq!(*default, None); // No default, should be None
         }
         _ => panic!("Expected choice element"),
@@ -352,7 +355,10 @@ fn test_choice_with_default() {
             default,
         } => {
             assert_eq!(label, "Mode");
-            assert_eq!(options, &vec!["Easy", "Medium", "Hard"]);
+            assert_eq!(options.len(), 3);
+            assert_eq!(options[0].value(), "Easy");
+            assert_eq!(options[1].value(), "Medium");
+            assert_eq!(options[2].value(), "Hard");
             assert_eq!(*default, Some(1)); // Default to index 1 (Medium)
         }
         _ => panic!("Expected choice element"),

@@ -88,6 +88,10 @@ pub fn get_input_schema() -> serde_json::Value {
                                             "type": "boolean",
                                             "description": "Default checked state",
                                             "default": false
+                                        },
+                                        "conditional": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Optional inline conditional elements shown when checkbox is checked"
                                         }
                                     },
                                     "required": ["type", "label"],
@@ -126,9 +130,31 @@ pub fn get_input_schema() -> serde_json::Value {
                                         },
                                         "options": {
                                             "type": "array",
-                                            "items": {"type": "string"},
+                                            "items": {
+                                                "oneOf": [
+                                                    {
+                                                        "type": "string",
+                                                        "description": "Simple option"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "description": "Option text"
+                                                            },
+                                                            "conditional": {
+                                                                "$ref": "#/properties/json/properties/elements",
+                                                                "description": "Inline conditional elements shown when this option is checked"
+                                                            }
+                                                        },
+                                                        "required": ["value", "conditional"],
+                                                        "additionalProperties": false
+                                                    }
+                                                ]
+                                            },
                                             "minItems": 1,
-                                            "description": "Array of options for multiple selection"
+                                            "description": "Array of options (strings or objects with inline conditionals) for multiple selection"
                                         }
                                     },
                                     "required": ["type", "label", "options"],
@@ -145,9 +171,31 @@ pub fn get_input_schema() -> serde_json::Value {
                                         },
                                         "options": {
                                             "type": "array",
-                                            "items": {"type": "string"},
+                                            "items": {
+                                                "oneOf": [
+                                                    {
+                                                        "type": "string",
+                                                        "description": "Simple option"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "value": {
+                                                                "type": "string",
+                                                                "description": "Option text"
+                                                            },
+                                                            "conditional": {
+                                                                "$ref": "#/properties/json/properties/elements",
+                                                                "description": "Inline conditional elements shown when this option is selected"
+                                                            }
+                                                        },
+                                                        "required": ["value", "conditional"],
+                                                        "additionalProperties": false
+                                                    }
+                                                ]
+                                            },
                                             "minItems": 1,
-                                            "description": "Array of options for single selection dropdown"
+                                            "description": "Array of options (strings or objects with inline conditionals) for single selection dropdown"
                                         },
                                         "default": {
                                             "type": "integer",
@@ -353,15 +401,16 @@ pub fn get_schema_description() -> &'static str {
   \"elements\": [
     {\"type\": \"text\", \"content\": \"Display text\"},
     {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50},
-    {\"type\": \"checkbox\", \"label\": \"Enable\", \"default\": true},
+    {\"type\": \"checkbox\", \"label\": \"Enable\", \"default\": true, \"conditional\": [...]},
     {\"type\": \"textbox\", \"label\": \"Name\", \"placeholder\": \"Enter name\", \"rows\": 3},
-    {\"type\": \"choice\", \"label\": \"Color\", \"options\": [\"Red\", \"Blue\"]},
-    {\"type\": \"multiselect\", \"label\": \"Features\", \"options\": [\"A\", \"B\", \"C\"]},
+    {\"type\": \"choice\", \"label\": \"Color\", \"options\": [\"Red\", {\"value\": \"Blue\", \"conditional\": [...]}]},
+    {\"type\": \"multiselect\", \"label\": \"Features\", \"options\": [\"A\", {\"value\": \"B\", \"conditional\": [...]}]},
     {\"type\": \"group\", \"label\": \"Settings\", \"elements\": [...]},
     {\"type\": \"conditional\", \"condition\": \"checkbox_label\", \"elements\": [...]}
   ]
 }
 
+Inline conditionals: Checkbox supports 'conditional' field. Choice/Multiselect options can be objects with 'value' and 'conditional' fields.
 Returns: {\"button\": \"submit\" | \"cancel\", \"field_label\": value, ...}"
 }
 

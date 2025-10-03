@@ -5,13 +5,24 @@ export interface PopupDefinition {
   elements: Element[];
 }
 
+/**
+ * Option value for Choice and Multiselect elements.
+ * Can be a simple string or an object with inline conditional elements.
+ */
+export type OptionValue =
+  | string  // Simple option (backwards compatible)
+  | {       // Option with inline conditional
+      value: string;
+      conditional: Element[];
+    };
+
 export type Element =
   | { type: 'text'; content: string }
   | { type: 'slider'; label: string; min: number; max: number; default?: number }
-  | { type: 'checkbox'; label: string; default?: boolean }
+  | { type: 'checkbox'; label: string; default?: boolean; conditional?: Element[] }
   | { type: 'textbox'; label: string; placeholder?: string; rows?: number }
-  | { type: 'multiselect'; label: string; options: string[] }
-  | { type: 'choice'; label: string; options: string[]; default?: number }
+  | { type: 'multiselect'; label: string; options: OptionValue[] }
+  | { type: 'choice'; label: string; options: OptionValue[]; default?: number }
   | { type: 'group'; label: string; elements: Element[] }
   | { type: 'conditional'; condition: Condition; elements: Element[] };
 

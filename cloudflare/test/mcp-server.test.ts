@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createUnauthenticatedRequest, createPopupDefinition, testWorkerFetch } from './helpers';
+import { createPopupDefinition, testWorkerFetch } from './helpers';
 
 describe('MCP Server', () => {
   describe('/sse endpoint', () => {
     it('returns 501 in test environment (broken package)', async () => {
-      const request = createUnauthenticatedRequest('http://localhost/sse');
+      const request = new Request('http://localhost/sse');
       const response = await testWorkerFetch(request);
 
       // MCP server package imports node:child_process which doesn't work in Workers/Miniflare

@@ -66,7 +66,6 @@ fn test_popup_state_initialization() {
     // Check textbox initialization
     assert_eq!(state.get_text_mut("Name").unwrap(), "");
 
-
     // Check multiselect initialization
     assert_eq!(state.get_multichoice_mut("Features").unwrap().len(), 3);
     assert!(state
