@@ -188,6 +188,29 @@ fn extract_template_variables(template: &str) -> Vec<String> {
     variables
 }
 
+/// Escape string for safe inclusion in JSON
+/// Escapes quotes, backslashes, newlines, and other control characters
+fn json_escape(s: &str) -> String {
+    let mut escaped = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            '\x08' => escaped.push_str("\\b"), // backspace
+            '\x0C' => escaped.push_str("\\f"), // form feed
+            c if c.is_control() => {
+                // Escape other control characters as \uXXXX
+                escaped.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => escaped.push(c),
+        }
+    }
+    escaped
+}
+
 /// Instantiate a template with given parameters
 pub fn instantiate_template(
     template: &LoadedTemplate,
@@ -212,9 +235,9 @@ pub fn instantiate_template(
     // Render template with Handlebars
     let mut handlebars = Handlebars::new();
 
-    // Disable HTML escaping since we're generating JSON
+    // Use JSON-safe escaping for string values
     handlebars.set_strict_mode(false);
-    handlebars.register_escape_fn(handlebars::no_escape);
+    handlebars.register_escape_fn(json_escape);
 
     let json_str = handlebars
         .render_template(&template.content, &full_params)

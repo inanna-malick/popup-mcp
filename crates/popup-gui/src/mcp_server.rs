@@ -199,6 +199,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                             serde_json::json!({
                                 "protocolVersion": "2024-11-05",
                                 "capabilities": {
+                                    "tools": {},
                                     "gui_popups": {
                                         "description": "Create native GUI popups using JSON structure for precise control.",
                                         "features": {

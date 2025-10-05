@@ -4,7 +4,7 @@ use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel,
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
-use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState};
+use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState, StateKey};
 
 
 #[cfg(test)]
@@ -16,7 +16,7 @@ pub mod tests {
         state: &PopupState,
         all_elements: &[Element],
     ) -> Vec<String> {
-        super::collect_active_elements(elements, state, all_elements)
+        super::collect_active_elements(elements, state, all_elements, "")
     }
 }
 
@@ -126,6 +126,7 @@ impl PopupApp {
             &self.definition.elements,
             &self.state,
             &self.definition.elements,
+            "",
         );
 
         let popup_result = PopupResult::from_state_with_active_elements(
@@ -189,6 +190,7 @@ impl eframe::App for PopupApp {
                         &self.theme,
                         &mut self.first_interactive_widget_id,
                         self.first_widget_focused,
+                        "",
                     );
                 });
         });
@@ -213,10 +215,17 @@ fn render_elements_in_grid(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
+    path_prefix: &str,
 ) {
     // Render all elements in order with proper vertical layout
     ui.vertical(|ui| {
-        for element in elements.iter() {
+        for (idx, element) in elements.iter().enumerate() {
+            let element_path = if path_prefix.is_empty() {
+                idx.to_string()
+            } else {
+                format!("{}.{}", path_prefix, idx)
+            };
+
             render_single_element(
                 ui,
                 element,
@@ -225,6 +234,7 @@ fn render_elements_in_grid(
                 theme,
                 first_widget_id,
                 widget_focused,
+                &element_path,
             );
 
             // Force line break after each element
@@ -241,16 +251,21 @@ fn render_single_element(
     theme: &Theme,
     first_widget_id: &mut Option<Id>,
     widget_focused: bool,
+    element_path: &str,
 ) {
     match element {
         Element::Text { content: text } => {
-            ui.label(RichText::new(text).color(theme.text_primary));
+            // Use element path as unique ID to prevent collisions in conditionals
+            ui.push_id(format!("text_{}", element_path), |ui| {
+                ui.label(RichText::new(text).color(theme.text_primary));
+            });
         }
 
         Element::Multiselect { label, options } => {
             ui.group(|ui| {
+                let key = StateKey::new(label, element_path);
                 // Clone selections to avoid borrow conflict when rendering conditionals
-                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(label)
+                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(&key)
                 {
                     ui.label(RichText::new(label).color(theme.matrix_green).strong());
                     ui.horizontal(|ui| {
@@ -304,6 +319,7 @@ fn render_single_element(
                                     theme,
                                     first_widget_id,
                                     widget_focused,
+                                    &format!("{}.multiselect_{}", element_path, i),
                                 );
                             });
                         }
@@ -313,8 +329,9 @@ fn render_single_element(
         }
 
         Element::Choice { label, options, .. } => {
+            let key = StateKey::new(label, element_path);
             ui.label(RichText::new(label).color(theme.text_primary));
-            if let Some(selected) = state.get_choice_mut(label) {
+            if let Some(selected) = state.get_choice_mut(&key) {
                 let selected_text = match *selected {
                     Some(idx) => options
                         .get(idx)
@@ -357,6 +374,7 @@ fn render_single_element(
                                     theme,
                                     first_widget_id,
                                     widget_focused,
+                                    &format!("{}.choice_{}", element_path, idx),
                                 );
                             });
                         }
@@ -369,7 +387,8 @@ fn render_single_element(
         Element::Checkbox {
             label, conditional, ..
         } => {
-            if let Some(value) = state.get_boolean_mut(label) {
+            let key = StateKey::new(label, element_path);
+            if let Some(value) = state.get_boolean_mut(&key) {
                 let checkbox_text = if *value {
                     RichText::new(format!("☑ {}", label))
                         .color(theme.matrix_green)
@@ -394,6 +413,7 @@ fn render_single_element(
                                 theme,
                                 first_widget_id,
                                 widget_focused,
+                                &format!("{}.checkbox", element_path),
                             );
                         });
                     }
@@ -407,9 +427,10 @@ fn render_single_element(
             max,
             default: _,
         } => {
+            let key = StateKey::new(label, element_path);
             ui.group(|ui| {
                 ui.label(RichText::new(label).color(theme.warning_orange).strong());
-                if let Some(value) = state.get_number_mut(label) {
+                if let Some(value) = state.get_number_mut(&key) {
                     ui.horizontal(|ui| {
                         let slider = egui::Slider::new(value, *min..=*max)
                             .show_value(false)
@@ -434,9 +455,10 @@ fn render_single_element(
             placeholder,
             rows,
         } => {
+            let key = StateKey::new(label, element_path);
             ui.group(|ui| {
                 ui.label(RichText::new(label).color(theme.neon_purple).strong());
-                if let Some(value) = state.get_text_mut(label) {
+                if let Some(value) = state.get_text_mut(&key) {
                     let height = rows.unwrap_or(1) as f32 * 20.0;
                     let text_edit = egui::TextEdit::multiline(value)
                         .desired_width(ui.available_width())
@@ -463,6 +485,7 @@ fn render_single_element(
                     theme,
                     first_widget_id,
                     widget_focused,
+                    &format!("{}.group", element_path),
                 );
             });
         }
@@ -472,7 +495,7 @@ fn render_single_element(
             elements,
         } => {
             // Check if condition is met using shared helper
-            let show = evaluate_condition(condition, state, all_elements);
+            let show = evaluate_condition(condition, state, all_elements, element_path);
 
             if show {
                 render_elements_in_grid(
@@ -483,6 +506,7 @@ fn render_single_element(
                     theme,
                     first_widget_id,
                     widget_focused,
+                    &format!("{}.cond", element_path),
                 );
             }
         }
@@ -496,10 +520,17 @@ fn collect_active_elements(
     elements: &[Element],
     state: &PopupState,
     all_elements: &[Element],
+    path_prefix: &str,
 ) -> Vec<String> {
     let mut active_labels = Vec::new();
 
-    for element in elements {
+    for (idx, element) in elements.iter().enumerate() {
+        let element_path = if path_prefix.is_empty() {
+            idx.to_string()
+        } else {
+            format!("{}.{}", path_prefix, idx)
+        };
+
         match element {
             Element::Slider { label, .. } | Element::Textbox { label, .. } => {
                 active_labels.push(label.clone());
@@ -509,12 +540,14 @@ fn collect_active_elements(
             } => {
                 active_labels.push(label.clone());
                 // If checkbox is checked and has inline conditional, collect from it
-                if state.get_boolean(label) {
+                let key = StateKey::new(label, &element_path);
+                if state.get_boolean(&key) {
                     if let Some(children) = conditional {
                         active_labels.extend(collect_active_elements(
                             children,
                             state,
                             all_elements,
+                            &format!("{}.checkbox", element_path),
                         ));
                     }
                 }
@@ -522,7 +555,8 @@ fn collect_active_elements(
             Element::Multiselect { label, options } => {
                 active_labels.push(label.clone());
                 // For each checked option with conditional, collect from it
-                if let Some(selections) = state.get_multichoice(label) {
+                let key = StateKey::new(label, &element_path);
+                if let Some(selections) = state.get_multichoice(&key) {
                     for (i, option) in options.iter().enumerate() {
                         if i < selections.len() && selections[i] {
                             if let Some(children) = option.conditional() {
@@ -530,6 +564,7 @@ fn collect_active_elements(
                                     children,
                                     state,
                                     all_elements,
+                                    &format!("{}.multiselect_{}", element_path, i),
                                 ));
                             }
                         }
@@ -539,13 +574,15 @@ fn collect_active_elements(
             Element::Choice { label, options, .. } => {
                 active_labels.push(label.clone());
                 // If there's a selected option with conditional, collect from it
-                if let Some(Some(idx)) = state.get_choice(label) {
+                let key = StateKey::new(label, &element_path);
+                if let Some(Some(idx)) = state.get_choice(&key) {
                     if let Some(option) = options.get(idx) {
                         if let Some(children) = option.conditional() {
                             active_labels.extend(collect_active_elements(
                                 children,
                                 state,
                                 all_elements,
+                                &format!("{}.choice_{}", element_path, idx),
                             ));
                         }
                     }
@@ -553,15 +590,25 @@ fn collect_active_elements(
             }
             Element::Group { elements, .. } => {
                 // Recursively collect from group
-                active_labels.extend(collect_active_elements(elements, state, all_elements));
+                active_labels.extend(collect_active_elements(
+                    elements,
+                    state,
+                    all_elements,
+                    &format!("{}.group", element_path),
+                ));
             }
             Element::Conditional {
                 condition,
                 elements,
             } => {
                 // Only collect from conditional if condition is met
-                if evaluate_condition(condition, state, all_elements) {
-                    active_labels.extend(collect_active_elements(elements, state, all_elements));
+                if evaluate_condition(condition, state, all_elements, &element_path) {
+                    active_labels.extend(collect_active_elements(
+                        elements,
+                        state,
+                        all_elements,
+                        &format!("{}.cond", element_path),
+                    ));
                 }
             }
             Element::Text { .. } => {
@@ -574,40 +621,52 @@ fn collect_active_elements(
 }
 
 /// Evaluate if a condition is met based on current state
-fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element]) -> bool {
+fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element], _element_path: &str) -> bool {
     match condition {
         Condition::Simple(label) => {
-            // Pattern 1: Check if checkbox is true OR any multiselect option is selected OR choice has selection
-            if state.get_boolean(label) {
-                true // Checkbox is checked
-            } else if let Some(selections) = state.get_multichoice(label) {
-                selections.iter().any(|&selected| selected) // Any multiselect option selected
-            } else if let Some(Some(_)) = state.get_choice(label) {
-                true // Choice has a selection
+            // Find the element with this label and get its path
+            if let Some((_, path)) = find_element_with_path(all_elements, label, "") {
+                let key = StateKey::new(label, &path);
+                // Pattern 1: Check if checkbox is true OR any multiselect option is selected OR choice has selection
+                if state.get_boolean(&key) {
+                    true // Checkbox is checked
+                } else if let Some(selections) = state.get_multichoice(&key) {
+                    selections.iter().any(|&selected| selected) // Any multiselect option selected
+                } else if let Some(Some(_)) = state.get_choice(&key) {
+                    true // Choice has a selection
+                } else {
+                    false
+                }
             } else {
                 false
             }
         }
         Condition::Field { field, value } => {
-            // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected OR choice has specific option selected
-            if state.get_boolean(field) && field == value {
-                true // Checkbox checked and field name matches value
-            } else if let Some(selections) = state.get_multichoice(field) {
-                // Find multiselect options and check if the specified value is selected
-                if let Some(options) = find_multiselect_options(all_elements, field) {
-                    options
-                        .iter()
-                        .position(|opt| opt == value)
-                        .and_then(|index| selections.get(index))
-                        .copied()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            } else if let Some(Some(idx)) = state.get_choice(field) {
-                // Find choice options and check if the selected option matches value
-                if let Some(options) = find_choice_options(all_elements, field) {
-                    options.get(idx).map(|s| s == value).unwrap_or(false)
+            // Find the element with this field label and get its path
+            if let Some((_, path)) = find_element_with_path(all_elements, field, "") {
+                let key = StateKey::new(field, &path);
+                // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected OR choice has specific option selected
+                if state.get_boolean(&key) && field == value {
+                    true // Checkbox checked and field name matches value
+                } else if let Some(selections) = state.get_multichoice(&key) {
+                    // Find multiselect options and check if the specified value is selected
+                    if let Some(options) = find_multiselect_options(all_elements, field) {
+                        options
+                            .iter()
+                            .position(|opt| opt == value)
+                            .and_then(|index| selections.get(index))
+                            .copied()
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                } else if let Some(Some(idx)) = state.get_choice(&key) {
+                    // Find choice options and check if the selected option matches value
+                    if let Some(options) = find_choice_options(all_elements, field) {
+                        options.get(idx).map(|s| s == value).unwrap_or(false)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -616,36 +675,130 @@ fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &
             }
         }
         Condition::Count { field, count } => {
-            // Pattern 3: Count-based conditions
-            use popup_common::ComparisonOp;
+            // Find the element with this field label and get its path
+            if let Some((_, path)) = find_element_with_path(all_elements, field, "") {
+                let key = StateKey::new(field, &path);
+                // Pattern 3: Count-based conditions
+                use popup_common::ComparisonOp;
 
-            if let Some((op, target_value)) = ComparisonOp::parse_count_condition(count) {
-                let actual_count = if state.get_boolean(field) {
-                    1 // Checkbox counts as 1 if checked, 0 if not
-                } else if let Some(selections) = state.get_multichoice(field) {
-                    selections.iter().filter(|&&x| x).count() as i32
-                } else if let Some(choice) = state.get_choice(field) {
-                    if choice.is_some() {
-                        1
+                if let Some((op, target_value)) = ComparisonOp::parse_count_condition(count) {
+                    let actual_count = if state.get_boolean(&key) {
+                        1 // Checkbox counts as 1 if checked, 0 if not
+                    } else if let Some(selections) = state.get_multichoice(&key) {
+                        selections.iter().filter(|&&x| x).count() as i32
+                    } else if let Some(choice) = state.get_choice(&key) {
+                        if choice.is_some() {
+                            1
+                        } else {
+                            0
+                        } // Choice counts as 1 if selected, 0 if not
                     } else {
                         0
-                    } // Choice counts as 1 if selected, 0 if not
-                } else {
-                    0
-                };
+                    };
 
-                match op {
-                    ComparisonOp::Greater => actual_count > target_value,
-                    ComparisonOp::Less => actual_count < target_value,
-                    ComparisonOp::GreaterEqual => actual_count >= target_value,
-                    ComparisonOp::LessEqual => actual_count <= target_value,
-                    ComparisonOp::Equal => actual_count == target_value,
+                    match op {
+                        ComparisonOp::Greater => actual_count > target_value,
+                        ComparisonOp::Less => actual_count < target_value,
+                        ComparisonOp::GreaterEqual => actual_count >= target_value,
+                        ComparisonOp::LessEqual => actual_count <= target_value,
+                        ComparisonOp::Equal => actual_count == target_value,
+                    }
+                } else {
+                    false // Invalid count condition
                 }
             } else {
-                false // Invalid count condition
+                false
             }
         }
     }
+}
+
+/// Find an element by label and return it with its path
+fn find_element_with_path<'a>(
+    elements: &'a [Element],
+    target_label: &str,
+    path_prefix: &str,
+) -> Option<(&'a Element, String)> {
+    for (idx, element) in elements.iter().enumerate() {
+        let element_path = if path_prefix.is_empty() {
+            idx.to_string()
+        } else {
+            format!("{}.{}", path_prefix, idx)
+        };
+
+        // Check if this element matches
+        let matches = match element {
+            Element::Checkbox { label, .. }
+            | Element::Slider { label, .. }
+            | Element::Textbox { label, .. }
+            | Element::Multiselect { label, .. }
+            | Element::Choice { label, .. } => label == target_label,
+            _ => false,
+        };
+
+        if matches {
+            return Some((element, element_path));
+        }
+
+        // Recursively search in nested elements
+        match element {
+            Element::Group { elements, .. } => {
+                if let Some(found) = find_element_with_path(
+                    elements,
+                    target_label,
+                    &format!("{}.group", element_path),
+                ) {
+                    return Some(found);
+                }
+            }
+            Element::Conditional { elements, .. } => {
+                if let Some(found) = find_element_with_path(
+                    elements,
+                    target_label,
+                    &format!("{}.cond", element_path),
+                ) {
+                    return Some(found);
+                }
+            }
+            Element::Checkbox { conditional: Some(children), .. } => {
+                if let Some(found) = find_element_with_path(
+                    children,
+                    target_label,
+                    &format!("{}.checkbox", element_path),
+                ) {
+                    return Some(found);
+                }
+            }
+            Element::Multiselect { options, .. } => {
+                for (i, option) in options.iter().enumerate() {
+                    if let Some(children) = option.conditional() {
+                        if let Some(found) = find_element_with_path(
+                            children,
+                            target_label,
+                            &format!("{}.multiselect_{}", element_path, i),
+                        ) {
+                            return Some(found);
+                        }
+                    }
+                }
+            }
+            Element::Choice { options, .. } => {
+                for (i, option) in options.iter().enumerate() {
+                    if let Some(children) = option.conditional() {
+                        if let Some(found) = find_element_with_path(
+                            children,
+                            target_label,
+                            &format!("{}.choice_{}", element_path, i),
+                        ) {
+                            return Some(found);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn find_multiselect_options(elements: &[Element], label: &str) -> Option<Vec<String>> {

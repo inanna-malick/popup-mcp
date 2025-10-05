@@ -4,6 +4,39 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
+/// Unique identifier for widget state values, combining element path and label.
+/// Prevents state collisions when same label appears in multiple conditional branches.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StateKey {
+    /// Full path including element position (e.g., "0.multiselect_1.Why?")
+    full_path: String,
+    /// Original widget label for result serialization (e.g., "Why?")
+    label: String,
+}
+
+impl StateKey {
+    /// Create a new state key from label and element path
+    pub fn new(label: impl Into<String>, element_path: &str) -> Self {
+        let label = label.into();
+        let full_path = if element_path.is_empty() {
+            label.clone()
+        } else {
+            format!("{}.{}", element_path, label)
+        };
+        Self { full_path, label }
+    }
+
+    /// Get the original label (for result serialization)
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    /// Get the full path (for debugging)
+    pub fn full_path(&self) -> &str {
+        &self.full_path
+    }
+}
+
 /// Represents an option value in Choice or Multiselect elements.
 /// Can be a simple string or include inline conditional elements.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -202,19 +235,24 @@ pub enum ElementValue {
 /// Runtime state of the popup
 #[derive(Default)]
 pub struct PopupState {
-    pub values: HashMap<String, ElementValue>,
+    pub values: HashMap<StateKey, ElementValue>,
     pub button_clicked: Option<String>,
 }
 
 impl PopupState {
     pub fn new(definition: &PopupDefinition) -> Self {
         let mut state = PopupState::default();
-        state.init_elements(&definition.elements);
+        state.init_elements(&definition.elements, "");
         state
     }
 
-    fn init_elements(&mut self, elements: &[Element]) {
-        for element in elements {
+    fn init_elements(&mut self, elements: &[Element], path_prefix: &str) {
+        for (idx, element) in elements.iter().enumerate() {
+            let element_path = if path_prefix.is_empty() {
+                idx.to_string()
+            } else {
+                format!("{}.{}", path_prefix, idx)
+            };
             match element {
                 Element::Slider {
                     label,
@@ -223,34 +261,40 @@ impl PopupState {
                     default,
                 } => {
                     let default_value = default.unwrap_or((min + max) / 2.0);
-                    self.values
-                        .insert(label.clone(), ElementValue::Number(default_value));
+                    self.values.insert(
+                        StateKey::new(label, &element_path),
+                        ElementValue::Number(default_value),
+                    );
                 }
                 Element::Checkbox {
                     label,
                     default,
                     conditional,
                 } => {
-                    self.values
-                        .insert(label.clone(), ElementValue::Boolean(*default));
+                    self.values.insert(
+                        StateKey::new(label, &element_path),
+                        ElementValue::Boolean(*default),
+                    );
                     // Recursively init inline conditional elements
                     if let Some(children) = conditional {
-                        self.init_elements(children);
+                        self.init_elements(children, &format!("{}.checkbox", element_path));
                     }
                 }
                 Element::Textbox { label, .. } => {
-                    self.values
-                        .insert(label.clone(), ElementValue::Text(String::new()));
+                    self.values.insert(
+                        StateKey::new(label, &element_path),
+                        ElementValue::Text(String::new()),
+                    );
                 }
                 Element::Multiselect { label, options } => {
                     self.values.insert(
-                        label.clone(),
+                        StateKey::new(label, &element_path),
                         ElementValue::MultiChoice(vec![false; options.len()]),
                     );
                     // Recursively init inline conditionals from options
-                    for opt in options {
+                    for (i, opt) in options.iter().enumerate() {
                         if let Some(children) = opt.conditional() {
-                            self.init_elements(children);
+                            self.init_elements(children, &format!("{}.multiselect_{}", element_path, i));
                         }
                     }
                 }
@@ -259,17 +303,22 @@ impl PopupState {
                     default,
                     options,
                 } => {
-                    self.values
-                        .insert(label.clone(), ElementValue::Choice(*default));
+                    self.values.insert(
+                        StateKey::new(label, &element_path),
+                        ElementValue::Choice(*default),
+                    );
                     // Recursively init inline conditionals from options
-                    for opt in options {
+                    for (i, opt) in options.iter().enumerate() {
                         if let Some(children) = opt.conditional() {
-                            self.init_elements(children);
+                            self.init_elements(children, &format!("{}.choice_{}", element_path, i));
                         }
                     }
                 }
-                Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
-                    self.init_elements(elements);
+                Element::Group { elements, .. } => {
+                    self.init_elements(elements, &format!("{}.group", element_path));
+                }
+                Element::Conditional { elements, .. } => {
+                    self.init_elements(elements, &format!("{}.cond", element_path));
                 }
                 _ => {}
             }
@@ -277,64 +326,64 @@ impl PopupState {
     }
 
     // Helper methods for GUI access
-    pub fn get_number_mut(&mut self, label: &str) -> Option<&mut f32> {
-        match self.values.get_mut(label) {
+    pub fn get_number_mut(&mut self, key: &StateKey) -> Option<&mut f32> {
+        match self.values.get_mut(key) {
             Some(ElementValue::Number(ref mut n)) => Some(n),
             _ => None,
         }
     }
 
-    pub fn get_boolean_mut(&mut self, label: &str) -> Option<&mut bool> {
-        match self.values.get_mut(label) {
+    pub fn get_boolean_mut(&mut self, key: &StateKey) -> Option<&mut bool> {
+        match self.values.get_mut(key) {
             Some(ElementValue::Boolean(ref mut b)) => Some(b),
             _ => None,
         }
     }
 
-    pub fn get_text_mut(&mut self, label: &str) -> Option<&mut String> {
-        match self.values.get_mut(label) {
+    pub fn get_text_mut(&mut self, key: &StateKey) -> Option<&mut String> {
+        match self.values.get_mut(key) {
             Some(ElementValue::Text(ref mut s)) => Some(s),
             _ => None,
         }
     }
 
-    pub fn get_multichoice_mut(&mut self, label: &str) -> Option<&mut Vec<bool>> {
-        match self.values.get_mut(label) {
+    pub fn get_multichoice_mut(&mut self, key: &StateKey) -> Option<&mut Vec<bool>> {
+        match self.values.get_mut(key) {
             Some(ElementValue::MultiChoice(ref mut v)) => Some(v),
             _ => None,
         }
     }
 
-    pub fn get_choice_mut(&mut self, label: &str) -> Option<&mut Option<usize>> {
-        match self.values.get_mut(label) {
+    pub fn get_choice_mut(&mut self, key: &StateKey) -> Option<&mut Option<usize>> {
+        match self.values.get_mut(key) {
             Some(ElementValue::Choice(ref mut c)) => Some(c),
             _ => None,
         }
     }
 
-    pub fn get_boolean(&self, label: &str) -> bool {
-        match self.values.get(label) {
+    pub fn get_boolean(&self, key: &StateKey) -> bool {
+        match self.values.get(key) {
             Some(ElementValue::Boolean(b)) => *b,
             _ => false,
         }
     }
 
-    pub fn get_multichoice(&self, label: &str) -> Option<&Vec<bool>> {
-        match self.values.get(label) {
+    pub fn get_multichoice(&self, key: &StateKey) -> Option<&Vec<bool>> {
+        match self.values.get(key) {
             Some(ElementValue::MultiChoice(v)) => Some(v),
             _ => None,
         }
     }
 
-    pub fn get_text(&self, label: &str) -> Option<&String> {
-        match self.values.get(label) {
+    pub fn get_text(&self, key: &StateKey) -> Option<&String> {
+        match self.values.get(key) {
             Some(ElementValue::Text(s)) => Some(s),
             _ => None,
         }
     }
 
-    pub fn get_choice(&self, label: &str) -> Option<Option<usize>> {
-        match self.values.get(label) {
+    pub fn get_choice(&self, key: &StateKey) -> Option<Option<usize>> {
+        match self.values.get(key) {
             Some(ElementValue::Choice(c)) => Some(*c),
             _ => None,
         }
@@ -377,7 +426,7 @@ impl PopupResult {
                     }
                     _ => return None, // Skip empty text fields
                 };
-                Some((key.clone(), json_value))
+                Some((key.label().to_string(), json_value))
             })
             .collect();
 
@@ -429,7 +478,7 @@ impl PopupResult {
         }
 
         for (key, value) in &state.values {
-            let element = find_element(&definition.elements, key);
+            let element = find_element(&definition.elements, key.label());
 
             let json_value = match (value, element) {
                 (ElementValue::Number(n), Some(Element::Slider { max, .. })) => {
@@ -474,7 +523,7 @@ impl PopupResult {
                 _ => continue, // Skip empty text fields
             };
 
-            values.insert(key.clone(), json_value);
+            values.insert(key.label().to_string(), json_value);
         }
 
         PopupResult::Completed {
@@ -530,11 +579,11 @@ impl PopupResult {
 
         for (key, value) in &state.values {
             // Skip this value if it's not in the active elements
-            if !active_labels.contains(key) {
+            if !active_labels.contains(&key.label().to_string()) {
                 continue;
             }
 
-            let element = find_element(&definition.elements, key);
+            let element = find_element(&definition.elements, key.label());
 
             let json_value = match (value, element) {
                 (ElementValue::Number(n), Some(Element::Slider { max, .. })) => {
@@ -579,7 +628,7 @@ impl PopupResult {
                 _ => continue, // Skip empty text fields
             };
 
-            values.insert(key.clone(), json_value);
+            values.insert(key.label().to_string(), json_value);
         }
 
         PopupResult::Completed {
