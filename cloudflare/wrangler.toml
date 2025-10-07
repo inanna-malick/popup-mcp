@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Required secrets (set via: wrangler secret put <NAME>)
+# - AUTH_TOKEN: Bearer token for /mcp/header_auth endpoint (for Letta, etc.)
+# - GITHUB_CLIENT_ID: GitHub OAuth application client ID
+# - GITHUB_CLIENT_SECRET: GitHub OAuth application client secret
+# - COOKIE_ENCRYPTION_KEY: Encryption key for OAuth cookies (generate with: openssl rand -hex 32)
+
 [durable_objects]
 bindings = [
   { name = "POPUP_SESSION", class_name = "PopupSession" },

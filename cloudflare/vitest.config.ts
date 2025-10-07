@@ -14,6 +14,9 @@ export default defineWorkersConfig({
           durableObjects: {
             POPUP_SESSION: 'PopupSession',
           },
+          bindings: {
+            AUTH_TOKEN: 'test-token-12345',
+          },
         },
       },
     },
