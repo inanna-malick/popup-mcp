@@ -4,6 +4,7 @@ interface Env {
   // Durable Object bindings
   POPUP_SESSION: DurableObjectNamespace;
   MCP_OBJECT: DurableObjectNamespace;
+  HEADER_AUTH_MCP: DurableObjectNamespace;
 
   // KV binding (for OAuth state)
   OAUTH_KV: KVNamespace;

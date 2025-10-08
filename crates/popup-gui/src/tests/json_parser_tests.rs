@@ -381,13 +381,15 @@ fn test_choice_state_initialization() {
     let state = PopupState::new(&popup);
 
     // Check NoDefault initializes to None
-    match state.values.get("NoDefault") {
+    let key = state.find_key_by_label("NoDefault").unwrap();
+    match state.values.get(&key) {
         Some(ElementValue::Choice(None)) => {}
         _ => panic!("Expected Choice(None) for NoDefault"),
     }
 
     // Check WithDefault initializes to Some(2)
-    match state.values.get("WithDefault") {
+    let key = state.find_key_by_label("WithDefault").unwrap();
+    match state.values.get(&key) {
         Some(ElementValue::Choice(Some(2))) => {}
         _ => panic!("Expected Choice(Some(2)) for WithDefault"),
     }

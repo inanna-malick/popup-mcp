@@ -182,14 +182,17 @@ impl eframe::App for PopupApp {
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     // Try grid layout for the entire form
+                    let mut ctx = RenderContext {
+                        theme: &self.theme,
+                        first_widget_id: &mut self.first_interactive_widget_id,
+                        widget_focused: self.first_widget_focused,
+                    };
                     render_elements_in_grid(
                         ui,
                         &self.definition.elements,
                         &mut self.state,
                         &self.definition.elements,
-                        &self.theme,
-                        &mut self.first_interactive_widget_id,
-                        self.first_widget_focused,
+                        &mut ctx,
                         "",
                     );
                 });
@@ -207,14 +210,18 @@ impl eframe::App for PopupApp {
 
 // Removed old rendering functions that are no longer used
 
+struct RenderContext<'a> {
+    theme: &'a Theme,
+    first_widget_id: &'a mut Option<Id>,
+    widget_focused: bool,
+}
+
 fn render_elements_in_grid(
     ui: &mut egui::Ui,
     elements: &[Element],
     state: &mut PopupState,
     all_elements: &[Element],
-    theme: &Theme,
-    first_widget_id: &mut Option<Id>,
-    widget_focused: bool,
+    ctx: &mut RenderContext,
     path_prefix: &str,
 ) {
     // Render all elements in order with proper vertical layout
@@ -231,9 +238,7 @@ fn render_elements_in_grid(
                 element,
                 state,
                 all_elements,
-                theme,
-                first_widget_id,
-                widget_focused,
+                ctx,
                 &element_path,
             );
 
@@ -248,16 +253,14 @@ fn render_single_element(
     element: &Element,
     state: &mut PopupState,
     all_elements: &[Element],
-    theme: &Theme,
-    first_widget_id: &mut Option<Id>,
-    widget_focused: bool,
+    ctx: &mut RenderContext,
     element_path: &str,
 ) {
     match element {
         Element::Text { content: text } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
-                ui.label(RichText::new(text).color(theme.text_primary));
+                ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
 
@@ -267,7 +270,7 @@ fn render_single_element(
                 // Clone selections to avoid borrow conflict when rendering conditionals
                 let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(&key)
                 {
-                    ui.label(RichText::new(label).color(theme.matrix_green).strong());
+                    ui.label(RichText::new(label).color(ctx.theme.matrix_green).strong());
                     ui.horizontal(|ui| {
                         if ui.small_button("All").clicked() {
                             selections.iter_mut().for_each(|s| *s = true);
@@ -284,18 +287,18 @@ fn render_single_element(
                             if i < selections.len() {
                                 let checkbox_text = if selections[i] {
                                     RichText::new(format!("☑ {}", option.value()))
-                                        .color(theme.matrix_green)
+                                        .color(ctx.theme.matrix_green)
                                         .strong()
                                 } else {
                                     RichText::new(format!("☐ {}", option.value()))
-                                        .color(theme.text_primary)
+                                        .color(ctx.theme.text_primary)
                                 };
                                 let response = col.selectable_label(false, checkbox_text);
                                 if response.clicked() {
                                     selections[i] = !selections[i];
                                 }
-                                if first_widget_id.is_none() && !widget_focused && i == 0 {
-                                    *first_widget_id = Some(response.id);
+                                if ctx.first_widget_id.is_none() && !ctx.widget_focused && i == 0 {
+                                    *ctx.first_widget_id = Some(response.id);
                                 }
                             }
                         }
@@ -316,9 +319,7 @@ fn render_single_element(
                                     children,
                                     state,
                                     all_elements,
-                                    theme,
-                                    first_widget_id,
-                                    widget_focused,
+                                    ctx,
                                     &format!("{}.multiselect_{}", element_path, i),
                                 );
                             });
@@ -330,7 +331,7 @@ fn render_single_element(
 
         Element::Choice { label, options, .. } => {
             let key = StateKey::new(label, element_path);
-            ui.label(RichText::new(label).color(theme.text_primary));
+            ui.label(RichText::new(label).color(ctx.theme.text_primary));
             if let Some(selected) = state.get_choice_mut(&key) {
                 let selected_text = match *selected {
                     Some(idx) => options
@@ -371,9 +372,7 @@ fn render_single_element(
                                     children,
                                     state,
                                     all_elements,
-                                    theme,
-                                    first_widget_id,
-                                    widget_focused,
+                                    ctx,
                                     &format!("{}.choice_{}", element_path, idx),
                                 );
                             });
@@ -391,10 +390,10 @@ fn render_single_element(
             if let Some(value) = state.get_boolean_mut(&key) {
                 let checkbox_text = if *value {
                     RichText::new(format!("☑ {}", label))
-                        .color(theme.matrix_green)
+                        .color(ctx.theme.matrix_green)
                         .strong()
                 } else {
-                    RichText::new(format!("☐ {}", label)).color(theme.text_primary)
+                    RichText::new(format!("☐ {}", label)).color(ctx.theme.text_primary)
                 };
                 let response = ui.selectable_label(false, checkbox_text);
                 if response.clicked() {
@@ -410,9 +409,7 @@ fn render_single_element(
                                 children,
                                 state,
                                 all_elements,
-                                theme,
-                                first_widget_id,
-                                widget_focused,
+                                ctx,
                                 &format!("{}.checkbox", element_path),
                             );
                         });
@@ -429,7 +426,7 @@ fn render_single_element(
         } => {
             let key = StateKey::new(label, element_path);
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.warning_orange).strong());
+                ui.label(RichText::new(label).color(ctx.theme.warning_orange).strong());
                 if let Some(value) = state.get_number_mut(&key) {
                     ui.horizontal(|ui| {
                         let slider = egui::Slider::new(value, *min..=*max)
@@ -438,12 +435,12 @@ fn render_single_element(
                         let response = ui.add(slider);
                         ui.label(
                             RichText::new(format!("{:.1}/{:.1}", *value, *max))
-                                .color(theme.text_secondary)
+                                .color(ctx.theme.text_secondary)
                                 .text_style(egui::TextStyle::Small),
                         );
 
-                        if first_widget_id.is_none() && !widget_focused {
-                            *first_widget_id = Some(response.id);
+                        if ctx.first_widget_id.is_none() && !ctx.widget_focused {
+                            *ctx.first_widget_id = Some(response.id);
                         }
                     });
                 }
@@ -457,7 +454,7 @@ fn render_single_element(
         } => {
             let key = StateKey::new(label, element_path);
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.neon_purple).strong());
+                ui.label(RichText::new(label).color(ctx.theme.neon_purple).strong());
                 if let Some(value) = state.get_text_mut(&key) {
                     let height = rows.unwrap_or(1) as f32 * 20.0;
                     let text_edit = egui::TextEdit::multiline(value)
@@ -475,16 +472,14 @@ fn render_single_element(
 
         Element::Group { label, elements } => {
             ui.group(|ui| {
-                ui.label(RichText::new(label).color(theme.neon_pink).strong());
+                ui.label(RichText::new(label).color(ctx.theme.neon_pink).strong());
                 ui.add_space(4.0);
                 render_elements_in_grid(
                     ui,
                     elements,
                     state,
                     all_elements,
-                    theme,
-                    first_widget_id,
-                    widget_focused,
+                    ctx,
                     &format!("{}.group", element_path),
                 );
             });
@@ -503,9 +498,7 @@ fn render_single_element(
                     elements,
                     state,
                     all_elements,
-                    theme,
-                    first_widget_id,
-                    widget_focused,
+                    ctx,
                     &format!("{}.cond", element_path),
                 );
             }

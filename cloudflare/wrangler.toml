@@ -4,7 +4,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 # Required secrets (set via: wrangler secret put <NAME>)
-# - AUTH_TOKEN: Bearer token for /mcp/header_auth endpoint (for Letta, etc.)
+# - AUTH_TOKEN: Bearer token for /header_auth endpoint (for Letta, etc.)
 # - GITHUB_CLIENT_ID: GitHub OAuth application client ID
 # - GITHUB_CLIENT_SECRET: GitHub OAuth application client secret
 # - COOKIE_ENCRYPTION_KEY: Encryption key for OAuth cookies (generate with: openssl rand -hex 32)
@@ -12,7 +12,8 @@ compatibility_flags = ["nodejs_compat"]
 [durable_objects]
 bindings = [
   { name = "POPUP_SESSION", class_name = "PopupSession" },
-  { name = "MCP_OBJECT", class_name = "PopupMcpAgent" }
+  { name = "MCP_OBJECT", class_name = "PopupMcpAgent" },
+  { name = "HEADER_AUTH_MCP", class_name = "HeaderAuthMcpAgent" }
 ]
 
 [[kv_namespaces]]
@@ -24,3 +25,15 @@ preview_id = "bee490ea087b40e7bd8eb1094f49b2aa"
 tag = "v1"
 new_classes = ["PopupSession"]
 new_sqlite_classes = ["PopupMcpAgent"]
+
+[[migrations]]
+tag = "v2"
+# Skipped in production due to revert
+
+[[migrations]]
+tag = "v3"
+# Empty migration (production state after revert)
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["HeaderAuthMcpAgent"]

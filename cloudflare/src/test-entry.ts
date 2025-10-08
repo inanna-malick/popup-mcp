@@ -17,7 +17,7 @@ export default {
     }
 
     // Header auth endpoint - test the middleware logic
-    if (url.pathname === '/mcp/header_auth') {
+    if (url.pathname === '/header_auth') {
       // Check if AUTH_TOKEN is configured
       if (!env.AUTH_TOKEN) {
         return new Response('AUTH_TOKEN not configured', { status: 500 });

@@ -4,7 +4,7 @@ import { testWorkerFetch } from './helpers';
 describe('Header Auth Endpoint', () => {
   describe('Bearer Token Validation', () => {
     it('returns 401 when Authorization header is missing', async () => {
-      const request = new Request('http://localhost/mcp/header_auth', {
+      const request = new Request('http://localhost/header_auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -19,7 +19,7 @@ describe('Header Auth Endpoint', () => {
     });
 
     it('returns 401 when bearer token is invalid', async () => {
-      const request = new Request('http://localhost/mcp/header_auth', {
+      const request = new Request('http://localhost/header_auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,7 +35,7 @@ describe('Header Auth Endpoint', () => {
     });
 
     it('returns 401 when Authorization header format is invalid', async () => {
-      const request = new Request('http://localhost/mcp/header_auth', {
+      const request = new Request('http://localhost/header_auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ describe('Header Auth Endpoint', () => {
     });
 
     it('accepts valid bearer token', async () => {
-      const request = new Request('http://localhost/mcp/header_auth', {
+      const request = new Request('http://localhost/header_auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,8 +76,8 @@ describe('Header Auth Endpoint', () => {
   });
 
   describe('Endpoint Routing', () => {
-    it('routes /mcp/header_auth to header auth endpoint', async () => {
-      const request = new Request('http://localhost/mcp/header_auth', {
+    it('routes /header_auth to header auth endpoint', async () => {
+      const request = new Request('http://localhost/header_auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

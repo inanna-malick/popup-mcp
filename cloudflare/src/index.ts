@@ -4,7 +4,6 @@ import { PopupSession } from './popup-session';
 import { PopupMcpAgent } from './mcp-server';
 import { HeaderAuthMcpAgent } from './mcp-server-header-auth';
 import { GitHubHandler } from './auth';
-import { validateBearerToken } from './auth-header';
 
 export { PopupSession, PopupMcpAgent, HeaderAuthMcpAgent };
 
@@ -27,13 +26,8 @@ app.all('/show-popup', async (c) => {
   return stub.fetch(c.req.raw);
 });
 
-// Add header auth MCP endpoint
-app.all('/mcp/header_auth', validateBearerToken, async (c) => {
-  return HeaderAuthMcpAgent.serve('/mcp/header_auth')(c.req.raw, c.env);
-});
-
-// Export OAuthProvider with multiple MCP endpoints
-export default new OAuthProvider({
+// Create OAuthProvider instance (not default export)
+const oauthProvider = new OAuthProvider({
   apiHandlers: {
     '/sse': PopupMcpAgent.serveSSE('/sse'), // Deprecated SSE protocol
     '/mcp': PopupMcpAgent.serve('/mcp'), // Streamable HTTP protocol
@@ -43,3 +37,39 @@ export default new OAuthProvider({
   defaultHandler: app as any,
   tokenEndpoint: '/token',
 });
+
+// Top-level fetch handler - intercepts /header_auth before OAuthProvider
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Handle /header_auth with bearer token auth (bypass OAuthProvider)
+    if (url.pathname === '/header_auth') {
+      // Inline bearer token validation
+      if (!env.AUTH_TOKEN) {
+        return new Response('AUTH_TOKEN not configured', { status: 500 });
+      }
+
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response('Missing Authorization header', { status: 401 });
+      }
+
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (!match) {
+        return new Response('Invalid bearer token', { status: 401 });
+      }
+
+      const token = match[1];
+      if (token !== env.AUTH_TOKEN) {
+        return new Response('Invalid bearer token', { status: 401 });
+      }
+
+      // Auth valid - call HeaderAuthMcpAgent with custom binding
+      return HeaderAuthMcpAgent.serve('/header_auth', { binding: 'HEADER_AUTH_MCP' }).fetch(request, env, ctx);
+    }
+
+    // Everything else goes to OAuthProvider
+    return oauthProvider.fetch(request, env, ctx);
+  },
+};

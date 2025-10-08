@@ -3,13 +3,18 @@ use popup_common::{PopupResult, PopupState};
 use std::fs;
 
 #[test]
-#[ignore] // TODO: Fix path resolution in workspace setup
 fn test_parse_example_files() {
-    // Tests run from workspace root
-    let examples_dir = "examples";
+    // Tests run from workspace root - use CARGO_MANIFEST_DIR to find workspace root
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let examples_dir = workspace_root.join("examples");
 
     // Test all JSON example files
-    for entry in fs::read_dir(examples_dir).unwrap() {
+    for entry in fs::read_dir(&examples_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
 
@@ -58,18 +63,23 @@ fn test_popup_state_initialization() {
     let mut state = PopupState::new(&popup);
 
     // Check slider initialization
-    assert_eq!(*state.get_number_mut("Volume").unwrap(), 75.0);
+    let volume_key = state.find_key_by_label("Volume").unwrap();
+    assert_eq!(*state.get_number_mut(&volume_key).unwrap(), 75.0);
 
     // Check checkbox initialization
-    assert_eq!(*state.get_boolean_mut("Mute").unwrap(), false);
+    let mute_key = state.find_key_by_label("Mute").unwrap();
+    assert_eq!(*state.get_boolean_mut(&mute_key).unwrap(), false);
 
     // Check textbox initialization
-    assert_eq!(state.get_text_mut("Name").unwrap(), "");
+    let name_key = state.find_key_by_label("Name").unwrap();
+    assert_eq!(state.get_text_mut(&name_key).unwrap(), "");
 
     // Check multiselect initialization
-    assert_eq!(state.get_multichoice_mut("Features").unwrap().len(), 3);
+    let features_key = state.find_key_by_label("Features").unwrap();
+    assert_eq!(state.get_multichoice_mut(&features_key).unwrap().len(), 3);
+    let features_key2 = state.find_key_by_label("Features").unwrap();
     assert!(state
-        .get_multichoice_mut("Features")
+        .get_multichoice_mut(&features_key2)
         .unwrap()
         .iter()
         .all(|&x| !x));
@@ -90,8 +100,10 @@ fn test_popup_result_serialization() {
     let mut state = PopupState::new(&popup);
 
     // Modify state
-    *state.get_number_mut("Value").unwrap() = 7.0;
-    *state.get_text_mut("Text").unwrap() = "Hello".to_string();
+    let value_key = state.find_key_by_label("Value").unwrap();
+    *state.get_number_mut(&value_key).unwrap() = 7.0;
+    let text_key = state.find_key_by_label("Text").unwrap();
+    *state.get_text_mut(&text_key).unwrap() = "Hello".to_string();
     state.button_clicked = Some("submit".to_string());
 
     // Create result
@@ -132,7 +144,7 @@ fn test_conditional_in_json() {
     assert_eq!(popup.elements.len(), 2);
 
     // State should still initialize nested elements
-    assert!(state.values.contains_key("Value"));
+    assert!(state.find_key_by_label("Value").is_some());
 }
 
 #[test]
@@ -159,7 +171,7 @@ fn test_group_in_json() {
     assert_eq!(popup.elements.len(), 1);
 
     // State should initialize nested elements
-    assert!(state.values.contains_key("Volume"));
-    assert!(state.values.contains_key("Bass"));
-    assert!(state.values.contains_key("Surround"));
+    assert!(state.find_key_by_label("Volume").is_some());
+    assert!(state.find_key_by_label("Bass").is_some());
+    assert!(state.find_key_by_label("Surround").is_some());
 }

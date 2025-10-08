@@ -388,6 +388,12 @@ impl PopupState {
             _ => None,
         }
     }
+
+    /// Find StateKey by label - useful for tests and simple lookups
+    /// Returns first matching key if multiple elements share same label
+    pub fn find_key_by_label(&self, label: &str) -> Option<StateKey> {
+        self.values.keys().find(|k| k.label() == label).cloned()
+    }
 }
 
 /// Result that gets serialized to JSON

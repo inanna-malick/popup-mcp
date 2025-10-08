@@ -47,7 +47,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Show Advanced"]);
 
         // Now enable the checkbox
-        *state.get_boolean_mut("Show Advanced").unwrap() = true;
+        let key = state.find_key_by_label("Show Advanced").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -109,7 +110,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Enable Features"]);
 
         // Enable first level
-        *state.get_boolean_mut("Enable Features").unwrap() = true;
+        let key = state.find_key_by_label("Enable Features").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -121,7 +123,8 @@ mod tests {
         assert!(!active_labels.contains(&"Advanced Level".to_string()));
 
         // Enable second level
-        *state.get_boolean_mut("Advanced Mode").unwrap() = true;
+        let key = state.find_key_by_label("Advanced Mode").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -194,7 +197,8 @@ mod tests {
         assert!(!values.contains_key("Hidden Slider"));
 
         // Enable the checkbox
-        *state.get_boolean_mut("Show Options").unwrap() = true;
+        let key = state.find_key_by_label("Show Options").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -258,7 +262,8 @@ mod tests {
 
         // Select 2 features (not enough)
         {
-            let selections = state.get_multichoice_mut("Features").unwrap();
+            let key = state.find_key_by_label("Features").unwrap();
+            let selections = state.get_multichoice_mut(&key).unwrap();
             selections[0] = true;
             selections[1] = true;
         }
@@ -272,7 +277,8 @@ mod tests {
 
         // Select 3 features (enough)
         {
-            let selections = state.get_multichoice_mut("Features").unwrap();
+            let key = state.find_key_by_label("Features").unwrap();
+            let selections = state.get_multichoice_mut(&key).unwrap();
             selections[2] = true;
         }
 
@@ -328,7 +334,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Group Option"]);
 
         // Enable checkbox to show conditional slider
-        *state.get_boolean_mut("Group Option").unwrap() = true;
+        let key = state.find_key_by_label("Group Option").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -407,7 +414,8 @@ mod tests {
 
         // Select exactly 1 - should trigger "= 1" and "< 2" conditions
         {
-            let selections = state.get_multichoice_mut("Items").unwrap();
+            let key = state.find_key_by_label("Items").unwrap();
+            let selections = state.get_multichoice_mut(&key).unwrap();
             selections[0] = true;
         }
 
@@ -423,7 +431,8 @@ mod tests {
 
         // Select exactly 3 - should trigger ">= 3" condition only
         {
-            let selections = state.get_multichoice_mut("Items").unwrap();
+            let key = state.find_key_by_label("Items").unwrap();
+            let selections = state.get_multichoice_mut(&key).unwrap();
             selections[1] = true;
             selections[2] = true;
         }
@@ -564,7 +573,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Enable Features"]);
 
         // Check the checkbox
-        *state.get_boolean_mut("Enable Features").unwrap() = true;
+        let key = state.find_key_by_label("Enable Features").unwrap();
+        *state.get_boolean_mut(&key).unwrap() = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -618,7 +628,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Mode"]);
 
         // Select "Advanced" (index 1) which has conditional
-        *state.get_choice_mut("Mode").unwrap() = Some(1);
+        let key = state.find_key_by_label("Mode").unwrap();
+        *state.get_choice_mut(&key).unwrap() = Some(1);
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -632,7 +643,8 @@ mod tests {
         assert_eq!(active_labels.len(), 2);
 
         // Switch back to "Simple" (index 0)
-        *state.get_choice_mut("Mode").unwrap() = Some(0);
+        let key = state.find_key_by_label("Mode").unwrap();
+        *state.get_choice_mut(&key).unwrap() = Some(0);
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -693,7 +705,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Features"]);
 
         // Select "Basic" (index 0) - no conditional
-        state.get_multichoice_mut("Features").unwrap()[0] = true;
+        let key = state.find_key_by_label("Features").unwrap();
+        state.get_multichoice_mut(&key).unwrap()[0] = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -703,7 +716,8 @@ mod tests {
         assert_eq!(active_labels, vec!["Features"]);
 
         // Select "Advanced" (index 1) - has conditional
-        state.get_multichoice_mut("Features").unwrap()[1] = true;
+        let key = state.find_key_by_label("Features").unwrap();
+        state.get_multichoice_mut(&key).unwrap()[1] = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -715,7 +729,8 @@ mod tests {
         assert_eq!(active_labels.len(), 2);
 
         // Also select "Expert" (index 2) - has different conditional
-        state.get_multichoice_mut("Features").unwrap()[2] = true;
+        let key = state.find_key_by_label("Features").unwrap();
+        state.get_multichoice_mut(&key).unwrap()[2] = true;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
@@ -728,7 +743,8 @@ mod tests {
         assert_eq!(active_labels.len(), 3);
 
         // Deselect "Advanced" (index 1)
-        state.get_multichoice_mut("Features").unwrap()[1] = false;
+        let key = state.find_key_by_label("Features").unwrap();
+        state.get_multichoice_mut(&key).unwrap()[1] = false;
 
         let active_labels = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
