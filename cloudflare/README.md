@@ -19,18 +19,23 @@ npm install
 
 ### 2. Configure Secrets
 
-For local development:
+For local development, create `.dev.vars`:
 
 ```bash
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars and set POPUP_AUTH_SECRET
+# .dev.vars
+AUTH_TOKEN=your-secret-token-here
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+COOKIE_ENCRYPTION_KEY=your-32-byte-hex-key
 ```
 
 For production:
 
 ```bash
-wrangler secret put POPUP_AUTH_SECRET
-# Enter your secret when prompted
+wrangler secret put AUTH_TOKEN
+wrangler secret put GITHUB_CLIENT_ID
+wrangler secret put GITHUB_CLIENT_SECRET
+wrangler secret put COOKIE_ENCRYPTION_KEY
 ```
 
 ### 3. Local Development
@@ -97,8 +102,9 @@ Then restart Claude Desktop. You'll see a 🔨 icon with the `remote_popup` tool
 
 Establish long-lived WebSocket connection for receiving popup requests.
 
+**Authentication:** None required (clients use trust-on-first-use model)
+
 **Headers:**
-- `Authorization: Bearer <token>`
 - `Upgrade: websocket`
 
 **Client → Server Messages:**
@@ -115,9 +121,11 @@ Establish long-lived WebSocket connection for receiving popup requests.
 {"type": "ping"}
 ```
 
-### Create Popup: `POST /show-popup`
+### Create Popup: `POST /popup`
 
-Create a new popup request. Blocks until first connected client responds or timeout.
+Direct HTTP endpoint for creating popup requests. Blocks until first connected client responds or timeout.
+
+**Authentication:** Required - `Authorization: Bearer <token>` header matching `AUTH_TOKEN` environment variable
 
 **Headers:**
 - `Authorization: Bearer <token>`
@@ -128,24 +136,78 @@ Create a new popup request. Blocks until first connected client responds or time
 {
   "definition": {
     "title": "Popup Title",
-    "elements": [...]
+    "elements": [
+      {"type": "text", "content": "Message"},
+      {"type": "slider", "label": "Volume", "min": 0, "max": 100}
+    ]
   },
-  "timeout_ms": 30000
+  "timeout_ms": 300000
 }
 ```
 
-**Response:**
+**Response (Success):**
 ```json
 {
   "status": "completed",
   "button": "submit",
-  ...
+  "Volume": "75/100"
 }
 ```
 
-## Authentication
+**Response (No Clients):**
+```json
+{
+  "status": "error",
+  "message": "No clients connected"
+}
+```
 
-Both endpoints require `Authorization: Bearer <token>` header. The token must match the `POPUP_AUTH_SECRET` environment variable.
+**Response (Timeout):**
+```json
+{
+  "status": "timeout",
+  "message": "No response received within 300000ms"
+}
+```
+
+**Python Example:**
+```python
+import os
+import requests
+
+def show_popup(definition: dict, timeout_ms: int = 300000) -> dict:
+    auth_token = os.getenv('POPUP_AUTH_TOKEN')
+    if not auth_token:
+        return {"status": "error", "message": "POPUP_AUTH_TOKEN not set"}
+
+    response = requests.post(
+        "https://your-worker.workers.dev/popup",
+        json={"definition": definition, "timeout_ms": timeout_ms},
+        headers={"Authorization": f"Bearer {auth_token}"},
+        timeout=(timeout_ms / 1000) + 5
+    )
+    return response.json()
+```
+
+### MCP with Header Auth: `POST /header_auth`
+
+Alternative MCP endpoint using bearer token authentication instead of GitHub OAuth.
+
+**Authentication:** Required - `Authorization: Bearer <token>` header matching `AUTH_TOKEN` environment variable
+
+**Use Case:** Server-to-server integrations (e.g., Letta agents)
+
+**Available Tool:**
+- `remote_popup`: Same schema as SSE endpoint
+
+## Authentication Summary
+
+| Endpoint | Authentication | Use Case |
+|----------|----------------|----------|
+| `/sse`, `/mcp` | GitHub OAuth | Claude Desktop (browser-based) |
+| `/header_auth` | Bearer token | Letta / MCP server-to-server |
+| `/popup` | Bearer token | Direct HTTP API (Python, curl, etc.) |
+| `/connect` | None | WebSocket clients (popup-client daemon) |
 
 ## Durable Object Behavior
 
@@ -159,7 +221,10 @@ Both endpoints require `Authorization: Bearer <token>` header. The token must ma
 
 Set these via `wrangler secret put`:
 
-- `POPUP_AUTH_SECRET` - Bearer token for authentication
+- `AUTH_TOKEN` - Bearer token for `/popup` and `/header_auth` endpoints
+- `GITHUB_CLIENT_ID` - GitHub OAuth client ID (for `/mcp` OAuth flow)
+- `GITHUB_CLIENT_SECRET` - GitHub OAuth client secret (for `/mcp` OAuth flow)
+- `COOKIE_ENCRYPTION_KEY` - 32-byte hex key for OAuth cookies (generate with `openssl rand -hex 32`)
 
 ## Development Notes
 

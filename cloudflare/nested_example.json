@@ -1,0 +1,193 @@
+{
+  "title": "Project Configuration",
+  "elements": [
+    {
+      "type": "text",
+      "content": "Configure your development environment"
+    },
+    {
+      "type": "choice",
+      "label": "Project Type",
+      "options": [
+        "Static Website",
+        {
+          "value": "Web Application",
+          "conditional": [
+            {
+              "type": "choice",
+              "label": "Framework",
+              "options": [
+                "React",
+                {
+                  "value": "Next.js",
+                  "conditional": [
+                    {
+                      "type": "checkbox",
+                      "label": "Enable TypeScript",
+                      "default": true,
+                      "conditional": [
+                        {
+                          "type": "choice",
+                          "label": "TypeScript Strictness",
+                          "options": ["Strict", "Relaxed", "Custom"],
+                          "default": 0
+                        }
+                      ]
+                    },
+                    {
+                      "type": "checkbox",
+                      "label": "Enable Tailwind CSS",
+                      "conditional": [
+                        {
+                          "type": "textbox",
+                          "label": "Custom Theme Path",
+                          "placeholder": "./theme.config.js"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "Vue",
+                "Svelte"
+              ]
+            },
+            {
+              "type": "multiselect",
+              "label": "Additional Features",
+              "options": [
+                "Authentication",
+                {
+                  "value": "Database",
+                  "conditional": [
+                    {
+                      "type": "choice",
+                      "label": "Database Type",
+                      "options": ["PostgreSQL", "MySQL", "MongoDB", "SQLite"],
+                      "default": 0
+                    },
+                    {
+                      "type": "checkbox",
+                      "label": "Enable migrations",
+                      "default": true
+                    }
+                  ]
+                },
+                {
+                  "value": "API Integration",
+                  "conditional": [
+                    {
+                      "type": "textbox",
+                      "label": "API Base URL",
+                      "placeholder": "https://api.example.com"
+                    },
+                    {
+                      "type": "checkbox",
+                      "label": "Enable caching",
+                      "conditional": [
+                        {
+                          "type": "slider",
+                          "label": "Cache duration (minutes)",
+                          "min": 1,
+                          "max": 60,
+                          "default": 15
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "value": "CLI Tool",
+          "conditional": [
+            {
+              "type": "checkbox",
+              "label": "Include subcommands",
+              "conditional": [
+                {
+                  "type": "textbox",
+                  "label": "Subcommand names (comma-separated)",
+                  "placeholder": "init, build, deploy",
+                  "rows": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "label": "Deployment Settings",
+      "elements": [
+        {
+          "type": "checkbox",
+          "label": "Enable CI/CD",
+          "conditional": [
+            {
+              "type": "choice",
+              "label": "Platform",
+              "options": [
+                "GitHub Actions",
+                {
+                  "value": "Cloudflare Workers",
+                  "conditional": [
+                    {
+                      "type": "textbox",
+                      "label": "Account ID",
+                      "placeholder": "your-account-id"
+                    },
+                    {
+                      "type": "checkbox",
+                      "label": "Enable preview deployments",
+                      "default": true
+                    }
+                  ]
+                },
+                "Vercel",
+                "Netlify"
+              ]
+            },
+            {
+              "type": "multiselect",
+              "label": "Deployment Triggers",
+              "options": [
+                "Push to main",
+                "Pull request",
+                {
+                  "value": "Manual approval",
+                  "conditional": [
+                    {
+                      "type": "textbox",
+                      "label": "Approver emails (comma-separated)",
+                      "placeholder": "admin@example.com"
+                    }
+                  ]
+                },
+                "Scheduled"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "conditional",
+      "condition": {
+        "field": "Project Type",
+        "value": "Web Application"
+      },
+      "elements": [
+        {
+          "type": "slider",
+          "label": "Performance Budget (KB)",
+          "min": 100,
+          "max": 1000,
+          "default": 500
+        }
+      ]
+    }
+  ]
+}

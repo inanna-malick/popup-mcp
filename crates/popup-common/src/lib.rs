@@ -294,7 +294,10 @@ impl PopupState {
                     // Recursively init inline conditionals from options
                     for (i, opt) in options.iter().enumerate() {
                         if let Some(children) = opt.conditional() {
-                            self.init_elements(children, &format!("{}.multiselect_{}", element_path, i));
+                            self.init_elements(
+                                children,
+                                &format!("{}.multiselect_{}", element_path, i),
+                            );
                         }
                     }
                 }

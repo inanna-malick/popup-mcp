@@ -1,5 +1,6 @@
 // Test-specific entry point that avoids MCP server import (which has broken Node.js deps)
 import { PopupSession } from './popup-session';
+import { validateBearerTokenRaw } from './auth-header';
 
 export { PopupSession };
 
@@ -16,32 +17,48 @@ export default {
       });
     }
 
+    // Handle /popup - POST endpoint with bearer token auth
+    if (url.pathname === '/popup' && request.method === 'POST') {
+      // Validate bearer token
+      const authError = validateBearerTokenRaw(request, env);
+      if (authError) {
+        return authError;
+      }
+
+      try {
+        const bodyText = await request.text();
+        const body = JSON.parse(bodyText);
+
+        const id = env.POPUP_SESSION.idFromName('global');
+        const stub = env.POPUP_SESSION.get(id);
+
+        const response = await stub.fetch(new Request('http://internal/show-popup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: bodyText,
+        }));
+
+        const resultText = await response.text();
+
+        return new Response(resultText, {
+          status: response.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('[/popup] Error processing request:', error);
+        return new Response(
+          JSON.stringify({ status: 'error', message: String(error) }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Header auth endpoint - test the middleware logic
     if (url.pathname === '/header_auth') {
-      // Check if AUTH_TOKEN is configured
-      if (!env.AUTH_TOKEN) {
-        return new Response('AUTH_TOKEN not configured', { status: 500 });
-      }
-
-      // Extract Authorization header
-      const authHeader = request.headers.get('Authorization');
-
-      if (!authHeader) {
-        return new Response('Missing Authorization header', { status: 401 });
-      }
-
-      // Parse Bearer token
-      const match = authHeader.match(/^Bearer\s+(.+)$/i);
-
-      if (!match) {
-        return new Response('Invalid bearer token', { status: 401 });
-      }
-
-      const token = match[1];
-
-      // Validate token
-      if (token !== env.AUTH_TOKEN) {
-        return new Response('Invalid bearer token', { status: 401 });
+      // Validate bearer token
+      const authError = validateBearerTokenRaw(request, env);
+      if (authError) {
+        return authError;
       }
 
       // Token is valid - MCP agent would handle here, but it's broken in tests

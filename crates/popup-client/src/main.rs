@@ -189,23 +189,37 @@ async fn run_client(config: Config) -> Result<()> {
 
 async fn connect_to_server(config: &Config) -> Result<()> {
     // Connect to WebSocket server
-    log::debug!("Attempting WebSocket connection to {}", config.server_url);
+    log::info!("=== WebSocket Connection Attempt ===");
+    log::info!("URL: {}", config.server_url);
+    log::info!("Device: {:?}", config.device_name);
 
     let (ws_stream, response) = match connect_async(&config.server_url).await {
-        Ok(result) => result,
+        Ok(result) => {
+            log::info!("WebSocket handshake successful");
+            result
+        }
         Err(e) => {
-            log::error!("WebSocket connection failed: {}", e);
+            log::error!("=== WebSocket Connection Failed ===");
+            log::error!("Error: {}", e);
             log::error!("Error type: {:?}", e);
             if let Some(source) = e.source() {
                 log::error!("Caused by: {}", source);
+                let mut current_source = source.source();
+                let mut depth = 1;
+                while let Some(inner) = current_source {
+                    log::error!("  Level {}: {}", depth, inner);
+                    current_source = inner.source();
+                    depth += 1;
+                }
             }
             return Err(e).context("Failed to connect to WebSocket server");
         }
     };
 
-    log::debug!("WebSocket handshake response: {:?}", response);
+    log::info!("Response status: {}", response.status());
+    log::info!("Response headers: {:?}", response.headers());
 
-    log::info!("Connected to server");
+    log::info!("=== WebSocket Connected Successfully ===");
 
     let (mut ws_write, mut ws_read) = ws_stream.split();
 
@@ -216,24 +230,34 @@ async fn connect_to_server(config: &Config) -> Result<()> {
     let mut client = PopupClient::new(config.clone(), result_tx);
 
     // Send ready message
+    log::info!("Sending READY message to server");
     PopupClient::send_ready_message(&mut ws_write, config.device_name.clone()).await?;
+    log::info!("READY message sent, entering message loop");
 
     loop {
         tokio::select! {
             // Receive messages from server
             Some(msg) = ws_read.next() => {
+                log::debug!("Received message from server: {:?}", msg);
                 match msg? {
                     Message::Text(text) => {
+                        log::debug!("Text message received: {}", text);
                         match serde_json::from_str::<ServerMessage>(&text) {
                             Ok(server_msg) => {
                                 match server_msg {
                                     ServerMessage::ShowPopup { id, definition, timeout_ms } => {
-                                        log::info!("Received show_popup: id={}, timeout={}ms", id, timeout_ms);
+                                        log::info!("=== SHOW_POPUP Message ===");
+                                        log::info!("Popup ID: {}", id);
+                                        log::info!("Timeout: {}ms", timeout_ms);
+                                        log::info!("Title: {:?}", definition.title);
+                                        log::info!("Element count: {}", definition.elements.len());
+                                        log::debug!("Full definition: {}", serde_json::to_string(&definition).unwrap_or_else(|_| "(serialization error)".to_string()));
 
                                         // Spawn subprocess and monitoring task
                                         if let Err(e) = client.handle_show_popup(id.clone(), definition).await {
                                             log::error!("Failed to spawn popup: {}", e);
                                         } else {
+                                            log::info!("Popup subprocess spawned for ID: {}", id);
                                             // Start monitoring task for this popup
                                             if let Some(child) = client.active_popups.remove(&id) {
                                                 let tx = client.result_tx.clone();
@@ -256,24 +280,37 @@ async fn connect_to_server(config: &Config) -> Result<()> {
                             }
                         }
                     }
-                    Message::Close(_) => {
-                        log::info!("Server closed connection");
+                    Message::Close(frame) => {
+                        log::warn!("=== Server Closed Connection ===");
+                        log::warn!("Close frame: {:?}", frame);
                         break;
                     }
-                    _ => {}
+                    Message::Ping(data) => {
+                        log::debug!("Received Ping, sending Pong");
+                        ws_write.send(Message::Pong(data)).await?;
+                    }
+                    Message::Pong(_) => {
+                        log::debug!("Received Pong");
+                    }
+                    _ => {
+                        log::debug!("Received other message type");
+                    }
                 }
             }
 
             // Send results from subprocesses
             Some((popup_id, result)) = result_rx.recv() => {
-                log::info!("Sending result for popup {}", popup_id);
+                log::info!("Sending result for popup {}: {:?}", popup_id, result);
                 let result_msg = ClientMessage::result(popup_id, result);
                 let json = serde_json::to_string(&result_msg)?;
+                log::debug!("Result message JSON: {}", json);
                 ws_write.send(Message::Text(json.into())).await?;
+                log::info!("Result sent successfully");
             }
         }
     }
 
+    log::info!("=== Connection Loop Exited ===");
     Ok(())
 }
 

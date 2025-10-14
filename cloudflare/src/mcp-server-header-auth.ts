@@ -71,7 +71,7 @@ export class HeaderAuthMcpAgent extends McpAgent<Env, Record<string, never>, Rec
       'remote_popup',
       {
         definition: PopupDefinitionSchema,
-        timeout_ms: z.number().optional().default(180000),
+        timeout_ms: z.number().optional().default(300000),
       },
       async ({ definition, timeout_ms }) => {
         const env = this.env as Env;

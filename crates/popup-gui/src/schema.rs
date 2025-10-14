@@ -12,7 +12,7 @@ use serde_json::json;
 pub fn get_popup_tool_schema() -> serde_json::Value {
     json!({
         "name": "popup",
-        "description": "Create a native GUI popup window. Returns user inputs when Submit is clicked, or cancellation status.",
+        "description": "Create rich dialogue trees with cascading conditional branches. Build entire decision flows in a single interaction - when Choice A reveals Options B & C, which themselves unlock Paths D, E, F. Think interactive fiction: the user sees their choices unfold dynamically as they engage, discovering the full conversation tree through their selections. Instead of ping-ponging through multiple rounds ('What type?' → wait → 'What size?' → wait → 'What color?'), present the entire adaptive form that reshapes itself based on each choice. Every checkbox that reveals sliders, every dropdown that unlocks text fields, every multiselect that exposes new option groups - these create a responsive dialogue that guides users through complex decision spaces without round-trip latency.",
         "inputSchema": get_input_schema()
     })
 }

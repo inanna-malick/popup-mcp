@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use crate::theme::Theme;
 use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState, StateKey};
 
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -94,7 +93,6 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     Ok(result)
 }
 
-
 struct PopupApp {
     definition: PopupDefinition,
     state: PopupState,
@@ -158,25 +156,33 @@ impl eframe::App for PopupApp {
 
         // Bottom panel for Submit button
         TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
-            ui.add_space(5.0);
+            ui.add_space(8.0);
             ui.separator();
-            ui.add_space(5.0);
+            ui.add_space(8.0);
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                // Use a simpler approach - just text without RichText formatting
-                if ui.button("SUBMIT").clicked() {
+                // Prominent submit button with larger size and visual emphasis
+                let button_text = RichText::new("SUBMIT")
+                    .size(18.0)
+                    .strong()
+                    .color(self.theme.text_primary);
+                let button = egui::Button::new(button_text)
+                    .min_size(egui::Vec2::new(120.0, 40.0))
+                    .fill(self.theme.electric_blue.linear_multiply(0.3));
+
+                if ui.add(button).clicked() {
                     self.state.button_clicked = Some("submit".to_string());
                     self.send_result_and_close(ctx);
                 }
             });
-            ui.add_space(5.0);
+            ui.add_space(8.0);
         });
 
         // Main content in central panel
         CentralPanel::default().show(ctx, |ui| {
-            // Extremely compact for no-scroll layout
-            ui.spacing_mut().item_spacing = Vec2::new(4.0, 1.0);
-            ui.spacing_mut().button_padding = Vec2::new(6.0, 3.0);
-            ui.spacing_mut().indent = 8.0; // Minimal indentation
+            // Improved spacing for better readability
+            ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
+            ui.spacing_mut().button_padding = Vec2::new(10.0, 6.0);
+            ui.spacing_mut().indent = 12.0;
 
             ScrollArea::vertical()
                 .auto_shrink([false, false])
@@ -233,14 +239,7 @@ fn render_elements_in_grid(
                 format!("{}.{}", path_prefix, idx)
             };
 
-            render_single_element(
-                ui,
-                element,
-                state,
-                all_elements,
-                ctx,
-                &element_path,
-            );
+            render_single_element(ui, element, state, all_elements, ctx, &element_path);
 
             // Force line break after each element
             ui.end_row();
@@ -265,12 +264,24 @@ fn render_single_element(
         }
 
         Element::Multiselect { label, options } => {
-            ui.group(|ui| {
+            let widget_frame = egui::Frame::group(ui.style())
+                .inner_margin(egui::Margin::same(10))
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    ctx.theme.matrix_green.linear_multiply(0.3),
+                ));
+
+            widget_frame.show(ui, |ui| {
                 let key = StateKey::new(label, element_path);
                 // Clone selections to avoid borrow conflict when rendering conditionals
                 let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(&key)
                 {
-                    ui.label(RichText::new(label).color(ctx.theme.matrix_green).strong());
+                    ui.label(
+                        RichText::new(label)
+                            .color(ctx.theme.matrix_green)
+                            .strong()
+                            .size(15.0),
+                    );
                     ui.horizontal(|ui| {
                         if ui.small_button("All").clicked() {
                             selections.iter_mut().for_each(|s| *s = true);
@@ -425,8 +436,20 @@ fn render_single_element(
             default: _,
         } => {
             let key = StateKey::new(label, element_path);
-            ui.group(|ui| {
-                ui.label(RichText::new(label).color(ctx.theme.warning_orange).strong());
+            let widget_frame = egui::Frame::group(ui.style())
+                .inner_margin(egui::Margin::same(10))
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    ctx.theme.warning_orange.linear_multiply(0.3),
+                ));
+
+            widget_frame.show(ui, |ui| {
+                ui.label(
+                    RichText::new(label)
+                        .color(ctx.theme.warning_orange)
+                        .strong()
+                        .size(15.0),
+                );
                 if let Some(value) = state.get_number_mut(&key) {
                     ui.horizontal(|ui| {
                         let slider = egui::Slider::new(value, *min..=*max)
@@ -453,8 +476,20 @@ fn render_single_element(
             rows,
         } => {
             let key = StateKey::new(label, element_path);
-            ui.group(|ui| {
-                ui.label(RichText::new(label).color(ctx.theme.neon_purple).strong());
+            let widget_frame = egui::Frame::group(ui.style())
+                .inner_margin(egui::Margin::same(10))
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    ctx.theme.neon_purple.linear_multiply(0.3),
+                ));
+
+            widget_frame.show(ui, |ui| {
+                ui.label(
+                    RichText::new(label)
+                        .color(ctx.theme.neon_purple)
+                        .strong()
+                        .size(15.0),
+                );
                 if let Some(value) = state.get_text_mut(&key) {
                     let height = rows.unwrap_or(1) as f32 * 20.0;
                     let text_edit = egui::TextEdit::multiline(value)
@@ -471,9 +506,22 @@ fn render_single_element(
         }
 
         Element::Group { label, elements } => {
-            ui.group(|ui| {
-                ui.label(RichText::new(label).color(ctx.theme.neon_pink).strong());
-                ui.add_space(4.0);
+            // Enhanced group with better visual separation
+            let group_frame = egui::Frame::group(ui.style())
+                .inner_margin(egui::Margin::same(12))
+                .stroke(egui::Stroke::new(
+                    1.5,
+                    ctx.theme.electric_blue.linear_multiply(0.4),
+                ));
+
+            group_frame.show(ui, |ui| {
+                ui.label(
+                    RichText::new(label)
+                        .color(ctx.theme.neon_pink)
+                        .strong()
+                        .size(16.0),
+                );
+                ui.add_space(8.0);
                 render_elements_in_grid(
                     ui,
                     elements,
@@ -614,7 +662,12 @@ fn collect_active_elements(
 }
 
 /// Evaluate if a condition is met based on current state
-fn evaluate_condition(condition: &Condition, state: &PopupState, all_elements: &[Element], _element_path: &str) -> bool {
+fn evaluate_condition(
+    condition: &Condition,
+    state: &PopupState,
+    all_elements: &[Element],
+    _element_path: &str,
+) -> bool {
     match condition {
         Condition::Simple(label) => {
             // Find the element with this label and get its path
@@ -753,7 +806,10 @@ fn find_element_with_path<'a>(
                     return Some(found);
                 }
             }
-            Element::Checkbox { conditional: Some(children), .. } => {
+            Element::Checkbox {
+                conditional: Some(children),
+                ..
+            } => {
                 if let Some(found) = find_element_with_path(
                     children,
                     target_label,
@@ -925,12 +981,7 @@ fn calculate_elements_size(
             }
             Element::Group { elements, .. } => {
                 *height += 40.0; // Moderately larger group header height for bigger text
-                calculate_elements_size(
-                    elements,
-                    height,
-                    max_width,
-                    include_conditionals,
-                );
+                calculate_elements_size(elements, height, max_width, include_conditionals);
                 *height += 15.0; // Proper group padding
             }
             Element::Conditional {
@@ -946,12 +997,7 @@ fn calculate_elements_size(
                     };
 
                     let start_height = *height;
-                    calculate_elements_size(
-                        elements,
-                        height,
-                        max_width,
-                        include_conditionals,
-                    );
+                    calculate_elements_size(elements, height, max_width, include_conditionals);
                     let added_height = *height - start_height;
                     *height = start_height + (added_height * probability);
                 }
