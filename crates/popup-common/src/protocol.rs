@@ -92,7 +92,9 @@ mod tests {
         let popup_def = PopupDefinition {
             title: Some("Test".to_string()),
             elements: vec![Element::Text {
-                content: "Hello".to_string(),
+                text: "Hello".to_string(),
+                id: None,
+                when: None,
             }],
         };
 

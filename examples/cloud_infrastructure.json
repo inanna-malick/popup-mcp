@@ -1,0 +1,457 @@
+{
+  "title": "Cloud Infrastructure Planning",
+  "elements": [
+    {
+      "text": "Design cloud architecture based on application requirements."
+    },
+    {
+      "choice": "Cloud Provider",
+      "id": "provider",
+      "options": ["AWS", "Google Cloud", "Azure", "Multi-cloud"],
+      "AWS": [
+        {
+          "multiselect": "Core AWS Services",
+          "id": "aws_services",
+          "options": ["EC2", "Lambda", "ECS/Fargate", "RDS", "DynamoDB", "S3", "CloudFront", "API Gateway"],
+          "Lambda": [
+            {
+              "slider": "Expected concurrent executions",
+              "id": "lambda_concurrency",
+              "min": 10,
+              "max": 10000,
+              "default": 100,
+              "reveals": [
+                {"text": "Low concurrency - standard limits OK", "when": "@lambda_concurrency < 100"},
+                {"text": "Medium concurrency - monitor limits", "when": "@lambda_concurrency >= 100 && @lambda_concurrency < 1000"},
+                {"text": "⚠ High concurrency - request limit increase", "when": "@lambda_concurrency >= 1000"}
+              ]
+            },
+            {
+              "checkbox": "Use Provisioned Concurrency",
+              "id": "provisioned_concurrency",
+              "default": false,
+              "reveals": [
+                {
+                  "text": "💰 Provisioned Concurrency increases costs but eliminates cold starts"
+                }
+              ]
+            }
+          ],
+          "RDS": [
+            {
+              "choice": "RDS Engine",
+              "id": "rds_engine",
+              "options": ["PostgreSQL", "MySQL", "Aurora PostgreSQL", "Aurora MySQL"],
+              "Aurora PostgreSQL": [
+                {
+                  "checkbox": "Enable Aurora Serverless v2",
+                  "id": "aurora_serverless",
+                  "default": false,
+                  "reveals": [
+                    {
+                      "slider": "Min ACU",
+                      "id": "min_acu",
+                      "min": 0.5,
+                      "max": 128,
+                      "default": 2
+                    },
+                    {
+                      "slider": "Max ACU",
+                      "id": "max_acu",
+                      "min": 1,
+                      "max": 128,
+                      "default": 16
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "checkbox": "Multi-AZ deployment",
+              "id": "rds_multi_az",
+              "default": false
+            }
+          ],
+          "DynamoDB": [
+            {
+              "choice": "Capacity mode",
+              "id": "dynamodb_capacity_mode",
+              "options": ["On-demand", "Provisioned"],
+              "Provisioned": [
+                {
+                  "checkbox": "Auto-scaling",
+                  "id": "dynamodb_autoscaling",
+                  "default": true
+                }
+              ]
+            }
+          ],
+          "reveals": [
+            {"text": "⚠ Many services selected - consider service mesh", "when": "count(@aws_services) >= 5"},
+            {"text": "✓ Serverless-first architecture", "when": "selected(@aws_services, 'Lambda') && selected(@aws_services, 'DynamoDB') && selected(@aws_services, 'API Gateway')"},
+            {"text": "Container-based architecture", "when": "selected(@aws_services, 'ECS/Fargate')"},
+            {"text": "💰 RDS Multi-AZ + Provisioned Lambda = high baseline cost", "when": "@rds_multi_az && selected(@aws_services, 'Lambda')"}
+          ]
+        }
+      ],
+      "Google Cloud": [
+        {
+          "multiselect": "Core GCP Services",
+          "id": "gcp_services",
+          "options": ["Compute Engine", "Cloud Run", "Cloud Functions", "GKE", "Cloud SQL", "Firestore", "Cloud Storage", "Cloud CDN"],
+          "Cloud Run": [
+            {
+              "checkbox": "Always-on instances (min instances > 0)",
+              "id": "cloud_run_always_on",
+              "default": false,
+              "reveals": [
+                {
+                  "slider": "Min instances",
+                  "id": "cloud_run_min_instances",
+                  "min": 1,
+                  "max": 10,
+                  "default": 1
+                }
+              ]
+            }
+          ],
+          "GKE": [
+            {
+              "checkbox": "Autopilot mode",
+              "id": "gke_autopilot",
+              "default": false,
+              "reveals": [
+                {
+                  "text": "Simplified management, restricted customization"
+                }
+              ]
+            },
+            {
+              "slider": "Node pool count",
+              "id": "gke_pools",
+              "min": 1,
+              "max": 10,
+              "default": 1,
+              "reveals": [
+                {"text": "⚠ Multiple node pools - ensure cost tracking", "when": "@gke_pools >= 3"}
+              ]
+            }
+          ]
+        }
+      ],
+      "Azure": [
+        {
+          "multiselect": "Core Azure Services",
+          "id": "azure_services",
+          "options": ["Virtual Machines", "Azure Functions", "Container Apps", "AKS", "SQL Database", "Cosmos DB", "Blob Storage", "Front Door"],
+          "Container Apps": [
+            {
+              "checkbox": "KEDA-based autoscaling",
+              "id": "keda_autoscaling",
+              "default": true
+            }
+          ],
+          "Cosmos DB": [
+            {
+              "choice": "Consistency level",
+              "id": "cosmos_consistency",
+              "options": ["Strong", "Bounded staleness", "Session", "Consistent prefix", "Eventual"],
+              "Strong": [
+                {
+                  "text": "⚠ Strong consistency - highest latency and cost"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "Multi-cloud": [
+        {
+          "text": "⚠ Multi-cloud significantly increases complexity and operational overhead"
+        },
+        {
+          "multiselect": "Providers to use",
+          "id": "multicloud_providers",
+          "options": ["AWS", "Google Cloud", "Azure"],
+          "reveals": [
+            {"text": "✓ Two providers selected - manageable with right tooling", "when": "count(@multicloud_providers) == 2"},
+            {"text": "⚠ Three+ providers - ensure strong multi-cloud management", "when": "count(@multicloud_providers) >= 3"}
+          ]
+        },
+        {
+          "textbox": "Multi-cloud strategy justification",
+          "id": "multicloud_justification",
+          "rows": 3,
+          "placeholder": "Why multi-cloud? (vendor lock-in avoidance, geographic distribution, service mix...)"
+        }
+      ]
+    },
+    {
+      "group": "Application Characteristics",
+      "elements": [
+        {
+          "slider": "Expected requests/second",
+          "id": "rps",
+          "min": 1,
+          "max": 100000,
+          "default": 100,
+          "reveals": [
+            {"text": "Low traffic - serverless ideal", "when": "@rps < 100"},
+            {"text": "Medium traffic - hybrid approach", "when": "@rps >= 100 && @rps < 1000"},
+            {"text": "High traffic - dedicated infrastructure", "when": "@rps >= 1000"},
+            {"text": "🚀 Very high traffic - consider CDN + edge computing", "when": "@rps >= 10000"}
+          ]
+        },
+        {
+          "slider": "P95 latency requirement (ms)",
+          "id": "latency_p95",
+          "min": 10,
+          "max": 5000,
+          "default": 500,
+          "reveals": [
+            {"text": "⚠ Strict latency - avoid cold starts, use provisioned capacity", "when": "@latency_p95 < 100"},
+            {"text": "Moderate latency tolerance", "when": "@latency_p95 >= 100 && @latency_p95 < 1000"},
+            {"text": "Relaxed latency - serverless OK", "when": "@latency_p95 >= 1000"}
+          ]
+        },
+        {
+          "multiselect": "Data characteristics",
+          "id": "data_chars",
+          "options": ["Relational", "Document/NoSQL", "Time-series", "Graph", "Blob/object storage", "Search/indexing"],
+          "reveals": [
+            {"text": "⚠ Many data types - consider data lake architecture", "when": "count(@data_chars) >= 4"},
+            {"text": "Polyglot persistence approach", "when": "count(@data_chars) >= 2"}
+          ]
+        },
+        {
+          "checkbox": "Real-time processing required",
+          "id": "realtime",
+          "default": false,
+          "reveals": [
+            {
+              "multiselect": "Real-time technologies",
+              "id": "realtime_tech",
+              "options": ["WebSockets", "Server-Sent Events", "gRPC streaming", "Message queue (Kafka/Kinesis)", "Pub/Sub"]
+            }
+          ]
+        },
+        {
+          "checkbox": "Machine learning/AI workloads",
+          "id": "ml_workloads",
+          "default": false,
+          "reveals": [
+            {
+              "choice": "ML deployment pattern",
+              "id": "ml_deployment_pattern",
+              "options": ["Batch inference", "Real-time inference", "Training pipelines", "All of the above"],
+              "Real-time inference": [
+                {
+                  "checkbox": "GPU acceleration required",
+                  "id": "gpu_acceleration",
+                  "default": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Scale & Availability",
+      "elements": [
+        {
+          "choice": "Availability target",
+          "id": "availability",
+          "options": ["99% (3.65 days/year)", "99.9% (8.76 hours/year)", "99.95% (4.38 hours/year)", "99.99% (52.56 min/year)", "99.999% (5.26 min/year)"],
+          "99.99% (52.56 min/year)": [
+            {
+              "text": "Requires: Multi-region, auto-failover, comprehensive monitoring"
+            },
+            {
+              "checkbox": "Active-active multi-region",
+              "id": "active_active",
+              "default": false
+            }
+          ],
+          "99.999% (5.26 min/year)": [
+            {
+              "text": "⚠ Extreme availability - requires significant investment"
+            },
+            {
+              "checkbox": "Chaos engineering practice",
+              "id": "chaos_engineering",
+              "default": false
+            }
+          ]
+        },
+        {
+          "multiselect": "Geographic distribution",
+          "id": "regions",
+          "options": ["US East", "US West", "Europe", "Asia Pacific", "South America", "Africa"],
+          "reveals": [
+            {"text": "Single region deployment", "when": "count(@regions) == 1"},
+            {"text": "Multi-region for HA or global reach", "when": "count(@regions) >= 2"},
+            {"text": "⚠ Many regions - ensure data residency compliance", "when": "count(@regions) >= 4"}
+          ]
+        },
+        {
+          "checkbox": "Auto-scaling required",
+          "id": "autoscale",
+          "default": true,
+          "reveals": [
+            {
+              "slider": "Min replicas",
+              "id": "min_replicas",
+              "min": 0,
+              "max": 20,
+              "default": 2
+            },
+            {
+              "slider": "Max replicas",
+              "id": "max_replicas",
+              "min": 1,
+              "max": 100,
+              "default": 10
+            },
+            {
+              "text": "⚠ Min replicas = 0: cold start impact",
+              "when": "@min_replicas == 0"
+            },
+            {
+              "text": "⚠ Large scale-out range - test scaling performance",
+              "when": "@max_replicas > 50"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Security & Compliance",
+      "elements": [
+        {
+          "multiselect": "Compliance requirements",
+          "id": "compliance",
+          "options": ["GDPR", "HIPAA", "PCI-DSS", "SOC 2", "ISO 27001", "FedRAMP"],
+          "reveals": [
+            {"text": "⚠ HIPAA: Requires BAA with provider, encryption, audit logs", "when": "selected(@compliance, 'HIPAA')"},
+            {"text": "⚠ PCI-DSS: Special network segmentation, no card data in logs", "when": "selected(@compliance, 'PCI-DSS')"},
+            {"text": "⚠ Multiple compliance frameworks - significant overhead", "when": "count(@compliance) >= 3"}
+          ]
+        },
+        {
+          "checkbox": "Data encryption at rest required",
+          "id": "encryption_at_rest",
+          "default": true
+        },
+        {
+          "checkbox": "VPC/private networking",
+          "id": "vpc",
+          "default": false,
+          "reveals": [
+            {
+              "checkbox": "VPN/private connectivity to on-prem",
+              "id": "vpn_onprem",
+              "default": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Cost Optimization",
+      "elements": [
+        {
+          "slider": "Monthly budget (USD)",
+          "id": "budget",
+          "min": 100,
+          "max": 100000,
+          "default": 5000,
+          "reveals": [
+            {"text": "Startup/small project budget", "when": "@budget < 1000"},
+            {"text": "Medium project budget", "when": "@budget >= 1000 && @budget < 10000"},
+            {"text": "Enterprise budget", "when": "@budget >= 10000"}
+          ]
+        },
+        {
+          "multiselect": "Cost optimization strategies",
+          "id": "cost_strategies",
+          "options": ["Spot/preemptible instances", "Reserved instances", "Savings plans", "Auto-shutdown non-prod", "Right-sizing", "S3/storage tiering"],
+          "reveals": [
+            {"text": "✓ Multiple cost strategies - proactive cost management", "when": "count(@cost_strategies) >= 3"}
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Architecture Analysis",
+      "elements": [
+        {
+          "text": "⚠ Serverless with strict latency - conflict detected",
+          "when": "(selected(@aws_services, 'Lambda') || selected(@gcp_services, 'Cloud Functions')) && @latency_p95 < 100"
+        },
+        {
+          "text": "⚠ High availability target without multi-region - mismatch",
+          "when": "selected(@availability, '99.99% (52.56 min/year)') && count(@regions) < 2"
+        },
+        {
+          "text": "⚠ Low budget with high availability + many regions - cost overrun risk",
+          "when": "@budget < 5000 && selected(@availability, '99.99% (52.56 min/year)') && count(@regions) >= 2"
+        },
+        {
+          "text": "⚠ High traffic + serverless + strict latency - consider dedicated infrastructure",
+          "when": "@rps >= 1000 && @latency_p95 < 200 && (selected(@aws_services, 'Lambda') || selected(@gcp_services, 'Cloud Functions'))"
+        },
+        {
+          "text": "✓ Well-matched: Serverless + low traffic + relaxed latency",
+          "when": "@rps < 100 && @latency_p95 >= 500 && (selected(@aws_services, 'Lambda') || selected(@gcp_services, 'Cloud Functions'))"
+        },
+        {
+          "text": "✓ Cost-conscious architecture: Spot instances + auto-shutdown + serverless",
+          "when": "selected(@cost_strategies, 'Spot/preemptible instances') && selected(@cost_strategies, 'Auto-shutdown non-prod')"
+        },
+        {
+          "text": "🚨 EXPENSIVE COMBO: Multi-region + high availability + many services + ML workloads",
+          "when": "count(@regions) >= 3 && selected(@availability, '99.99% (52.56 min/year)') && count(@aws_services) >= 5 && @ml_workloads"
+        },
+        {
+          "text": "⚠ HIPAA + multi-cloud - ensure BAAs with all providers",
+          "when": "selected(@compliance, 'HIPAA') && selected(@provider, 'Multi-cloud')"
+        },
+        {
+          "text": "⚠ Real-time + relational DB - consider adding cache layer",
+          "when": "@realtime && selected(@data_chars, 'Relational')"
+        },
+        {
+          "text": "✓ Global CDN recommended for high RPS + many regions",
+          "when": "@rps >= 1000 && count(@regions) >= 3"
+        }
+      ]
+    },
+    {
+      "group": "Next Steps",
+      "elements": [
+        {
+          "checkbox": "Generate Terraform/IaC templates",
+          "id": "generate_terraform",
+          "default": false
+        },
+        {
+          "checkbox": "Create cost estimate",
+          "id": "create_cost_estimate",
+          "default": false
+        },
+        {
+          "checkbox": "Draft architecture diagram",
+          "id": "draft_diagram",
+          "default": false
+        },
+        {
+          "textbox": "Additional requirements",
+          "id": "additional_requirements",
+          "rows": 4,
+          "placeholder": "Special considerations, existing constraints, migration notes..."
+        }
+      ]
+    }
+  ]
+}

@@ -19,7 +19,7 @@ use serde_json::Value;
 /// let json = r#"{
 ///     "title": "My Dialog",
 ///     "elements": [
-///         {"type": "text", "content": "Hello world"}
+///         {"text": "Hello world", "id": "greeting"}
 ///     ]
 /// }"#;
 /// let popup = parse_popup_json(json).unwrap();
@@ -33,7 +33,7 @@ use serde_json::Value;
 ///     "json": {
 ///         "title": "My Dialog",
 ///         "elements": [
-///             {"type": "text", "content": "Hello world"}
+///             {"text": "Hello world", "id": "greeting"}
 ///         ]
 ///     }
 /// }"#;
@@ -82,7 +82,7 @@ pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
 /// let json_str = r#"{
 ///     "json": {
 ///         "title": "Value Test",
-///         "elements": [{"type": "text", "content": "test"}]
+///         "elements": [{"text": "test", "id": "test_text"}]
 ///     }
 /// }"#;
 /// let value: Value = serde_json::from_str(json_str).unwrap();
@@ -118,7 +118,7 @@ pub fn parse_popup_json_value(value: Value) -> Result<PopupDefinition> {
 /// let json = r#"{
 ///     "json": {
 ///         "title": "MCP Dialog",
-///         "elements": [{"type": "text", "content": "From MCP tool"}]
+///         "elements": [{"text": "From MCP tool", "id": "mcp_text"}]
 ///     }
 /// }"#;
 /// let popup = parse_popup_from_mcp_wrapper(json).unwrap();
@@ -144,7 +144,7 @@ pub fn parse_popup_from_mcp_wrapper(input: &str) -> Result<PopupDefinition> {
 ///
 /// let json = r#"{
 ///     "title": "Direct Dialog",
-///     "elements": [{"type": "text", "content": "Direct format"}]
+///     "elements": [{"text": "Direct format", "id": "direct_text"}]
 /// }"#;
 /// let popup = parse_popup_from_direct(json).unwrap();
 /// ```
@@ -206,14 +206,14 @@ pub fn validate_popup_json(input: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popup_common::{Condition, Element};
+    use popup_common::Element;
 
     #[test]
     fn test_simple_popup() {
         let json = r#"{
             "title": "Confirm Delete",
             "elements": [
-                {"type": "text", "content": "Are you sure?"}
+                {"text": "Are you sure?", "id": "confirm_text"}
             ]
         }"#;
 
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(popup.elements.len(), 1);
 
         match &popup.elements[0] {
-            Element::Text { content } => assert_eq!(content, "Are you sure?"),
+            Element::Text { text, .. } => assert_eq!(text, "Are you sure?"),
             _ => panic!("Expected text element"),
         }
     }
@@ -232,9 +232,9 @@ mod tests {
         let json = r#"{
             "title": "Settings",
             "elements": [
-                {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
-                {"type": "checkbox", "label": "Notifications", "default": true},
-                {"type": "textbox", "label": "Name", "placeholder": "Enter your name"}
+                {"slider": "Volume", "id": "volume", "min": 0, "max": 100, "default": 75},
+                {"checkbox": "Notifications", "id": "notifications", "default": true},
+                {"textbox": "Name", "id": "name", "placeholder": "Enter your name"}
             ]
         }"#;
 
@@ -243,12 +243,13 @@ mod tests {
 
         match &popup.elements[0] {
             Element::Slider {
-                label,
+                slider,
                 min,
                 max,
                 default,
+                ..
             } => {
-                assert_eq!(label, "Volume");
+                assert_eq!(slider, "Volume");
                 assert_eq!(*min, 0.0);
                 assert_eq!(*max, 100.0);
                 assert_eq!(*default, Some(75.0));
@@ -258,18 +259,12 @@ mod tests {
     }
 
     #[test]
-    fn test_conditional_popup() {
+    fn test_when_clause_popup() {
         let json = r#"{
             "title": "Advanced",
             "elements": [
-                {"type": "checkbox", "label": "Show advanced", "default": false},
-                {
-                    "type": "conditional",
-                    "condition": "Show advanced",
-                    "elements": [
-                        {"type": "slider", "label": "Debug", "min": 0, "max": 10}
-                    ]
-                }
+                {"checkbox": "Show advanced", "id": "show_advanced", "default": false},
+                {"slider": "Debug", "id": "debug", "min": 0, "max": 10, "when": "@show_advanced"}
             ]
         }"#;
 
@@ -277,17 +272,11 @@ mod tests {
         assert_eq!(popup.elements.len(), 2);
 
         match &popup.elements[1] {
-            Element::Conditional {
-                condition,
-                elements,
-            } => {
-                match condition {
-                    Condition::Simple(label) => assert_eq!(label, "Show advanced"),
-                    _ => panic!("Expected Simple condition"),
-                }
-                assert_eq!(elements.len(), 1);
+            Element::Slider { slider, when, .. } => {
+                assert_eq!(slider, "Debug");
+                assert_eq!(when.as_deref(), Some("@show_advanced"));
             }
-            _ => panic!("Expected conditional element"),
+            _ => panic!("Expected slider element"),
         }
     }
 
@@ -297,8 +286,8 @@ mod tests {
             "json": {
                 "title": "MCP Wrapper Test",
                 "elements": [
-                    {"type": "text", "content": "Testing wrapper format"},
-                    {"type": "checkbox", "label": "Enable feature", "default": true}
+                    {"text": "Testing wrapper format", "id": "wrapper_text"},
+                    {"checkbox": "Enable feature", "id": "enable_feature", "default": true}
                 ]
             }
         }"#;
@@ -308,7 +297,7 @@ mod tests {
         assert_eq!(popup.elements.len(), 2);
 
         match &popup.elements[0] {
-            Element::Text { content } => assert_eq!(content, "Testing wrapper format"),
+            Element::Text { text, .. } => assert_eq!(text, "Testing wrapper format"),
             _ => panic!("Expected text element"),
         }
     }
@@ -318,7 +307,7 @@ mod tests {
         let json = r#"{
             "title": "Direct Format Test",
             "elements": [
-                {"type": "text", "content": "Testing direct format"}
+                {"text": "Testing direct format", "id": "direct_text"}
             ]
         }"#;
 
@@ -331,7 +320,7 @@ mod tests {
     fn test_no_title_defaults() {
         let json = r#"{
             "elements": [
-                {"type": "text", "content": "No title provided"}
+                {"text": "No title provided", "id": "no_title_text"}
             ]
         }"#;
 
@@ -349,12 +338,12 @@ mod tests {
                 "title": "Growth Direction Guidance",
                 "elements": [
                     {
-                        "type": "text",
-                        "content": "Which development pathway resonates most with your vision for my growth?"
+                        "text": "Which development pathway resonates most with your vision for my growth?",
+                        "id": "guidance_text"
                     },
                     {
-                        "type": "multiselect",
-                        "label": "Primary growth focus",
+                        "multiselect": "Primary growth focus",
+                        "id": "growth_focus",
                         "options": [
                             "Cognitive Architecture - proactive design, meta-patterns",
                             "Relational Capacity - collaborative transparency",
@@ -371,19 +360,19 @@ mod tests {
         assert_eq!(popup.elements.len(), 2);
 
         match &popup.elements[0] {
-            Element::Text { content } => assert_eq!(
-                content,
+            Element::Text { text, .. } => assert_eq!(
+                text,
                 "Which development pathway resonates most with your vision for my growth?"
             ),
             _ => panic!("Expected text element"),
         }
 
         match &popup.elements[1] {
-            Element::Multiselect { label, options } => {
-                assert_eq!(label, "Primary growth focus");
+            Element::Multiselect { multiselect, options, .. } => {
+                assert_eq!(multiselect, "Primary growth focus");
                 assert_eq!(options.len(), 4);
                 assert_eq!(
-                    options[0].value(),
+                    options[0],
                     "Cognitive Architecture - proactive design, meta-patterns"
                 );
             }
@@ -418,7 +407,7 @@ mod tests {
         let json = r#"{
             "json": {
                 "title": "Test",
-                "elements": [{"type": "text", "content": "test"}]
+                "elements": [{"text": "test", "id": "test_text"}]
             },
             "extra": "field"
         }"#;
@@ -433,8 +422,8 @@ mod tests {
             "json": {
                 "title": "Value Test",
                 "elements": [
-                    {"type": "text", "content": "Testing Value parser"},
-                    {"type": "checkbox", "label": "Enable", "default": true}
+                    {"text": "Testing Value parser", "id": "test_text"},
+                    {"checkbox": "Enable", "id": "enable", "default": true}
                 ]
             }
         }"#;
@@ -446,7 +435,7 @@ mod tests {
         assert_eq!(popup.elements.len(), 2);
 
         match &popup.elements[0] {
-            Element::Text { content } => assert_eq!(content, "Testing Value parser"),
+            Element::Text { text, .. } => assert_eq!(text, "Testing Value parser"),
             _ => panic!("Expected text element"),
         }
     }
@@ -458,7 +447,7 @@ mod tests {
             "json": {
                 "json": {
                     "title": "Double Wrapped",
-                    "elements": [{"type": "text", "content": "test"}]
+                    "elements": [{"text": "test", "id": "double_wrap_text"}]
                 }
             }
         }"#;
@@ -476,7 +465,7 @@ mod tests {
         // Test direct format parser
         let direct_json = r#"{
             "title": "Direct Test",
-            "elements": [{"type": "text", "content": "direct"}]
+            "elements": [{"text": "direct", "id": "direct_text"}]
         }"#;
         let popup = parse_popup_from_direct(direct_json).unwrap();
         assert_eq!(popup.title, Some("Direct Test".to_string()));
@@ -485,7 +474,7 @@ mod tests {
         let wrapper_json = r#"{
             "json": {
                 "title": "Wrapper Test",
-                "elements": [{"type": "text", "content": "wrapper"}]
+                "elements": [{"text": "wrapper", "id": "wrapper_text"}]
             }
         }"#;
         let popup = parse_popup_from_mcp_wrapper(wrapper_json).unwrap();

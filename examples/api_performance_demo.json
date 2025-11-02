@@ -1,0 +1,273 @@
+{
+  "title": "API Performance Diagnosis - Adaptive Troubleshooting",
+  "elements": [
+    {
+      "text": "Response time spiked from 200ms to 8s. I'll adapt my investigation based on your answers.",
+      "id": "intro_text"
+    },
+    {
+      "choice": "When did the slowdown begin?",
+      "id": "slowdown_timing",
+      "options": ["After deployment (2 hours ago)", "Gradual over several days", "Intermittent/random pattern"],
+      "After deployment (2 hours ago)": [
+        {
+          "text": "Focusing on deployment changes. What was modified?",
+          "id": "deployment_focus"
+        },
+        {
+          "multiselect": "Select all changes in this deployment:",
+          "id": "deployment_changes",
+          "options": ["New API endpoints", "Database migrations", "Configuration changes"],
+          "New API endpoints": [
+            {
+              "choice": "Which endpoints are affected?",
+              "id": "endpoint_scope",
+              "options": ["Only the new endpoints", "All endpoints equally"],
+              "Only the new endpoints": [
+                {
+                  "text": "Issue isolated to new code. Check for:",
+                  "id": "new_endpoint_issues_header"
+                },
+                {
+                  "multiselect": "Common new endpoint issues:",
+                  "id": "new_endpoint_issues",
+                  "options": ["Missing database indexes", "N+1 query patterns", "Unoptimized ORM queries", "Missing caching layer"]
+                }
+              ],
+              "All endpoints equally": [
+                {
+                  "text": "System-wide impact suggests infrastructure or shared resource issue.",
+                  "id": "systemwide_impact"
+                }
+              ]
+            }
+          ],
+          "Database migrations": [
+            {
+              "choice": "What type of database changes?",
+              "id": "migration_type",
+              "options": ["Schema modifications", "Large data migration", "Index changes"],
+              "Schema modifications": [
+                {
+                  "text": "Schema changes can lock tables. Check active locks with SHOW PROCESSLIST.",
+                  "id": "schema_locks"
+                }
+              ],
+              "Large data migration": [
+                {
+                  "text": "Bulk operations may still be running. Check background job status.",
+                  "id": "bulk_ops"
+                }
+              ],
+              "Index changes": [
+                {
+                  "choice": "Were indexes added or removed?",
+                  "id": "index_change_type",
+                  "options": ["Removed indexes", "Added indexes"],
+                  "Removed indexes": [
+                    {
+                      "text": "CRITICAL: Removed indexes causing full table scans. Restore immediately.",
+                      "id": "removed_indexes_critical"
+                    }
+                  ],
+                  "Added indexes": [
+                    {
+                      "text": "New indexes might be rebuilding. Check index build progress.",
+                      "id": "index_rebuild"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "Configuration changes": [
+            {
+              "choice": "Which configuration area?",
+              "id": "config_area",
+              "options": ["Connection pool settings", "Cache settings"],
+              "Connection pool settings": [
+                {
+                  "text": "Pool size changes can cause connection starvation. Check active connection count.",
+                  "id": "pool_starvation"
+                }
+              ],
+              "Cache settings": [
+                {
+                  "text": "Cache misconfiguration can cause stampedes. Monitor cache hit rates.",
+                  "id": "cache_stampede"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "WARNING: Multiple simultaneous changes detected. This complicates root cause analysis.",
+          "id": "multiple_changes_warning",
+          "when": "count(@deployment_changes) >= 2"
+        },
+        {
+          "choice": "How should we proceed?",
+          "id": "multiple_changes_strategy",
+          "options": ["Rollback everything", "Isolate changes with feature flags"],
+          "when": "count(@deployment_changes) >= 2",
+          "Isolate changes with feature flags": [
+            {
+              "multiselect": "Disable which features first?",
+              "id": "features_to_disable",
+              "options": ["New API endpoints", "Database migrations", "Config changes"]
+            }
+          ]
+        }
+      ],
+      "Gradual over several days": [
+        {
+          "text": "Gradual degradation suggests organic growth or resource leaks.",
+          "id": "gradual_degradation"
+        },
+        {
+          "multiselect": "What's been growing?",
+          "id": "growth_metrics",
+          "options": ["Traffic volume", "Database size", "Memory consumption"],
+          "Traffic volume": [
+            {
+              "choice": "Traffic pattern:",
+              "id": "traffic_pattern",
+              "options": ["Specific endpoints under load", "Distributed across all endpoints"],
+              "Specific endpoints under load": [
+                {
+                  "text": "Concentrated load on specific endpoints. These might need optimization or rate limiting.",
+                  "id": "specific_endpoint_load"
+                }
+              ],
+              "Distributed across all endpoints": [
+                {
+                  "text": "Organic growth across the board. Consider horizontal scaling.",
+                  "id": "distributed_growth"
+                }
+              ]
+            }
+          ],
+          "Database size": [
+            {
+              "choice": "Which tables are growing?",
+              "id": "table_growth",
+              "options": ["Audit/log tables", "Core business tables"],
+              "Audit/log tables": [
+                {
+                  "text": "Log table growth is common. Implement archival or partitioning.",
+                  "id": "log_growth"
+                }
+              ],
+              "Core business tables": [
+                {
+                  "text": "Business data growth requires index optimization and query tuning.",
+                  "id": "business_table_growth"
+                },
+                {
+                  "text": "CORRELATION: Specific endpoints + growing tables = those endpoints likely query these tables inefficiently.",
+                  "id": "correlation_endpoints_tables",
+                  "when": "selected(@traffic_pattern, Specific endpoints under load)"
+                }
+              ]
+            }
+          ],
+          "Memory consumption": [
+            {
+              "choice": "Memory growth pattern:",
+              "id": "memory_pattern",
+              "options": ["Steady linear increase", "Sudden jumps"],
+              "Steady linear increase": [
+                {
+                  "text": "Classic memory leak pattern. Profile heap and identify growing objects.",
+                  "id": "memory_leak"
+                }
+              ],
+              "Sudden jumps": [
+                {
+                  "text": "Large allocations or cache bloat. Check for unbounded caches.",
+                  "id": "cache_bloat"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "Multiple growing metrics indicate cascade failure pattern.",
+          "id": "cascade_failure",
+          "when": "count(@growth_metrics) >= 2"
+        },
+        {
+          "choice": "What failed first?",
+          "id": "cascade_origin",
+          "options": ["Database started slowing down", "Memory pressure triggered issues", "Traffic spike overwhelmed system"],
+          "when": "count(@growth_metrics) >= 2",
+          "Database started slowing down": [
+            {
+              "text": "DB bottleneck causing connection pooling and memory growth. Focus on query optimization.",
+              "id": "db_bottleneck"
+            }
+          ],
+          "Memory pressure triggered issues": [
+            {
+              "text": "Memory pressure causing GC storms and slowdowns. Increase heap or fix leaks.",
+              "id": "memory_pressure"
+            }
+          ],
+          "Traffic spike overwhelmed system": [
+            {
+              "text": "Load exceeded capacity. Implement rate limiting and auto-scaling.",
+              "id": "traffic_overload"
+            }
+          ]
+        }
+      ],
+      "Intermittent/random pattern": [
+        {
+          "text": "Intermittent issues often have hidden triggers.",
+          "id": "intermittent_header"
+        },
+        {
+          "choice": "Any correlation with:",
+          "id": "intermittent_correlation",
+          "options": ["Time of day", "Specific user actions", "No clear pattern"],
+          "Time of day": [
+            {
+              "choice": "Which time pattern?",
+              "id": "time_pattern",
+              "options": ["Business hours", "Midnight/early morning"],
+              "Business hours": [
+                {
+                  "text": "Peak usage pattern. Normal but needs capacity planning.",
+                  "id": "peak_usage"
+                }
+              ],
+              "Midnight/early morning": [
+                {
+                  "text": "Batch jobs or backups likely interfering. Check cron schedules.",
+                  "id": "batch_interference"
+                }
+              ]
+            }
+          ],
+          "Specific user actions": [
+            {
+              "text": "User-triggered performance issues suggest unoptimized code paths.",
+              "id": "user_triggered"
+            }
+          ],
+          "No clear pattern": [
+            {
+              "text": "True randomness is rare. Check for:",
+              "id": "rare_causes_header"
+            },
+            {
+              "multiselect": "Less obvious causes:",
+              "id": "rare_causes",
+              "options": ["Network packet loss", "DNS resolution delays", "Garbage collection pauses", "Lock contention", "Retry storms"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

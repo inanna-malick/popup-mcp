@@ -355,7 +355,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                             serde_json::json!({
                                 "content": [{
                                     "type": "text",
-                                    "text": serde_json::to_string(&result)?
+                                    "text": serde_json::to_string_pretty(&result)?
                                 }]
                             }),
                         )

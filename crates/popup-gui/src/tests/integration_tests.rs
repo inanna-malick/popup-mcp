@@ -52,10 +52,10 @@ fn test_popup_state_initialization() {
     let json = r#"{
         "title": "State Test",
         "elements": [
-            {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
-            {"type": "checkbox", "label": "Mute", "default": false},
-            {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
-            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]}
+            {"slider": "Volume", "id": "volume", "min": 0, "max": 100, "default": 75},
+            {"checkbox": "Mute", "id": "mute", "default": false},
+            {"textbox": "Name", "id": "name", "placeholder": "Enter name"},
+            {"multiselect": "Features", "id": "features", "options": ["A", "B", "C"]}
         ]
     }"#;
 
@@ -63,23 +63,18 @@ fn test_popup_state_initialization() {
     let mut state = PopupState::new(&popup);
 
     // Check slider initialization
-    let volume_key = state.find_key_by_label("Volume").unwrap();
-    assert_eq!(*state.get_number_mut(&volume_key).unwrap(), 75.0);
+    assert_eq!(*state.get_number_mut("volume").unwrap(), 75.0);
 
     // Check checkbox initialization
-    let mute_key = state.find_key_by_label("Mute").unwrap();
-    assert_eq!(*state.get_boolean_mut(&mute_key).unwrap(), false);
+    assert_eq!(*state.get_boolean_mut("mute").unwrap(), false);
 
     // Check textbox initialization
-    let name_key = state.find_key_by_label("Name").unwrap();
-    assert_eq!(state.get_text_mut(&name_key).unwrap(), "");
+    assert_eq!(state.get_text_mut("name").unwrap(), "");
 
     // Check multiselect initialization
-    let features_key = state.find_key_by_label("Features").unwrap();
-    assert_eq!(state.get_multichoice_mut(&features_key).unwrap().len(), 3);
-    let features_key2 = state.find_key_by_label("Features").unwrap();
+    assert_eq!(state.get_multichoice_mut("features").unwrap().len(), 3);
     assert!(state
-        .get_multichoice_mut(&features_key2)
+        .get_multichoice_mut("features")
         .unwrap()
         .iter()
         .all(|&x| !x));
@@ -90,9 +85,9 @@ fn test_popup_result_serialization() {
     let json = r#"{
         "title": "Result Test",
         "elements": [
-            {"type": "slider", "label": "Value", "min": 0, "max": 10, "default": 5},
-            {"type": "checkbox", "label": "Enabled", "default": true},
-            {"type": "textbox", "label": "Text", "placeholder": "..."}
+            {"slider": "Value", "id": "value", "min": 0, "max": 10, "default": 5},
+            {"checkbox": "Enabled", "id": "enabled", "default": true},
+            {"textbox": "Text", "id": "text", "placeholder": "..."}
         ]
     }"#;
 
@@ -100,10 +95,8 @@ fn test_popup_result_serialization() {
     let mut state = PopupState::new(&popup);
 
     // Modify state
-    let value_key = state.find_key_by_label("Value").unwrap();
-    *state.get_number_mut(&value_key).unwrap() = 7.0;
-    let text_key = state.find_key_by_label("Text").unwrap();
-    *state.get_text_mut(&text_key).unwrap() = "Hello".to_string();
+    *state.get_number_mut("value").unwrap() = 7.0;
+    *state.get_text_mut("text").unwrap() = "Hello".to_string();
     state.button_clicked = Some("submit".to_string());
 
     // Create result
@@ -114,37 +107,33 @@ fn test_popup_result_serialization() {
     let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
 
     // Verify structure
-    assert_eq!(parsed["Value"], 7);
-    assert_eq!(parsed["Enabled"], true);
-    assert_eq!(parsed["Text"], "Hello");
+    assert_eq!(parsed["value"], 7);
+    assert_eq!(parsed["enabled"], true);
+    assert_eq!(parsed["text"], "Hello");
     assert_eq!(parsed["button"], "submit");
 }
 
 #[test]
-fn test_conditional_in_json() {
+fn test_when_clause_in_json() {
     let json = r#"{
-        "title": "Conditional",
+        "title": "When Clause",
         "elements": [
-            {"type": "checkbox", "label": "Show", "default": true},
-            {
-                "type": "conditional",
-                "condition": "Show",
-                "elements": [
-                    {"type": "text", "content": "This is shown when Show is checked"},
-                    {"type": "slider", "label": "Value", "min": 0, "max": 100}
-                ]
-            }
+            {"checkbox": "Show", "id": "show", "default": true},
+            {"text": "This is shown when Show is checked", "id": "shown_text", "when": "@show"},
+            {"slider": "Value", "id": "value", "min": 0, "max": 100, "when": "@show"}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
     let state = PopupState::new(&popup);
 
-    // Verify conditional has proper structure
-    assert_eq!(popup.elements.len(), 2);
+    // Verify structure
+    assert_eq!(popup.elements.len(), 3);
 
-    // State should still initialize nested elements
-    assert!(state.find_key_by_label("Value").is_some());
+    // State should initialize all elements (when clause doesn't affect initialization)
+    assert!(state.values.get("value").is_some());
+    assert!(state.values.get("show").is_some());
+    assert!(state.values.get("shown_text").is_none()); // Text elements don't have state
 }
 
 #[test]
@@ -153,12 +142,12 @@ fn test_group_in_json() {
         "title": "Grouped",
         "elements": [
             {
-                "type": "group",
-                "label": "Audio Settings",
+                "group": "Audio Settings",
+                "id": "audio_group",
                 "elements": [
-                    {"type": "slider", "label": "Volume", "min": 0, "max": 100},
-                    {"type": "slider", "label": "Bass", "min": -10, "max": 10, "default": 0},
-                    {"type": "checkbox", "label": "Surround", "default": false}
+                    {"slider": "Volume", "id": "volume", "min": 0, "max": 100},
+                    {"slider": "Bass", "id": "bass", "min": -10, "max": 10, "default": 0},
+                    {"checkbox": "Surround", "id": "surround", "default": false}
                 ]
             }
         ]
@@ -171,7 +160,7 @@ fn test_group_in_json() {
     assert_eq!(popup.elements.len(), 1);
 
     // State should initialize nested elements
-    assert!(state.find_key_by_label("Volume").is_some());
-    assert!(state.find_key_by_label("Bass").is_some());
-    assert!(state.find_key_by_label("Surround").is_some());
+    assert!(state.values.get("volume").is_some());
+    assert!(state.values.get("bass").is_some());
+    assert!(state.values.get("surround").is_some());
 }

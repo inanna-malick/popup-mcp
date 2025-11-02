@@ -1,12 +1,12 @@
 use crate::json_parser::parse_popup_json;
-use popup_common::{Condition, Element};
+use popup_common::Element;
 
 #[test]
 fn test_simple_confirmation() {
     let json = r#"{
         "title": "Confirm",
         "elements": [
-            {"type": "text", "content": "Are you sure?"}
+            {"text": "Are you sure?", "id": "confirm_text"}
         ]
     }"#;
 
@@ -15,7 +15,7 @@ fn test_simple_confirmation() {
     assert_eq!(popup.elements.len(), 1);
 
     match &popup.elements[0] {
-        Element::Text { content } => assert_eq!(content, "Are you sure?"),
+        Element::Text { text, .. } => assert_eq!(text, "Are you sure?"),
         _ => panic!("Expected text element"),
     }
 }
@@ -25,12 +25,12 @@ fn test_all_widget_types() {
     let json = r#"{
         "title": "All Widgets",
         "elements": [
-            {"type": "text", "content": "Test all widget types"},
-            {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 50},
-            {"type": "checkbox", "label": "Enable", "default": true},
-            {"type": "textbox", "label": "Name", "placeholder": "Enter name"},
-            {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]},
-            {"type": "choice", "label": "Mode", "options": ["X", "Y", "Z"]}
+            {"text": "Test all widget types", "id": "intro"},
+            {"slider": "Volume", "id": "volume", "min": 0, "max": 100, "default": 50},
+            {"checkbox": "Enable", "id": "enable", "default": true},
+            {"textbox": "Name", "id": "name", "placeholder": "Enter name"},
+            {"multiselect": "Features", "id": "features", "options": ["A", "B", "C"]},
+            {"choice": "Mode", "id": "mode", "options": ["X", "Y", "Z"]}
         ]
     }"#;
 
@@ -40,12 +40,15 @@ fn test_all_widget_types() {
     // Verify slider
     match &popup.elements[1] {
         Element::Slider {
-            label,
+            slider,
+            id,
             min,
             max,
             default,
+            ..
         } => {
-            assert_eq!(label, "Volume");
+            assert_eq!(slider, "Volume");
+            assert_eq!(id, "volume");
             assert_eq!(*min, 0.0);
             assert_eq!(*max, 100.0);
             assert_eq!(*default, Some(50.0));
@@ -55,8 +58,9 @@ fn test_all_widget_types() {
 
     // Verify checkbox
     match &popup.elements[2] {
-        Element::Checkbox { label, default, .. } => {
-            assert_eq!(label, "Enable");
+        Element::Checkbox { checkbox, id, default, .. } => {
+            assert_eq!(checkbox, "Enable");
+            assert_eq!(id, "enable");
             assert_eq!(*default, true);
         }
         _ => panic!("Expected checkbox"),
@@ -65,11 +69,14 @@ fn test_all_widget_types() {
     // Verify textbox
     match &popup.elements[3] {
         Element::Textbox {
-            label,
+            textbox,
+            id,
             placeholder,
             rows,
+            ..
         } => {
-            assert_eq!(label, "Name");
+            assert_eq!(textbox, "Name");
+            assert_eq!(id, "name");
             assert_eq!(placeholder.as_deref(), Some("Enter name"));
             assert_eq!(*rows, None);
         }
@@ -78,8 +85,9 @@ fn test_all_widget_types() {
 
     // Verify multiselect
     match &popup.elements[4] {
-        Element::Multiselect { label, options } => {
-            assert_eq!(label, "Features");
+        Element::Multiselect { multiselect, id, options, .. } => {
+            assert_eq!(multiselect, "Features");
+            assert_eq!(id, "features");
             assert_eq!(options.len(), 3);
         }
         _ => panic!("Expected multiselect"),
@@ -88,11 +96,14 @@ fn test_all_widget_types() {
     // Verify choice
     match &popup.elements[5] {
         Element::Choice {
-            label,
+            choice,
+            id,
             options,
             default,
+            ..
         } => {
-            assert_eq!(label, "Mode");
+            assert_eq!(choice, "Mode");
+            assert_eq!(id, "mode");
             assert_eq!(options.len(), 3);
             assert_eq!(*default, None); // No default
         }
@@ -101,85 +112,59 @@ fn test_all_widget_types() {
 }
 
 #[test]
-fn test_simple_conditional() {
+fn test_simple_when_clause() {
     let json = r#"{
-        "title": "Conditional Test",
+        "title": "When Clause Test",
         "elements": [
-            {"type": "checkbox", "label": "Advanced", "default": false},
-            {
-                "type": "conditional",
-                "condition": "Advanced",
-                "elements": [
-                    {"type": "slider", "label": "Level", "min": 0, "max": 10}
-                ]
-            }
+            {"checkbox": "Advanced", "id": "advanced", "default": false},
+            {"slider": "Level", "id": "level", "min": 0, "max": 10, "when": "@advanced"}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 2);
 
-    match &popup.elements[1] {
-        Element::Conditional {
-            condition,
-            elements,
-        } => {
-            match condition {
-                Condition::Simple(label) => assert_eq!(label, "Advanced"),
-                _ => panic!("Expected Simple condition"),
-            }
-            assert_eq!(elements.len(), 1);
+    // Verify checkbox
+    match &popup.elements[0] {
+        Element::Checkbox { checkbox, id, .. } => {
+            assert_eq!(checkbox, "Advanced");
+            assert_eq!(id, "advanced");
         }
-        _ => panic!("Expected conditional"),
+        _ => panic!("Expected checkbox"),
+    }
+
+    // Verify slider with when clause
+    match &popup.elements[1] {
+        Element::Slider { slider, id, when, .. } => {
+            assert_eq!(slider, "Level");
+            assert_eq!(id, "level");
+            assert_eq!(when.as_deref(), Some("@advanced"));
+        }
+        _ => panic!("Expected slider"),
     }
 }
 
 #[test]
-fn test_complex_conditional() {
+fn test_complex_when_clauses() {
     let json = r#"{
-        "title": "Complex Conditional",
+        "title": "Complex When Clauses",
         "elements": [
-            {
-                "type": "conditional",
-                "condition": "Debug Mode",
-                "elements": [
-                    {"type": "text", "content": "Debug mode active"}
-                ]
-            },
-            {
-                "type": "conditional",
-                "condition": {"field": "Items", "count": ">5"},
-                "elements": [
-                    {"type": "text", "content": "More than 5 items"}
-                ]
-            }
+            {"multiselect": "Items", "id": "items", "options": ["A", "B", "C", "D", "E", "F"]},
+            {"text": "More than 5 items", "id": "many_items", "when": "count(@items) > 5"}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
     assert_eq!(popup.elements.len(), 2);
 
-    // Check first conditional
-    match &popup.elements[0] {
-        Element::Conditional { condition, .. } => match condition {
-            Condition::Simple(label) => {
-                assert_eq!(label, "Debug Mode");
-            }
-            _ => panic!("Expected Simple condition"),
-        },
-        _ => panic!("Expected conditional"),
-    }
-
-    // Check second conditional
+    // Verify text with count-based when clause
     match &popup.elements[1] {
-        Element::Conditional { condition, .. } => match condition {
-            Condition::Count { field, count } => {
-                assert_eq!(field, "Items");
-                assert_eq!(count, ">5");
-            }
-            _ => panic!("Expected Count condition"),
-        },
-        _ => panic!("Expected conditional"),
+        Element::Text { text, id, when, .. } => {
+            assert_eq!(text, "More than 5 items");
+            assert_eq!(id.as_deref(), Some("many_items"));
+            assert_eq!(when.as_deref(), Some("count(@items) > 5"));
+        }
+        _ => panic!("Expected text element"),
     }
 }
 
@@ -189,11 +174,11 @@ fn test_nested_groups() {
         "title": "Groups",
         "elements": [
             {
-                "type": "group",
-                "label": "Settings",
+                "group": "Settings",
+                "id": "settings_group",
                 "elements": [
-                    {"type": "checkbox", "label": "Option1", "default": true},
-                    {"type": "checkbox", "label": "Option2", "default": false}
+                    {"checkbox": "Option1", "id": "opt1", "default": true},
+                    {"checkbox": "Option2", "id": "opt2", "default": false}
                 ]
             }
         ]
@@ -203,8 +188,8 @@ fn test_nested_groups() {
     assert_eq!(popup.elements.len(), 1);
 
     match &popup.elements[0] {
-        Element::Group { label, elements } => {
-            assert_eq!(label, "Settings");
+        Element::Group { group, elements, .. } => {
+            assert_eq!(group, "Settings");
             assert_eq!(elements.len(), 2);
         }
         _ => panic!("Expected group"),
@@ -216,7 +201,7 @@ fn test_multiline_textbox() {
     let json = r#"{
         "title": "Multiline",
         "elements": [
-            {"type": "textbox", "label": "Comments", "placeholder": "Enter comments", "rows": 5}
+            {"textbox": "Comments", "id": "comments", "placeholder": "Enter comments", "rows": 5}
         ]
     }"#;
 
@@ -224,11 +209,14 @@ fn test_multiline_textbox() {
 
     match &popup.elements[0] {
         Element::Textbox {
-            label,
+            textbox,
+            id,
             placeholder,
             rows,
+            ..
         } => {
-            assert_eq!(label, "Comments");
+            assert_eq!(textbox, "Comments");
+            assert_eq!(id, "comments");
             assert_eq!(placeholder.as_deref(), Some("Enter comments"));
             assert_eq!(*rows, Some(5));
         }
@@ -241,7 +229,7 @@ fn test_slider_without_default() {
     let json = r#"{
         "title": "Slider Test",
         "elements": [
-            {"type": "slider", "label": "Progress", "min": 0, "max": 100}
+            {"slider": "Progress", "id": "progress", "min": 0, "max": 100}
         ]
     }"#;
 
@@ -249,12 +237,15 @@ fn test_slider_without_default() {
 
     match &popup.elements[0] {
         Element::Slider {
-            label,
+            slider,
+            id,
             min,
             max,
             default,
+            ..
         } => {
-            assert_eq!(label, "Progress");
+            assert_eq!(slider, "Progress");
+            assert_eq!(id, "progress");
             assert_eq!(*min, 0.0);
             assert_eq!(*max, 100.0);
             assert_eq!(*default, None); // No default provided
@@ -280,11 +271,11 @@ fn test_invalid_json() {
     let json = r#"{
         "title": "Invalid",
         "elements": [
-            {"type": "unknown", "label": "Test"}
+            {"unknown_element": "Test", "id": "test"}
         ]
     }"#;
 
-    // Should fail because "unknown" is not a valid element type
+    // Should fail because no valid element key is present
     assert!(parse_popup_json(json).is_err());
 }
 
@@ -312,7 +303,7 @@ fn test_choice_no_default() {
     let json = r#"{
         "title": "Choice Test",
         "elements": [
-            {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
+            {"choice": "Theme", "id": "theme", "options": ["Light", "Dark", "Auto"]}
         ]
     }"#;
 
@@ -321,15 +312,18 @@ fn test_choice_no_default() {
 
     match &popup.elements[0] {
         Element::Choice {
-            label,
+            choice,
+            id,
             options,
             default,
+            ..
         } => {
-            assert_eq!(label, "Theme");
+            assert_eq!(choice, "Theme");
+            assert_eq!(id, "theme");
             assert_eq!(options.len(), 3);
-            assert_eq!(options[0].value(), "Light");
-            assert_eq!(options[1].value(), "Dark");
-            assert_eq!(options[2].value(), "Auto");
+            assert_eq!(options[0], "Light");
+            assert_eq!(options[1], "Dark");
+            assert_eq!(options[2], "Auto");
             assert_eq!(*default, None); // No default, should be None
         }
         _ => panic!("Expected choice element"),
@@ -341,7 +335,7 @@ fn test_choice_with_default() {
     let json = r#"{
         "title": "Choice Test",
         "elements": [
-            {"type": "choice", "label": "Mode", "options": ["Easy", "Medium", "Hard"], "default": 1}
+            {"choice": "Mode", "id": "mode", "options": ["Easy", "Medium", "Hard"], "default": 1}
         ]
     }"#;
 
@@ -350,15 +344,18 @@ fn test_choice_with_default() {
 
     match &popup.elements[0] {
         Element::Choice {
-            label,
+            choice,
+            id,
             options,
             default,
+            ..
         } => {
-            assert_eq!(label, "Mode");
+            assert_eq!(choice, "Mode");
+            assert_eq!(id, "mode");
             assert_eq!(options.len(), 3);
-            assert_eq!(options[0].value(), "Easy");
-            assert_eq!(options[1].value(), "Medium");
-            assert_eq!(options[2].value(), "Hard");
+            assert_eq!(options[0], "Easy");
+            assert_eq!(options[1], "Medium");
+            assert_eq!(options[2], "Hard");
             assert_eq!(*default, Some(1)); // Default to index 1 (Medium)
         }
         _ => panic!("Expected choice element"),
@@ -372,25 +369,23 @@ fn test_choice_state_initialization() {
     let json = r#"{
         "title": "Choice State Test",
         "elements": [
-            {"type": "choice", "label": "NoDefault", "options": ["A", "B"]},
-            {"type": "choice", "label": "WithDefault", "options": ["X", "Y", "Z"], "default": 2}
+            {"choice": "NoDefault", "id": "no_default", "options": ["A", "B"]},
+            {"choice": "WithDefault", "id": "with_default", "options": ["X", "Y", "Z"], "default": 2}
         ]
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
     let state = PopupState::new(&popup);
 
-    // Check NoDefault initializes to None
-    let key = state.find_key_by_label("NoDefault").unwrap();
-    match state.values.get(&key) {
+    // Check no_default initializes to None
+    match state.values.get("no_default") {
         Some(ElementValue::Choice(None)) => {}
-        _ => panic!("Expected Choice(None) for NoDefault"),
+        _ => panic!("Expected Choice(None) for no_default"),
     }
 
-    // Check WithDefault initializes to Some(2)
-    let key = state.find_key_by_label("WithDefault").unwrap();
-    match state.values.get(&key) {
+    // Check with_default initializes to Some(2)
+    match state.values.get("with_default") {
         Some(ElementValue::Choice(Some(2))) => {}
-        _ => panic!("Expected Choice(Some(2)) for WithDefault"),
+        _ => panic!("Expected Choice(Some(2)) for with_default"),
     }
 }

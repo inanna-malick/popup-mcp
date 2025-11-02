@@ -6,30 +6,17 @@ export interface PopupDefinition {
 }
 
 /**
- * Option value for Choice and Multiselect elements.
- * Can be a simple string or an object with inline conditional elements.
+ * V2 Element format using element-as-key pattern
+ * All interactive elements require 'id' field for state tracking
  */
-export type OptionValue =
-  | string  // Simple option (backwards compatible)
-  | {       // Option with inline conditional
-      value: string;
-      conditional: Element[];
-    };
-
 export type Element =
-  | { type: 'text'; content: string }
-  | { type: 'slider'; label: string; min: number; max: number; default?: number }
-  | { type: 'checkbox'; label: string; default?: boolean; conditional?: Element[] }
-  | { type: 'textbox'; label: string; placeholder?: string; rows?: number }
-  | { type: 'multiselect'; label: string; options: OptionValue[] }
-  | { type: 'choice'; label: string; options: OptionValue[]; default?: number }
-  | { type: 'group'; label: string; elements: Element[] }
-  | { type: 'conditional'; condition: Condition; elements: Element[] };
-
-export type Condition =
-  | string  // Simple: checkbox name
-  | { field: string; value: string }  // Field check
-  | { field: string; count: string }; // Count check (e.g., ">2")
+  | { text: string; id?: string; when?: string }
+  | { slider: string; id: string; min: number; max: number; default?: number; when?: string; reveals?: Element[] }
+  | { checkbox: string; id: string; default?: boolean; when?: string; reveals?: Element[] }
+  | { textbox: string; id: string; placeholder?: string; rows?: number; when?: string }
+  | { multiselect: string; id: string; options: string[]; when?: string; reveals?: Element[]; [optionKey: string]: any }
+  | { choice: string; id: string; options: string[]; default?: number; when?: string; reveals?: Element[]; [optionKey: string]: any }
+  | { group: string; elements: Element[]; when?: string }
 
 export type PopupResult =
   | { status: 'completed'; button: string; [key: string]: any }

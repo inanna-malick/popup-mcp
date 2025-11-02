@@ -40,21 +40,24 @@ describe('MCP Server', () => {
         includeCheckbox: true,
       });
 
-      const elementTypes = definition.elements.map((e) => e.type);
+      // V2 format: elements have their type as a key
+      const hasText = definition.elements.some((e) => 'text' in e);
+      const hasSlider = definition.elements.some((e) => 'slider' in e);
+      const hasCheckbox = definition.elements.some((e) => 'checkbox' in e);
 
-      // Should contain expected element types
-      expect(elementTypes).toContain('text');
-      expect(elementTypes).toContain('slider');
-      expect(elementTypes).toContain('checkbox');
+      expect(hasText).toBe(true);
+      expect(hasSlider).toBe(true);
+      expect(hasCheckbox).toBe(true);
     });
 
     it('validates slider element structure', () => {
       const definition = createPopupDefinition({ includeSlider: true });
-      const slider = definition.elements.find((e) => e.type === 'slider');
+      const slider = definition.elements.find((e) => 'slider' in e);
 
       expect(slider).toBeDefined();
-      if (slider && slider.type === 'slider') {
-        expect(slider).toHaveProperty('label');
+      if (slider && 'slider' in slider) {
+        expect(slider).toHaveProperty('slider'); // Label text
+        expect(slider).toHaveProperty('id');
         expect(slider).toHaveProperty('min');
         expect(slider).toHaveProperty('max');
         expect(typeof slider.min).toBe('number');
@@ -64,23 +67,25 @@ describe('MCP Server', () => {
 
     it('validates checkbox element structure', () => {
       const definition = createPopupDefinition({ includeCheckbox: true });
-      const checkbox = definition.elements.find((e) => e.type === 'checkbox');
+      const checkbox = definition.elements.find((e) => 'checkbox' in e);
 
       expect(checkbox).toBeDefined();
-      if (checkbox && checkbox.type === 'checkbox') {
-        expect(checkbox).toHaveProperty('label');
-        expect(typeof checkbox.label).toBe('string');
+      if (checkbox && 'checkbox' in checkbox) {
+        expect(checkbox).toHaveProperty('checkbox'); // Label text
+        expect(checkbox).toHaveProperty('id');
+        expect(typeof checkbox.checkbox).toBe('string');
       }
     });
 
     it('validates textbox element structure', () => {
       const definition = createPopupDefinition({ includeTextbox: true });
-      const textbox = definition.elements.find((e) => e.type === 'textbox');
+      const textbox = definition.elements.find((e) => 'textbox' in e);
 
       expect(textbox).toBeDefined();
-      if (textbox && textbox.type === 'textbox') {
-        expect(textbox).toHaveProperty('label');
-        expect(typeof textbox.label).toBe('string');
+      if (textbox && 'textbox' in textbox) {
+        expect(textbox).toHaveProperty('textbox'); // Label text
+        expect(textbox).toHaveProperty('id');
+        expect(typeof textbox.textbox).toBe('string');
       }
     });
   });
@@ -120,7 +125,7 @@ describe('MCP Server', () => {
   describe('Popup Definition Validation', () => {
     it('accepts minimal valid definition', () => {
       const minimal = {
-        elements: [{ type: 'text' as const, content: 'Hello' }],
+        elements: [{ text: 'Hello', id: 'hello_text' }],
       };
 
       expect(minimal).toHaveProperty('elements');
@@ -130,7 +135,7 @@ describe('MCP Server', () => {
     it('accepts definition with title', () => {
       const withTitle = {
         title: 'My Popup',
-        elements: [{ type: 'text' as const, content: 'Hello' }],
+        elements: [{ text: 'Hello', id: 'hello_text' }],
       };
 
       expect(withTitle).toHaveProperty('title');
@@ -141,51 +146,46 @@ describe('MCP Server', () => {
       const complex = {
         title: 'Settings',
         elements: [
-          { type: 'text' as const, content: 'Configure your settings' },
+          { text: 'Configure your settings', id: 'settings_text' },
           {
-            type: 'group' as const,
-            label: 'Audio',
+            group: 'Audio',
             elements: [
               {
-                type: 'slider' as const,
-                label: 'Volume',
+                slider: 'Volume',
+                id: 'volume',
                 min: 0,
                 max: 100,
                 default: 50,
               },
-              { type: 'checkbox' as const, label: 'Mute', default: false },
+              { checkbox: 'Mute', id: 'mute', default: false },
             ],
           },
         ],
       };
 
       expect(complex.elements).toHaveLength(2);
-      const group = complex.elements.find((e) => e.type === 'group');
+      const group = complex.elements.find((e) => 'group' in e);
       expect(group).toBeDefined();
-      if (group && group.type === 'group') {
+      if (group && 'group' in group) {
         expect(group.elements).toHaveLength(2);
       }
     });
 
-    it('accepts conditional elements', () => {
-      const withConditional = {
+    it('accepts elements with when clauses', () => {
+      const withWhen = {
         elements: [
-          { type: 'checkbox' as const, label: 'Advanced', default: false },
+          { checkbox: 'Advanced', id: 'advanced', default: false },
           {
-            type: 'conditional' as const,
-            condition: 'Advanced',
-            elements: [
-              { type: 'text' as const, content: 'Advanced settings' },
-            ],
+            text: 'Advanced settings',
+            id: 'advanced_text',
+            when: '@advanced',
           },
         ],
       };
 
-      expect(withConditional.elements).toHaveLength(2);
-      const conditional = withConditional.elements.find(
-        (e) => e.type === 'conditional'
-      );
-      expect(conditional).toBeDefined();
+      expect(withWhen.elements).toHaveLength(2);
+      const withWhenClause = withWhen.elements.find((e) => 'when' in e);
+      expect(withWhenClause).toBeDefined();
     });
   });
 });

@@ -4,52 +4,63 @@ import { z } from 'zod';
 import type { PopupDefinition } from './protocol';
 import type { Props } from './utils';
 
-// Zod schema for popup element types
+// Zod schema for V2 popup element types (element-as-key format)
 const ElementSchema: z.ZodType<any> = z.lazy(() =>
   z.union([
-    z.object({ type: z.literal('text'), content: z.string() }),
+    // Text element (id optional)
     z.object({
-      type: z.literal('slider'),
-      label: z.string(),
+      text: z.string(),
+      id: z.string().optional(),
+      when: z.string().optional(),
+    }),
+    // Slider element (id required)
+    z.object({
+      slider: z.string(),
+      id: z.string(),
       min: z.number(),
       max: z.number(),
       default: z.number().optional(),
+      when: z.string().optional(),
+      reveals: z.array(ElementSchema).optional(),
     }),
+    // Checkbox element (id required)
     z.object({
-      type: z.literal('checkbox'),
-      label: z.string(),
+      checkbox: z.string(),
+      id: z.string(),
       default: z.boolean().optional(),
+      when: z.string().optional(),
+      reveals: z.array(ElementSchema).optional(),
     }),
+    // Textbox element (id required)
     z.object({
-      type: z.literal('textbox'),
-      label: z.string(),
+      textbox: z.string(),
+      id: z.string(),
       placeholder: z.string().optional(),
       rows: z.number().optional(),
+      when: z.string().optional(),
     }),
+    // Multiselect element (id required, option-as-key nesting via passthrough)
     z.object({
-      type: z.literal('multiselect'),
-      label: z.string(),
+      multiselect: z.string(),
+      id: z.string(),
       options: z.array(z.string()),
-    }),
+      when: z.string().optional(),
+      reveals: z.array(ElementSchema).optional(),
+    }).passthrough(),
+    // Choice element (id required, option-as-key nesting via passthrough)
     z.object({
-      type: z.literal('choice'),
-      label: z.string(),
+      choice: z.string(),
+      id: z.string(),
       options: z.array(z.string()),
       default: z.number().optional(),
-    }),
+      when: z.string().optional(),
+      reveals: z.array(ElementSchema).optional(),
+    }).passthrough(),
+    // Group element
     z.object({
-      type: z.literal('group'),
-      label: z.string(),
+      group: z.string(),
       elements: z.array(ElementSchema),
-    }),
-    z.object({
-      type: z.literal('conditional'),
-      condition: z.union([
-        z.string(),
-        z.object({ field: z.string(), value: z.string() }),
-        z.object({ field: z.string(), count: z.string() }),
-      ]),
-      elements: z.array(ElementSchema),
+      when: z.string().optional(),
     }),
   ])
 );

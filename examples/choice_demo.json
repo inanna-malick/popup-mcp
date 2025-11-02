@@ -2,37 +2,29 @@
   "title": "Choice Element Demo",
   "elements": [
     {
-      "type": "text",
-      "content": "Choice elements provide dropdown selection with optional unselected state"
+      "text": "Choice elements provide dropdown selection with optional unselected state",
+      "id": "intro_text"
     },
     {
-      "type": "choice",
-      "label": "Theme",
+      "choice": "Theme",
+      "id": "theme",
       "options": ["Light", "Dark", "Auto"]
     },
     {
-      "type": "choice",
-      "label": "Difficulty",
+      "choice": "Difficulty",
+      "id": "difficulty",
       "options": ["Easy", "Medium", "Hard"],
       "default": 1
     },
     {
-      "type": "conditional",
-      "condition": {
-        "field": "Difficulty",
-        "value": "Hard"
-      },
-      "elements": [
-        {
-          "type": "checkbox",
-          "label": "Enable expert mode",
-          "default": false
-        }
-      ]
+      "checkbox": "Enable expert mode",
+      "id": "expert_mode",
+      "default": false,
+      "when": "selected(@difficulty, Hard)"
     },
     {
-      "type": "choice",
-      "label": "Country",
+      "choice": "Country",
+      "id": "country",
       "options": [
         "USA",
         "Canada",
@@ -52,15 +44,10 @@
       ]
     },
     {
-      "type": "conditional",
-      "condition": "Country",
-      "elements": [
-        {
-          "type": "textbox",
-          "label": "City",
-          "placeholder": "Enter your city"
-        }
-      ]
+      "textbox": "City",
+      "id": "city",
+      "placeholder": "Enter your city",
+      "when": "@country"
     }
   ]
 }

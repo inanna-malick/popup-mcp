@@ -5,27 +5,22 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_simple_conditional_filtering() {
+    fn test_simple_when_clause_filtering() {
         let json = json!({
-            "title": "Test Conditional",
+            "title": "Test When Clause",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Show Advanced",
+                    "checkbox": "Show Advanced",
+                    "id": "show_advanced",
                     "default": false
                 },
                 {
-                    "type": "conditional",
-                    "condition": "Show Advanced",
-                    "elements": [
-                        {
-                            "type": "slider",
-                            "label": "Advanced Setting",
-                            "min": 0,
-                            "max": 100,
-                            "default": 50
-                        }
-                    ]
+                    "slider": "Advanced Setting",
+                    "id": "advanced_setting",
+                    "min": 0,
+                    "max": 100,
+                    "default": 50,
+                    "when": "@show_advanced"
                 }
             ]
         });
@@ -33,67 +28,56 @@ mod tests {
         let popup = parse_popup_json_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
-        // Initially, checkbox is false, so conditional content should not appear
+        // Initially, checkbox is false, so when clause element should not appear
         state.button_clicked = Some("submit".to_string());
 
         // Collect active elements
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
 
         // Only the checkbox should be active
-        assert_eq!(active_labels, vec!["Show Advanced"]);
+        assert_eq!(active_ids, vec!["show_advanced"]);
 
         // Now enable the checkbox
-        let key = state.find_key_by_label("Show Advanced").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        *state.get_boolean_mut("show_advanced").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
 
         // Now both checkbox and slider should be active
-        assert!(active_labels.contains(&"Show Advanced".to_string()));
-        assert!(active_labels.contains(&"Advanced Setting".to_string()));
-        assert_eq!(active_labels.len(), 2);
+        assert!(active_ids.contains(&"show_advanced".to_string()));
+        assert!(active_ids.contains(&"advanced_setting".to_string()));
+        assert_eq!(active_ids.len(), 2);
     }
 
     #[test]
-    fn test_nested_conditional_filtering() {
+    fn test_nested_when_clause_filtering() {
         let json = json!({
-            "title": "Nested Conditionals",
+            "title": "Nested When Clauses",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Enable Features",
+                    "checkbox": "Enable Features",
+                    "id": "enable_features",
                     "default": false
                 },
                 {
-                    "type": "conditional",
-                    "condition": "Enable Features",
-                    "elements": [
-                        {
-                            "type": "checkbox",
-                            "label": "Advanced Mode",
-                            "default": false
-                        },
-                        {
-                            "type": "conditional",
-                            "condition": "Advanced Mode",
-                            "elements": [
-                                {
-                                    "type": "slider",
-                                    "label": "Advanced Level",
-                                    "min": 0,
-                                    "max": 10
-                                }
-                            ]
-                        }
-                    ]
+                    "checkbox": "Advanced Mode",
+                    "id": "advanced_mode",
+                    "default": false,
+                    "when": "@enable_features"
+                },
+                {
+                    "slider": "Advanced Level",
+                    "id": "advanced_level",
+                    "min": 0,
+                    "max": 10,
+                    "when": "@advanced_mode"
                 }
             ]
         });
@@ -102,38 +86,36 @@ mod tests {
         let mut state = PopupState::new(&popup);
 
         // Nothing enabled
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Enable Features"]);
+        assert_eq!(active_ids, vec!["enable_features"]);
 
         // Enable first level
-        let key = state.find_key_by_label("Enable Features").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        *state.get_boolean_mut("enable_features").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Enable Features".to_string()));
-        assert!(active_labels.contains(&"Advanced Mode".to_string()));
-        assert!(!active_labels.contains(&"Advanced Level".to_string()));
+        assert!(active_ids.contains(&"enable_features".to_string()));
+        assert!(active_ids.contains(&"advanced_mode".to_string()));
+        assert!(!active_ids.contains(&"advanced_level".to_string()));
 
         // Enable second level
-        let key = state.find_key_by_label("Advanced Mode").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        *state.get_boolean_mut("advanced_mode").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Enable Features".to_string()));
-        assert!(active_labels.contains(&"Advanced Mode".to_string()));
-        assert!(active_labels.contains(&"Advanced Level".to_string()));
+        assert!(active_ids.contains(&"enable_features".to_string()));
+        assert!(active_ids.contains(&"advanced_mode".to_string()));
+        assert!(active_ids.contains(&"advanced_level".to_string()));
     }
 
     #[test]
@@ -142,29 +124,24 @@ mod tests {
             "title": "Result Test",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Show Options",
+                    "checkbox": "Show Options",
+                    "id": "show_options",
                     "default": false
                 },
                 {
-                    "type": "slider",
-                    "label": "Always Visible",
+                    "slider": "Always Visible",
+                    "id": "always_visible",
                     "min": 0,
                     "max": 100,
                     "default": 25
                 },
                 {
-                    "type": "conditional",
-                    "condition": "Show Options",
-                    "elements": [
-                        {
-                            "type": "slider",
-                            "label": "Hidden Slider",
-                            "min": 0,
-                            "max": 100,
-                            "default": 75
-                        }
-                    ]
+                    "slider": "Hidden Slider",
+                    "id": "hidden_slider",
+                    "min": 0,
+                    "max": 100,
+                    "default": 75,
+                    "when": "@show_options"
                 }
             ]
         });
@@ -173,8 +150,8 @@ mod tests {
         let mut state = PopupState::new(&popup);
         state.button_clicked = Some("submit".to_string());
 
-        // Get active labels
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        // Get active IDs
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
@@ -184,7 +161,7 @@ mod tests {
         let result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
-            &active_labels,
+            &active_ids,
         );
 
         // Should only have the visible elements
@@ -192,15 +169,14 @@ mod tests {
             popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
-        assert!(values.contains_key("Show Options"));
-        assert!(values.contains_key("Always Visible"));
-        assert!(!values.contains_key("Hidden Slider"));
+        assert!(values.contains_key("show_options"));
+        assert!(values.contains_key("always_visible"));
+        assert!(!values.contains_key("hidden_slider"));
 
         // Enable the checkbox
-        let key = state.find_key_by_label("Show Options").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        *state.get_boolean_mut("show_options").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
@@ -209,7 +185,7 @@ mod tests {
         let result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
-            &active_labels,
+            &active_ids,
         );
 
         // Now should include the conditional slider
@@ -217,34 +193,26 @@ mod tests {
             popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
-        assert!(values.contains_key("Show Options"));
-        assert!(values.contains_key("Always Visible"));
-        assert!(values.contains_key("Hidden Slider"));
+        assert!(values.contains_key("show_options"));
+        assert!(values.contains_key("always_visible"));
+        assert!(values.contains_key("hidden_slider"));
     }
 
     #[test]
-    fn test_multiselect_count_conditional_filtering() {
+    fn test_multiselect_count_when_clause_filtering() {
         let json = json!({
-            "title": "Count-based Conditional",
+            "title": "Count-based When Clause",
             "elements": [
                 {
-                    "type": "multiselect",
-                    "label": "Features",
+                    "multiselect": "Features",
+                    "id": "features",
                     "options": ["Feature A", "Feature B", "Feature C", "Feature D"]
                 },
                 {
-                    "type": "conditional",
-                    "condition": {
-                        "field": "Features",
-                        "count": ">2"
-                    },
-                    "elements": [
-                        {
-                            "type": "textbox",
-                            "label": "Premium Config",
-                            "placeholder": "Available with 3+ features"
-                        }
-                    ]
+                    "textbox": "Premium Config",
+                    "id": "premium_config",
+                    "placeholder": "Available with 3+ features",
+                    "when": "count(@features) > 2"
                 }
             ]
         });
@@ -253,69 +221,62 @@ mod tests {
         let mut state = PopupState::new(&popup);
 
         // No selections
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Features"]);
+        assert_eq!(active_ids, vec!["features"]);
 
         // Select 2 features (not enough)
         {
-            let key = state.find_key_by_label("Features").unwrap();
-            let selections = state.get_multichoice_mut(&key).unwrap();
+            let selections = state.get_multichoice_mut("features").unwrap();
             selections[0] = true;
             selections[1] = true;
         }
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Features"]);
+        assert_eq!(active_ids, vec!["features"]);
 
         // Select 3 features (enough)
         {
-            let key = state.find_key_by_label("Features").unwrap();
-            let selections = state.get_multichoice_mut(&key).unwrap();
+            let selections = state.get_multichoice_mut("features").unwrap();
             selections[2] = true;
         }
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Features".to_string()));
-        assert!(active_labels.contains(&"Premium Config".to_string()));
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(active_ids.contains(&"premium_config".to_string()));
     }
 
     #[test]
-    fn test_conditional_within_group_filtering() {
+    fn test_when_clause_within_group_filtering() {
         let json = json!({
-            "title": "Group with Conditional",
+            "title": "Group with When Clause",
             "elements": [
                 {
-                    "type": "group",
-                    "label": "Settings Group",
+                    "group": "Settings Group",
+                    "id": "settings_group",
                     "elements": [
                         {
-                            "type": "checkbox",
-                            "label": "Group Option",
+                            "checkbox": "Group Option",
+                            "id": "group_option",
                             "default": false
                         },
                         {
-                            "type": "conditional",
-                            "condition": "Group Option",
-                            "elements": [
-                                {
-                                    "type": "slider",
-                                    "label": "Group Slider",
-                                    "min": 0,
-                                    "max": 100
-                                }
-                            ]
+                            "slider": "Group Slider",
+                            "id": "group_slider",
+                            "min": 0,
+                            "max": 100,
+                            "when": "@group_option"
                         }
                     ]
                 }
@@ -326,24 +287,23 @@ mod tests {
         let mut state = PopupState::new(&popup);
 
         // Initially only checkbox visible
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Group Option"]);
+        assert_eq!(active_ids, vec!["group_option"]);
 
-        // Enable checkbox to show conditional slider
-        let key = state.find_key_by_label("Group Option").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        // Enable checkbox to show when clause slider
+        *state.get_boolean_mut("group_option").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Group Option".to_string()));
-        assert!(active_labels.contains(&"Group Slider".to_string()));
+        assert!(active_ids.contains(&"group_option".to_string()));
+        assert!(active_ids.contains(&"group_slider".to_string()));
     }
 
     #[test]
@@ -352,48 +312,24 @@ mod tests {
             "title": "Complex Comparisons",
             "elements": [
                 {
-                    "type": "multiselect",
-                    "label": "Items",
+                    "multiselect": "Items",
+                    "id": "items",
                     "options": ["A", "B", "C", "D", "E"]
                 },
                 {
-                    "type": "conditional",
-                    "condition": {
-                        "field": "Items",
-                        "count": ">=3"
-                    },
-                    "elements": [
-                        {
-                            "type": "textbox",
-                            "label": "Bulk Config"
-                        }
-                    ]
+                    "textbox": "Bulk Config",
+                    "id": "bulk_config",
+                    "when": "count(@items) >= 3"
                 },
                 {
-                    "type": "conditional",
-                    "condition": {
-                        "field": "Items",
-                        "count": "=1"
-                    },
-                    "elements": [
-                        {
-                            "type": "textbox",
-                            "label": "Single Config"
-                        }
-                    ]
+                    "textbox": "Single Config",
+                    "id": "single_config",
+                    "when": "count(@items) == 1"
                 },
                 {
-                    "type": "conditional",
-                    "condition": {
-                        "field": "Items",
-                        "count": "<2"
-                    },
-                    "elements": [
-                        {
-                            "type": "checkbox",
-                            "label": "Simple Mode"
-                        }
-                    ]
+                    "checkbox": "Simple Mode",
+                    "id": "simple_mode",
+                    "when": "count(@items) < 2"
                 }
             ]
         });
@@ -402,50 +338,48 @@ mod tests {
         let mut state = PopupState::new(&popup);
 
         // No selections - count = 0, should trigger "< 2" condition
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Items".to_string()));
-        assert!(!active_labels.contains(&"Bulk Config".to_string()));
-        assert!(!active_labels.contains(&"Single Config".to_string()));
-        assert!(active_labels.contains(&"Simple Mode".to_string()));
+        assert!(active_ids.contains(&"items".to_string()));
+        assert!(!active_ids.contains(&"bulk_config".to_string()));
+        assert!(!active_ids.contains(&"single_config".to_string()));
+        assert!(active_ids.contains(&"simple_mode".to_string()));
 
-        // Select exactly 1 - should trigger "= 1" and "< 2" conditions
+        // Select exactly 1 - should trigger "== 1" and "< 2" conditions
         {
-            let key = state.find_key_by_label("Items").unwrap();
-            let selections = state.get_multichoice_mut(&key).unwrap();
+            let selections = state.get_multichoice_mut("items").unwrap();
             selections[0] = true;
         }
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Items".to_string()));
-        assert!(!active_labels.contains(&"Bulk Config".to_string()));
-        assert!(active_labels.contains(&"Single Config".to_string()));
-        assert!(active_labels.contains(&"Simple Mode".to_string()));
+        assert!(active_ids.contains(&"items".to_string()));
+        assert!(!active_ids.contains(&"bulk_config".to_string()));
+        assert!(active_ids.contains(&"single_config".to_string()));
+        assert!(active_ids.contains(&"simple_mode".to_string()));
 
         // Select exactly 3 - should trigger ">= 3" condition only
         {
-            let key = state.find_key_by_label("Items").unwrap();
-            let selections = state.get_multichoice_mut(&key).unwrap();
+            let selections = state.get_multichoice_mut("items").unwrap();
             selections[1] = true;
             selections[2] = true;
         }
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Items".to_string()));
-        assert!(active_labels.contains(&"Bulk Config".to_string()));
-        assert!(!active_labels.contains(&"Single Config".to_string()));
-        assert!(!active_labels.contains(&"Simple Mode".to_string()));
+        assert!(active_ids.contains(&"items".to_string()));
+        assert!(active_ids.contains(&"bulk_config".to_string()));
+        assert!(!active_ids.contains(&"single_config".to_string()));
+        assert!(!active_ids.contains(&"simple_mode".to_string()));
     }
 
     #[test]
@@ -456,34 +390,30 @@ mod tests {
             "title": "Result Comparison",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Enable Advanced",
+                    "checkbox": "Enable Advanced",
+                    "id": "enable_advanced",
                     "default": false
                 },
                 {
-                    "type": "slider",
-                    "label": "Basic Setting",
+                    "slider": "Basic Setting",
+                    "id": "basic_setting",
                     "min": 0,
                     "max": 100,
                     "default": 30
                 },
                 {
-                    "type": "conditional",
-                    "condition": "Enable Advanced",
-                    "elements": [
-                        {
-                            "type": "slider",
-                            "label": "Advanced Setting",
-                            "min": 0,
-                            "max": 100,
-                            "default": 80
-                        },
-                        {
-                            "type": "textbox",
-                            "label": "Advanced Config",
-                            "placeholder": "Enter config"
-                        }
-                    ]
+                    "slider": "Advanced Setting",
+                    "id": "advanced_setting",
+                    "min": 0,
+                    "max": 100,
+                    "default": 80,
+                    "when": "@enable_advanced"
+                },
+                {
+                    "textbox": "Advanced Config",
+                    "id": "advanced_config",
+                    "placeholder": "Enter config",
+                    "when": "@enable_advanced"
                 }
             ]
         });
@@ -495,7 +425,7 @@ mod tests {
         // Compare old method (includes all) vs new method (filters inactive)
         let old_result = popup_common::PopupResult::from_state_with_context(&state, &popup);
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
@@ -503,7 +433,7 @@ mod tests {
         let new_result = popup_common::PopupResult::from_state_with_active_elements(
             &state,
             &popup,
-            &active_labels,
+            &active_ids,
         );
 
         // Destructure results to get values
@@ -516,42 +446,42 @@ mod tests {
             _ => panic!("Expected Completed result"),
         };
 
-        // Old method includes phantom values from inactive conditional
-        assert!(old_values.contains_key("Enable Advanced"));
-        assert!(old_values.contains_key("Basic Setting"));
-        assert!(old_values.contains_key("Advanced Setting")); // Phantom!
-        assert!(!old_values.contains_key("Advanced Config")); // Empty text skipped
+        // Old method includes phantom values from inactive when clause elements
+        assert!(old_values.contains_key("enable_advanced"));
+        assert!(old_values.contains_key("basic_setting"));
+        assert!(old_values.contains_key("advanced_setting")); // Phantom!
+        assert!(!old_values.contains_key("advanced_config")); // Empty text skipped
 
-        // New method excludes inactive conditional values
-        assert!(new_values.contains_key("Enable Advanced"));
-        assert!(new_values.contains_key("Basic Setting"));
-        assert!(!new_values.contains_key("Advanced Setting")); // Correctly filtered!
-        assert!(!new_values.contains_key("Advanced Config"));
+        // New method excludes inactive when clause values
+        assert!(new_values.contains_key("enable_advanced"));
+        assert!(new_values.contains_key("basic_setting"));
+        assert!(!new_values.contains_key("advanced_setting")); // Correctly filtered!
+        assert!(!new_values.contains_key("advanced_config"));
 
         // Verify values match for active elements
         assert_eq!(
-            old_values.get("Enable Advanced"),
-            new_values.get("Enable Advanced")
+            old_values.get("enable_advanced"),
+            new_values.get("enable_advanced")
         );
         assert_eq!(
-            old_values.get("Basic Setting"),
-            new_values.get("Basic Setting")
+            old_values.get("basic_setting"),
+            new_values.get("basic_setting")
         );
     }
 
     #[test]
-    fn test_inline_checkbox_conditional() {
+    fn test_checkbox_reveals_field() {
         let json = json!({
-            "title": "Inline Checkbox Conditional",
+            "title": "Checkbox Reveals",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Enable Features",
+                    "checkbox": "Enable Features",
+                    "id": "enable_features",
                     "default": false,
-                    "conditional": [
+                    "reveals": [
                         {
-                            "type": "slider",
-                            "label": "Feature Level",
+                            "slider": "Feature Level",
+                            "id": "feature_level",
                             "min": 0,
                             "max": 10,
                             "default": 5
@@ -564,54 +494,48 @@ mod tests {
         let popup = parse_popup_json_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
-        // Initially checkbox is unchecked, conditional should not appear
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        // Initially checkbox is unchecked, reveals should not appear
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Enable Features"]);
+        assert_eq!(active_ids, vec!["enable_features"]);
 
         // Check the checkbox
-        let key = state.find_key_by_label("Enable Features").unwrap();
-        *state.get_boolean_mut(&key).unwrap() = true;
+        *state.get_boolean_mut("enable_features").unwrap() = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
 
         // Both checkbox and slider should be active
-        assert!(active_labels.contains(&"Enable Features".to_string()));
-        assert!(active_labels.contains(&"Feature Level".to_string()));
-        assert_eq!(active_labels.len(), 2);
+        assert!(active_ids.contains(&"enable_features".to_string()));
+        assert!(active_ids.contains(&"feature_level".to_string()));
+        assert_eq!(active_ids.len(), 2);
     }
 
     #[test]
-    fn test_inline_choice_conditional() {
+    fn test_choice_option_children() {
         let json = json!({
-            "title": "Inline Choice Conditional",
+            "title": "Choice Option Children",
             "elements": [
                 {
-                    "type": "choice",
-                    "label": "Mode",
-                    "options": [
-                        "Simple",
+                    "choice": "Mode",
+                    "id": "mode",
+                    "options": ["Simple", "Advanced"],
+                    "default": 0,
+                    "Advanced": [
                         {
-                            "value": "Advanced",
-                            "conditional": [
-                                {
-                                    "type": "slider",
-                                    "label": "Complexity",
-                                    "min": 1,
-                                    "max": 10,
-                                    "default": 5
-                                }
-                            ]
+                            "slider": "Complexity",
+                            "id": "complexity",
+                            "min": 1,
+                            "max": 10,
+                            "default": 5
                         }
-                    ],
-                    "default": 0
+                    ]
                 }
             ]
         });
@@ -619,74 +543,64 @@ mod tests {
         let popup = parse_popup_json_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
-        // Initially "Simple" is selected (index 0), no conditional
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        // Initially "Simple" is selected (index 0), no children
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Mode"]);
+        assert_eq!(active_ids, vec!["mode"]);
 
-        // Select "Advanced" (index 1) which has conditional
-        let key = state.find_key_by_label("Mode").unwrap();
-        *state.get_choice_mut(&key).unwrap() = Some(1);
+        // Select "Advanced" (index 1) which has children
+        *state.get_choice_mut("mode").unwrap() = Some(1);
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
 
-        // Both choice and conditional slider should be active
-        assert!(active_labels.contains(&"Mode".to_string()));
-        assert!(active_labels.contains(&"Complexity".to_string()));
-        assert_eq!(active_labels.len(), 2);
+        // Both choice and child slider should be active
+        assert!(active_ids.contains(&"mode".to_string()));
+        assert!(active_ids.contains(&"complexity".to_string()));
+        assert_eq!(active_ids.len(), 2);
 
         // Switch back to "Simple" (index 0)
-        let key = state.find_key_by_label("Mode").unwrap();
-        *state.get_choice_mut(&key).unwrap() = Some(0);
+        *state.get_choice_mut("mode").unwrap() = Some(0);
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
 
         // Only choice should be active
-        assert_eq!(active_labels, vec!["Mode"]);
+        assert_eq!(active_ids, vec!["mode"]);
     }
 
     #[test]
-    fn test_inline_multiselect_conditional() {
+    fn test_multiselect_option_children() {
         let json = json!({
-            "title": "Inline Multiselect Conditional",
+            "title": "Multiselect Option Children",
             "elements": [
                 {
-                    "type": "multiselect",
-                    "label": "Features",
-                    "options": [
-                        "Basic",
+                    "multiselect": "Features",
+                    "id": "features",
+                    "options": ["Basic", "Advanced", "Expert"],
+                    "Advanced": [
                         {
-                            "value": "Advanced",
-                            "conditional": [
-                                {
-                                    "type": "slider",
-                                    "label": "Advanced Level",
-                                    "min": 1,
-                                    "max": 5,
-                                    "default": 3
-                                }
-                            ]
-                        },
+                            "slider": "Advanced Level",
+                            "id": "advanced_level",
+                            "min": 1,
+                            "max": 5,
+                            "default": 3
+                        }
+                    ],
+                    "Expert": [
                         {
-                            "value": "Expert",
-                            "conditional": [
-                                {
-                                    "type": "textbox",
-                                    "label": "Expert Config",
-                                    "placeholder": "Enter config"
-                                }
-                            ]
+                            "textbox": "Expert Config",
+                            "id": "expert_config",
+                            "placeholder": "Enter config"
                         }
                     ]
                 }
@@ -697,63 +611,59 @@ mod tests {
         let mut state = PopupState::new(&popup);
 
         // Initially nothing is selected
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Features"]);
+        assert_eq!(active_ids, vec!["features"]);
 
-        // Select "Basic" (index 0) - no conditional
-        let key = state.find_key_by_label("Features").unwrap();
-        state.get_multichoice_mut(&key).unwrap()[0] = true;
+        // Select "Basic" (index 0) - no children
+        state.get_multichoice_mut("features").unwrap()[0] = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert_eq!(active_labels, vec!["Features"]);
+        assert_eq!(active_ids, vec!["features"]);
 
-        // Select "Advanced" (index 1) - has conditional
-        let key = state.find_key_by_label("Features").unwrap();
-        state.get_multichoice_mut(&key).unwrap()[1] = true;
+        // Select "Advanced" (index 1) - has children
+        state.get_multichoice_mut("features").unwrap()[1] = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Features".to_string()));
-        assert!(active_labels.contains(&"Advanced Level".to_string()));
-        assert_eq!(active_labels.len(), 2);
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(active_ids.contains(&"advanced_level".to_string()));
+        assert_eq!(active_ids.len(), 2);
 
-        // Also select "Expert" (index 2) - has different conditional
-        let key = state.find_key_by_label("Features").unwrap();
-        state.get_multichoice_mut(&key).unwrap()[2] = true;
+        // Also select "Expert" (index 2) - has different children
+        state.get_multichoice_mut("features").unwrap()[2] = true;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Features".to_string()));
-        assert!(active_labels.contains(&"Advanced Level".to_string()));
-        assert!(active_labels.contains(&"Expert Config".to_string()));
-        assert_eq!(active_labels.len(), 3);
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(active_ids.contains(&"advanced_level".to_string()));
+        assert!(active_ids.contains(&"expert_config".to_string()));
+        assert_eq!(active_ids.len(), 3);
 
         // Deselect "Advanced" (index 1)
-        let key = state.find_key_by_label("Features").unwrap();
-        state.get_multichoice_mut(&key).unwrap()[1] = false;
+        state.get_multichoice_mut("features").unwrap()[1] = false;
 
-        let active_labels = crate::gui::tests::collect_active_elements_for_test(
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        assert!(active_labels.contains(&"Features".to_string()));
-        assert!(!active_labels.contains(&"Advanced Level".to_string()));
-        assert!(active_labels.contains(&"Expert Config".to_string()));
-        assert_eq!(active_labels.len(), 2);
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(!active_ids.contains(&"advanced_level".to_string()));
+        assert!(active_ids.contains(&"expert_config".to_string()));
+        assert_eq!(active_ids.len(), 2);
     }
 }

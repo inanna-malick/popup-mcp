@@ -22,67 +22,72 @@ pub struct PopupDefinition {
 }
 ```
 
-### Element
-Tagged enum of widget types. Supports nesting via Group and Conditional variants, plus inline conditionals on interactive elements.
+### Element (V2 Schema)
+Tagged enum of widget types using element-as-key deserialization. All interactive elements require an `id` field.
 
 **Variants:**
-- `Text { content: String }` - Static text display
-- `Slider { label, min, max, default? }` - Numeric input (f32)
-- `Checkbox { label, default?, conditional? }` - Boolean input with optional inline conditional
-- `Textbox { label, placeholder?, rows? }` - Text input (single/multi-line)
-- `Multiselect { label, options: Vec<OptionValue> }` - Multiple choice with per-option conditionals
-- `Choice { label, options: Vec<OptionValue>, default? }` - Single selection with per-option conditionals
-- `Group { label, elements }` - Labeled container
-- `Conditional { condition, elements }` - Standalone conditional visibility
+- `Text { text, id?, when? }` - Static text display (ID optional)
+- `Slider { slider, id, min, max, default?, when?, reveals? }` - Numeric input (f32)
+- `Checkbox { checkbox, id, default?, when?, reveals? }` - Boolean input with optional reveals
+- `Textbox { textbox, id, placeholder?, rows?, when? }` - Text input (single/multi-line)
+- `Multiselect { multiselect, id, options, option_children?, reveals?, when? }` - Multiple choice
+- `Choice { choice, id, options, default?, option_children?, reveals?, when? }` - Single selection
+- `Group { group, elements, when? }` - Labeled container
 
-**Inline Conditionals:**
-- Checkbox `conditional` field: `Option<Vec<Element>>` shown when checked
-- Choice/Multiselect options: Use OptionValue to attach conditionals to individual options
+**Key V2 Features:**
 
-### OptionValue
-Enum for Choice/Multiselect options, supporting simple strings or options with inline conditionals.
+**When Clauses (`when?: Option<String>`):**
+- Any element can have conditional visibility via `when` field
+- Expression syntax supports: `@id`, `selected(@id, value)`, `count(@id) > 2`
+- Logical operators: `&&`, `||`, `!`
+- Example: `"when": "@debug && count(@features) >= 2"`
 
-```rust
-#[serde(untagged)]
-pub enum OptionValue {
-    Simple(String),
-    WithConditional { value: String, conditional: Vec<Element> },
+**Reveals (`reveals?: Option<Vec<Element>>`):**
+- Inline conditionals attached to checkbox/multiselect/choice
+- Shown when parent is active (checkbox checked, option selected, etc.)
+- Replaces v1 inline `conditional` field
+
+**Option-as-Key Nesting (`option_children?: HashMap<String, Vec<Element>>`):**
+- Choice/Multiselect children use option text as direct JSON key
+- Example: `"Advanced": [{"slider": "Level", "id": "level", "min": 1, "max": 10}]`
+- Replaces v1 OptionValue enum with nested conditionals
+
+**V2 JSON Format:**
+```json
+{
+  "checkbox": "Enable debug",
+  "id": "enable_debug",
+  "default": false,
+  "reveals": [
+    {
+      "slider": "Debug level",
+      "id": "debug_level",
+      "min": 1,
+      "max": 10
+    }
+  ]
 }
 ```
 
-**JSON Examples:**
+**Choice with Option-as-Key Nesting:**
 ```json
-// Simple option (backwards compatible)
-"options": ["Basic", "Advanced"]
-
-// Option with inline conditional
-"options": [
-    "Basic",
+{
+  "choice": "Mode",
+  "id": "mode",
+  "options": ["Simple", "Advanced"],
+  "Advanced": [
     {
-        "value": "Advanced",
-        "conditional": [
-            {"type": "slider", "label": "Level", "min": 1, "max": 10}
-        ]
+      "slider": "Complexity",
+      "id": "complexity",
+      "min": 1,
+      "max": 10
     }
-]
+  ]
+}
 ```
 
-**Helper methods:**
-- `value() -> &str` - Get option text
-- `conditional() -> Option<&[Element]>` - Get attached conditional if any
-
-### Condition
-Controls conditional element visibility.
-
-**Patterns:**
-- `Simple(String)` - Label check: true if checkbox checked or multiselect has selection
-- `Field { field, value }` - Value check: true if field equals value
-- `Count { field, count }` - Quantity check: parses expressions like `">2"`, `"<=5"`
-
-**ComparisonOp:** Parses `>`, `<`, `>=`, `<=`, `=` from count strings.
-
 ### PopupState
-Runtime state management for widget values. Uses HashMap keyed by label.
+Runtime state management for widget values. Uses HashMap keyed by element IDs (not labels).
 
 ```rust
 pub struct PopupState {
@@ -95,8 +100,29 @@ pub struct PopupState {
 
 **Methods:**
 - `new(definition)` - Initialize from definition with defaults
-- `get_*_mut(label)` - Type-safe mutable access (returns Option)
-- `get_*(label)` - Immutable access for conditionals
+- `get_*_mut(id)` - Type-safe mutable access by ID (returns Option)
+- `get_*(id)` - Immutable access for conditionals
+- `to_value_map()` - Convert to serde_json::Value for when clause evaluation
+
+### When Clause Evaluation
+
+**Condition Parsing (`condition.rs`):**
+```rust
+pub fn parse_condition(expr: &str) -> Result<ConditionAst>
+pub fn evaluate_condition(ast: &ConditionAst, state: &HashMap<String, Value>) -> bool
+```
+
+**ConditionAst:**
+- `BooleanRef(id)` - `@id` checks if value is truthy
+- `Selected { id, value }` - `selected(@id, value)` checks if specific option selected
+- `Count { id, op, value }` - `count(@id) > 2` counts selections
+- `And(left, right)`, `Or(left, right)`, `Not(inner)` - Logical operators
+
+**Examples:**
+- `"@enable_debug"` → Check if checkbox is checked
+- `"selected(@mode, Expert)"` → Check if "Expert" option selected
+- `"count(@features) >= 3"` → Check if 3+ multiselect options selected
+- `"@debug && !@production"` → Logical AND and NOT
 
 ### PopupResult
 Serialized user interaction result.
@@ -137,19 +163,76 @@ enum ClientMessage {
 
 Messages use `#[serde(tag = "type", rename_all = "snake_case")]` for clean JSON.
 
-## Example JSON
+## Example JSON (V2 Schema)
 
+**Simple Example with When Clauses:**
 ```json
 {
   "title": "Settings",
   "elements": [
-    { "type": "text", "content": "Configure options" },
-    { "type": "checkbox", "label": "Enable feature", "default": true },
     {
-      "type": "conditional",
-      "condition": "Enable feature",
-      "elements": [
-        { "type": "slider", "label": "Level", "min": 0, "max": 100 }
+      "text": "Configure options"
+    },
+    {
+      "checkbox": "Enable feature",
+      "id": "enable_feature",
+      "default": true
+    },
+    {
+      "slider": "Level",
+      "id": "level",
+      "min": 0,
+      "max": 100,
+      "when": "@enable_feature"
+    }
+  ]
+}
+```
+
+**Example with Reveals:**
+```json
+{
+  "title": "Advanced Config",
+  "elements": [
+    {
+      "checkbox": "Enable advanced",
+      "id": "enable_advanced",
+      "default": false,
+      "reveals": [
+        {
+          "slider": "Complexity",
+          "id": "complexity",
+          "min": 1,
+          "max": 10
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Example with Option-as-Key Nesting:**
+```json
+{
+  "title": "Mode Selection",
+  "elements": [
+    {
+      "choice": "Mode",
+      "id": "mode",
+      "options": ["Basic", "Pro", "Enterprise"],
+      "Pro": [
+        {
+          "textbox": "License key",
+          "id": "license",
+          "placeholder": "XXXX-XXXX"
+        }
+      ],
+      "Enterprise": [
+        {
+          "textbox": "Organization",
+          "id": "org",
+          "placeholder": "Company name"
+        }
       ]
     }
   ]

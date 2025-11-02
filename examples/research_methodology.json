@@ -1,0 +1,294 @@
+{
+  "title": "Research Question Design",
+  "elements": [
+    {
+      "text": "Design a research study by selecting methodology and parameters."
+    },
+    {
+      "choice": "Research Paradigm",
+      "id": "paradigm",
+      "options": ["Qualitative", "Quantitative", "Mixed Methods"],
+      "Qualitative": [
+        {
+          "multiselect": "Qualitative Approaches",
+          "id": "qual_approaches",
+          "options": ["Phenomenology", "Grounded Theory", "Ethnography", "Case Study", "Narrative Inquiry"],
+          "Phenomenology": [
+            {
+              "textbox": "Central lived experience to explore",
+              "id": "lived_experience",
+              "rows": 2,
+              "placeholder": "e.g., navigating chronic illness, becoming a parent..."
+            },
+            {
+              "slider": "Participant depth vs breadth",
+              "id": "phenom_depth",
+              "min": 1,
+              "max": 10,
+              "default": 5,
+              "reveals": [
+                {"text": "Deep exploration: 3-8 participants, multiple interviews", "when": "@phenom_depth >= 7"},
+                {"text": "Broad exploration: 15-25 participants, single interviews", "when": "@phenom_depth <= 3"}
+              ]
+            }
+          ],
+          "Grounded Theory": [
+            {
+              "checkbox": "Use constructivist approach",
+              "id": "constructivist",
+              "default": false,
+              "reveals": [
+                {"text": "Emphasize researcher positionality and co-construction of meaning"}
+              ]
+            },
+            {
+              "slider": "Theoretical sensitivity",
+              "id": "theoretical_sensitivity",
+              "min": 1,
+              "max": 10,
+              "default": 5
+            }
+          ],
+          "Ethnography": [
+            {
+              "slider": "Immersion duration (months)",
+              "id": "ethnography_months",
+              "min": 1,
+              "max": 24,
+              "default": 6,
+              "reveals": [
+                {"text": "⚠ Short immersion - consider if sufficient for cultural understanding", "when": "@ethnography_months < 3"},
+                {"text": "Extended ethnography - plan for researcher fatigue and bias drift", "when": "@ethnography_months > 12"}
+              ]
+            },
+            {
+              "checkbox": "Include autoethnographic reflection",
+              "id": "autoethnographic",
+              "default": false
+            }
+          ],
+          "reveals": [
+            {"text": "⚠ Multiple qualitative approaches - ensure methodological coherence", "when": "count(@qual_approaches) >= 3"},
+            {"text": "✓ Single approach selected - allows methodological depth", "when": "count(@qual_approaches) == 1"}
+          ]
+        },
+        {
+          "group": "Data Collection",
+          "elements": [
+            {
+              "multiselect": "Data sources",
+              "id": "qual_data",
+              "options": ["Interviews", "Focus groups", "Observations", "Documents", "Artifacts"],
+              "Interviews": [
+                {
+                  "choice": "Interview structure",
+                  "id": "interview_structure",
+                  "options": ["Unstructured", "Semi-structured", "Structured"]
+                }
+              ],
+              "Observations": [
+                {
+                  "choice": "Observer role",
+                  "id": "observer_role",
+                  "options": ["Complete participant", "Participant-observer", "Observer-participant", "Complete observer"]
+                }
+              ]
+            },
+            {
+              "slider": "Estimated participant count",
+              "id": "qual_n",
+              "min": 3,
+              "max": 50,
+              "default": 12,
+              "reveals": [
+                {"text": "Small sample - ensure rich data per participant", "when": "@qual_n < 8"},
+                {"text": "Large qualitative sample - consider data management strategy", "when": "@qual_n > 30"}
+              ]
+            }
+          ]
+        }
+      ],
+      "Quantitative": [
+        {
+          "choice": "Study Design",
+          "id": "quant_design",
+          "options": ["Experimental", "Quasi-experimental", "Correlational", "Survey"],
+          "Experimental": [
+            {
+              "slider": "Number of conditions",
+              "id": "conditions",
+              "min": 2,
+              "max": 8,
+              "default": 2
+            },
+            {
+              "checkbox": "Random assignment",
+              "id": "random_assign",
+              "default": true
+            },
+            {
+              "checkbox": "Include control group",
+              "id": "control_group",
+              "default": true,
+              "reveals": [
+                {
+                  "choice": "Control type",
+                  "id": "control_type",
+                  "options": ["No treatment", "Placebo", "Active control", "Wait-list"]
+                }
+              ]
+            },
+            {
+              "text": "⚠ Multiple conditions without randomization - consider confounds",
+              "when": "@conditions > 2 && !@random_assign"
+            }
+          ],
+          "Survey": [
+            {
+              "multiselect": "Scale types",
+              "id": "scales",
+              "options": ["Likert", "Semantic differential", "Ranking", "Open-ended"],
+              "Likert": [
+                {
+                  "choice": "Response points",
+                  "id": "response_points",
+                  "options": ["5-point", "7-point", "10-point"]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "group": "Power Analysis",
+          "elements": [
+            {
+              "slider": "Expected effect size (Cohen's d)",
+              "id": "effect_size",
+              "min": 0.1,
+              "max": 2.0,
+              "default": 0.5,
+              "reveals": [
+                {"text": "Small effect - will require large sample", "when": "@effect_size < 0.3"},
+                {"text": "Medium effect - moderate sample adequate", "when": "@effect_size >= 0.3 && @effect_size < 0.8"},
+                {"text": "Large effect - smaller sample may suffice", "when": "@effect_size >= 0.8"}
+              ]
+            },
+            {
+              "slider": "Desired power",
+              "id": "power",
+              "min": 0.5,
+              "max": 0.99,
+              "default": 0.8,
+              "reveals": [
+                {"text": "⚠ Power < 0.8 increases Type II error risk", "when": "@power < 0.8"}
+              ]
+            },
+            {
+              "slider": "Alpha level",
+              "id": "alpha",
+              "min": 0.01,
+              "max": 0.1,
+              "default": 0.05
+            },
+            {
+              "text": "Estimated minimum N: 50-100 (small effect + high power)",
+              "when": "@effect_size < 0.3 && @power >= 0.8"
+            },
+            {
+              "text": "Estimated minimum N: 200-400 (small effect + high power + multiple conditions)",
+              "when": "@effect_size < 0.3 && @power >= 0.8 && @conditions > 2"
+            }
+          ]
+        },
+        {
+          "multiselect": "Planned analyses",
+          "id": "analyses",
+          "options": ["t-test", "ANOVA", "Regression", "Factor analysis", "SEM", "Multilevel modeling"],
+          "reveals": [
+            {"text": "Consider Bonferroni correction for multiple comparisons", "when": "count(@analyses) >= 3"}
+          ]
+        }
+      ],
+      "Mixed Methods": [
+        {
+          "choice": "Integration approach",
+          "id": "mixed_integration",
+          "options": ["Convergent parallel", "Explanatory sequential", "Exploratory sequential", "Embedded"],
+          "Convergent parallel": [
+            {
+              "text": "Collect QUAL and QUANT data simultaneously, merge during interpretation"
+            },
+            {
+              "checkbox": "Equal priority to both strands",
+              "id": "equal_priority",
+              "default": true
+            }
+          ],
+          "Explanatory sequential": [
+            {
+              "text": "Start with QUANT to identify patterns, follow with QUAL to explain mechanisms"
+            },
+            {
+              "slider": "QUANT → QUAL time gap (weeks)",
+              "id": "time_gap",
+              "min": 0,
+              "max": 52,
+              "default": 4
+            }
+          ],
+          "Exploratory sequential": [
+            {
+              "text": "Start with QUAL exploration, develop QUANT instrument to test emerging theory"
+            },
+            {
+              "checkbox": "Use QUAL findings to inform QUANT measures",
+              "id": "qual_to_quant",
+              "default": true
+            }
+          ]
+        },
+        {
+          "text": "Include both qualitative and quantitative parameters from above sections"
+        }
+      ]
+    },
+    {
+      "group": "Research Ethics",
+      "elements": [
+        {
+          "checkbox": "Vulnerable populations involved",
+          "id": "vulnerable",
+          "default": false,
+          "reveals": [
+            {
+              "multiselect": "Vulnerability type",
+              "id": "vulnerability_type",
+              "options": ["Children", "Cognitively impaired", "Prisoners", "Pregnant women", "Economically disadvantaged"]
+            },
+            {
+              "text": "⚠ Additional IRB review and consent procedures required"
+            }
+          ]
+        },
+        {
+          "checkbox": "Deception involved",
+          "id": "deception",
+          "default": false,
+          "reveals": [
+            {
+              "textbox": "Deception justification",
+              "id": "deception_justification",
+              "rows": 3,
+              "placeholder": "Why is deception necessary for research validity?"
+            },
+            {
+              "checkbox": "Debriefing protocol prepared",
+              "id": "debriefing",
+              "default": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

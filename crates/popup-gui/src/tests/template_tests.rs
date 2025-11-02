@@ -38,8 +38,7 @@ fn test_template_instantiation() {
             "title": "Hello {{name}}",
             "elements": [
                 {
-                    "type": "text",
-                    "content": "You are {{age}} years old"
+                    "text": "You are {{age}} years old"
                 }
             ]
         }"#
@@ -170,25 +169,22 @@ fn test_conditional_template() {
             "title": "Settings",
             "elements": [
                 {
-                    "type": "checkbox",
-                    "label": "Show Advanced",
+                    "checkbox": "Show Advanced",
+                    "id": "show_advanced_checkbox",
                     "default": {{show_advanced}}
                 },
                 {{#if show_advanced}}
                 {
-                    "type": "text",
-                    "content": "Advanced options are visible"
+                    "text": "Advanced options are visible"
                 },
                 {{/if}}
                 {{#each items}}
                 {
-                    "type": "text",
-                    "content": "Item: {{this}}"
+                    "text": "Item: {{this}}"
                 },
                 {{/each}}
                 {
-                    "type": "text",
-                    "content": "End of settings"
+                    "text": "End of settings"
                 }
             ]
         }"#

@@ -23,7 +23,7 @@ export function createWebSocketRequest(url: string): Request {
 }
 
 /**
- * Factory for creating test popup definitions
+ * Factory for creating test popup definitions (V2 format)
  */
 export function createPopupDefinition(options?: {
   title?: string;
@@ -32,13 +32,13 @@ export function createPopupDefinition(options?: {
   includeTextbox?: boolean;
 }): PopupDefinition {
   const elements: PopupDefinition['elements'] = [
-    { type: 'text', content: 'Test popup content' },
+    { text: 'Test popup content', id: 'test_text' },
   ];
 
   if (options?.includeSlider) {
     elements.push({
-      type: 'slider',
-      label: 'Volume',
+      slider: 'Volume',
+      id: 'volume',
       min: 0,
       max: 100,
       default: 50,
@@ -47,16 +47,16 @@ export function createPopupDefinition(options?: {
 
   if (options?.includeCheckbox) {
     elements.push({
-      type: 'checkbox',
-      label: 'Enable notifications',
+      checkbox: 'Enable notifications',
+      id: 'enable_notifications',
       default: true,
     });
   }
 
   if (options?.includeTextbox) {
     elements.push({
-      type: 'textbox',
-      label: 'Name',
+      textbox: 'Name',
+      id: 'name',
       placeholder: 'Enter your name',
     });
   }

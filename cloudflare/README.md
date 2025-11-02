@@ -1,111 +1,149 @@
-# Popup Relay - Cloudflare Worker + Durable Object
+# Popup Relay - Cloudflare Workers + Durable Objects
 
-WebSocket relay server for remote popup GUI functionality using Cloudflare Workers and Durable Objects.
+Distributed relay infrastructure for remote popup invocation. Enables AI assistants and applications to trigger native GUI popups on remote machines via WebSocket connections.
+
+## Overview
+
+The Cloudflare Workers deployment provides:
+
+1. **Remote MCP Server** - MCP endpoints with GitHub OAuth or Bearer token auth
+2. **WebSocket Relay** - Durable Object-based persistent connection management
+3. **Simple HTTP API** - Direct POST endpoint for non-MCP integrations
+4. **Client Daemon** - Rust-based WebSocket client (`popup-client`)
 
 ## Architecture
 
-- **Worker** (`src/index.ts`): Entry point, auth validation, routing to Durable Object
-- **Durable Object** (`src/popup-session.ts`): WebSocket server with hibernation, manages client sessions and popup requests
-- **Protocol** (`src/protocol.ts`): TypeScript types matching Rust definitions
+```
+AI Assistant/App → Cloudflare Worker (MCP) → PopupSession Durable Object
+    ↓
+WebSocket broadcast → popup-client daemon(s) → popup-gui subprocess
+    ↓
+User interaction → JSON result → client → DO → Worker → Response
+```
 
-## Setup
+### Components
 
-### 1. Install Dependencies
+- **Worker** (`src/index.ts`) - Entry point, auth, routing
+- **PopupSession DO** (`src/popup-session.ts`) - Hibernatable WebSocket server
+- **MCP Agents** (`src/mcp-server.ts`) - OAuth and header-based MCP implementations
+- **Protocol** (`src/protocol.ts`) - TypeScript types matching Rust definitions
+
+## Quick Start
+
+### 1. Deploy Worker
 
 ```bash
 cd cloudflare
 npm install
+
+# Configure secrets
+npx wrangler secret put AUTH_TOKEN
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put COOKIE_ENCRYPTION_KEY
+
+# Deploy
+npx wrangler deploy
 ```
 
-### 2. Configure Secrets
-
-For local development, create `.dev.vars`:
+### 2. Install and Configure Client Daemon
 
 ```bash
-# .dev.vars
-AUTH_TOKEN=your-secret-token-here
-GITHUB_CLIENT_ID=your-github-oauth-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
-COOKIE_ENCRYPTION_KEY=your-32-byte-hex-key
+# Install popup-client
+cargo install --path ../crates/popup-client
+
+# Configure (~/.config/popup-client/config.toml)
+server_url = "wss://your-worker.workers.dev/connect"
+device_name = "laptop"
+
+# Start daemon
+popup-client
 ```
 
-For production:
+### 3. Configure Claude Desktop (Optional)
 
-```bash
-wrangler secret put AUTH_TOKEN
-wrangler secret put GITHUB_CLIENT_ID
-wrangler secret put GITHUB_CLIENT_SECRET
-wrangler secret put COOKIE_ENCRYPTION_KEY
-```
-
-### 3. Local Development
-
-```bash
-npm run dev
-```
-
-This starts the Worker at `http://localhost:8787`.
-
-### 4. Deploy to Production
-
-```bash
-npm run deploy
-```
-
-## API Endpoints
-
-### MCP SSE Endpoint: `GET /sse`
-
-MCP (Model Context Protocol) server for AI assistants to create popups via natural language.
-
-**No authentication required** - designed for use with MCP clients like Claude Desktop.
-
-**Available Tool:**
-- `remote_popup`: Create a native GUI popup on connected client devices
-
-**Tool Input Schema:**
-```json
-{
-  "definition": {
-    "title": "Popup Title",
-    "elements": [
-      {"type": "text", "content": "Hello world"},
-      {"type": "slider", "label": "Volume", "min": 0, "max": 100},
-      {"type": "checkbox", "label": "Enable feature"},
-      ...
-    ]
-  },
-  "timeout_ms": 30000  // optional, defaults to 30000
-}
-```
-
-**Tool Output:**
-Returns the popup result as JSON (first connected client to respond wins).
-
-#### Claude Desktop Configuration
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+For GitHub OAuth-based MCP access:
 
 ```json
 {
   "mcpServers": {
-    "popup-relay": {
-      "url": "https://your-worker.workers.dev/sse"
+    "popup-remote": {
+      "url": "https://your-worker.workers.dev/mcp",
+      "transport": {"type": "streamableHttp"}
     }
   }
 }
 ```
 
-Then restart Claude Desktop. You'll see a 🔨 icon with the `remote_popup` tool.
+Or for header-based auth (Letta, etc.):
 
-### WebSocket Connection: `GET /connect`
+```json
+{
+  "mcpServers": {
+    "popup-remote": {
+      "url": "https://your-worker.workers.dev/header_auth",
+      "transport": {"type": "streamableHttp"},
+      "headers": {
+        "Authorization": "Bearer YOUR_AUTH_TOKEN"
+      }
+    }
+  }
+}
+```
 
-Establish long-lived WebSocket connection for receiving popup requests.
+## API Endpoints
 
-**Authentication:** None required (clients use trust-on-first-use model)
+### MCP Endpoints
 
-**Headers:**
-- `Upgrade: websocket`
+#### GitHub OAuth Flow: `POST /mcp`
+
+MCP Streamable HTTP endpoint with GitHub OAuth authentication.
+
+**Authentication:** GitHub OAuth (redirects to consent flow on first use)
+
+**Tool:** `remote_popup` with 30-second default timeout
+
+**Configuration:**
+```json
+{
+  "mcpServers": {
+    "popup": {
+      "url": "https://your-worker.workers.dev/mcp",
+      "transport": {"type": "streamableHttp"}
+    }
+  }
+}
+```
+
+#### Header-Based Auth: `POST /header_auth`
+
+MCP endpoint using Bearer token authentication.
+
+**Authentication:** `Authorization: Bearer <token>` header
+
+**Tool:** `remote_popup` with 5-minute default timeout
+
+**Use Case:** Server-to-server integrations (Letta agents, custom MCP clients)
+
+**Tool Schema:**
+```json
+{
+  "definition": {
+    "title": "Popup Title",
+    "elements": [
+      {"text": "Message", "id": "message"},
+      {"slider": "Volume", "id": "volume", "min": 0, "max": 100}
+    ]
+  },
+  "timeout_ms": 300000
+}
+```
+
+### WebSocket Endpoint: `GET /connect`
+
+Establishes long-lived WebSocket connection for popup-client daemons.
+
+**Authentication:** None (trust-on-first-use)
 
 **Client → Server Messages:**
 ```json
@@ -121,27 +159,22 @@ Establish long-lived WebSocket connection for receiving popup requests.
 {"type": "ping"}
 ```
 
-### Create Popup: `POST /popup`
+### Direct HTTP API: `POST /popup`
 
-Direct HTTP endpoint for creating popup requests. Blocks until first connected client responds or timeout.
+Direct HTTP endpoint bypassing MCP protocol.
 
-**Authentication:** Required - `Authorization: Bearer <token>` header matching `AUTH_TOKEN` environment variable
+**Authentication:** `Authorization: Bearer <token>` header
 
-**Headers:**
-- `Authorization: Bearer <token>`
-- `Content-Type: application/json`
-
-**Request Body:**
+**Request:**
 ```json
 {
   "definition": {
-    "title": "Popup Title",
+    "title": "Confirm Action",
     "elements": [
-      {"type": "text", "content": "Message"},
-      {"type": "slider", "label": "Volume", "min": 0, "max": 100}
+      {"text": "Delete all files?", "id": "confirm_msg"}
     ]
   },
-  "timeout_ms": 300000
+  "timeout_ms": 60000
 }
 ```
 
@@ -150,15 +183,7 @@ Direct HTTP endpoint for creating popup requests. Blocks until first connected c
 {
   "status": "completed",
   "button": "submit",
-  "Volume": "75/100"
-}
-```
-
-**Response (No Clients):**
-```json
-{
-  "status": "error",
-  "message": "No clients connected"
+  "field_values": {...}
 }
 ```
 
@@ -166,7 +191,7 @@ Direct HTTP endpoint for creating popup requests. Blocks until first connected c
 ```json
 {
   "status": "timeout",
-  "message": "No response received within 300000ms"
+  "message": "No response received within 60000ms"
 }
 ```
 
@@ -176,58 +201,164 @@ import os
 import requests
 
 def show_popup(definition: dict, timeout_ms: int = 300000) -> dict:
-    auth_token = os.getenv('POPUP_AUTH_TOKEN')
-    if not auth_token:
-        return {"status": "error", "message": "POPUP_AUTH_TOKEN not set"}
-
     response = requests.post(
         "https://your-worker.workers.dev/popup",
         json={"definition": definition, "timeout_ms": timeout_ms},
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {os.getenv('POPUP_AUTH_TOKEN')}"},
         timeout=(timeout_ms / 1000) + 5
     )
     return response.json()
+
+# Usage
+result = show_popup({
+    "title": "Approve Action",
+    "elements": [
+        {"text": "Proceed with deployment?", "id": "approve_msg"}
+    ]
+})
+
+if result.get("button") == "submit":
+    print("User approved!")
 ```
 
-### MCP with Header Auth: `POST /header_auth`
+See `letta_tool.py` for a complete Letta integration example.
 
-Alternative MCP endpoint using bearer token authentication instead of GitHub OAuth.
+## Configuration
 
-**Authentication:** Required - `Authorization: Bearer <token>` header matching `AUTH_TOKEN` environment variable
+### Required Secrets
 
-**Use Case:** Server-to-server integrations (e.g., Letta agents)
+Set via `wrangler secret put <NAME>`:
 
-**Available Tool:**
-- `remote_popup`: Same schema as SSE endpoint
+| Secret | Purpose | How to Generate |
+|--------|---------|-----------------|
+| `AUTH_TOKEN` | Bearer token for `/popup` and `/header_auth` | `openssl rand -base64 32` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth client ID | Create OAuth app at github.com/settings/developers |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | From GitHub OAuth app settings |
+| `COOKIE_ENCRYPTION_KEY` | OAuth cookie encryption | `openssl rand -hex 32` |
+
+### GitHub OAuth App Setup
+
+1. Go to https://github.com/settings/developers
+2. Create new OAuth App
+3. Set **Authorization callback URL**: `https://your-worker.workers.dev/callback`
+4. Copy Client ID and Client Secret
+5. Set as Wrangler secrets
+
+### Client Configuration
+
+Create `~/.config/popup-client/config.toml`:
+
+```toml
+server_url = "wss://your-worker.workers.dev/connect"
+device_name = "my-laptop"  # Optional, defaults to hostname
+gui_binary = "popup"       # Optional, defaults to "popup-gui"
+```
+
+## Durable Objects
+
+### PopupSession
+
+- Single instance handles all WebSocket connections
+- Uses hibernatable WebSocket API for efficient resource usage
+- Manages concurrent popup requests (tracked by UUID)
+- First-response-wins pattern - first client response completes the request
+- All connected clients receive `close_popup` after completion
+
+### MCP Agents
+
+- `PopupMcpAgent` - GitHub OAuth-based agent for browser MCP clients
+- `HeaderAuthMcpAgent` - Token-based agent for server-to-server MCP
+
+## Development
+
+### Local Testing
+
+```bash
+# Start local dev server
+npm run dev
+
+# Run tests
+npm test
+
+# Run specific test
+npm test -- durable-object.test.ts
+
+# Type check
+npx tsc --noEmit
+```
+
+### Testing with Real Client
+
+```bash
+# Terminal 1: Start local worker
+npm run dev
+
+# Terminal 2: Start client daemon (pointing to local)
+popup-client --server-url ws://localhost:8787/connect
+
+# Terminal 3: Test API
+curl -X POST http://localhost:8787/popup \
+  -H "Authorization: Bearer test-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "definition": {
+      "title": "Test",
+      "elements": [{"text": "Hello", "id": "test_msg"}]
+    },
+    "timeout_ms": 30000
+  }'
+```
+
+### Protocol Synchronization
+
+TypeScript types in `src/protocol.ts` must match Rust types in `../crates/popup-common/src/protocol.rs`.
+
+When updating protocol:
+1. Update Rust types first
+2. Update TypeScript types to match
+3. Run both test suites: `cargo test` and `npm test`
 
 ## Authentication Summary
 
 | Endpoint | Authentication | Use Case |
 |----------|----------------|----------|
-| `/sse`, `/mcp` | GitHub OAuth | Claude Desktop (browser-based) |
-| `/header_auth` | Bearer token | Letta / MCP server-to-server |
-| `/popup` | Bearer token | Direct HTTP API (Python, curl, etc.) |
+| `/mcp` | GitHub OAuth | Claude Desktop (browser-based MCP clients) |
+| `/header_auth` | Bearer token | Letta agents, server-to-server MCP |
+| `/popup` | Bearer token | Direct HTTP API (Python, curl) |
 | `/connect` | None | WebSocket clients (popup-client daemon) |
 
-## Durable Object Behavior
+## Key Features
 
-- Single DO instance manages all WebSocket connections
-- WebSocket hibernation reduces memory usage and duration charges
-- Concurrent popup requests supported (tracked by UUID)
-- "First response wins" - first client to respond resolves the HTTP request
-- All clients receive `close_popup` message when popup completes
+- **Hibernatable WebSockets** - Durable Objects persist connections across Worker restarts
+- **First-response-wins** - Multiple clients can connect; first result completes the request
+- **Concurrent requests** - Multiple popup requests tracked independently by UUID
+- **Timeout handling** - Graceful timeout responses if no client responds
+- **Multiple auth methods** - OAuth for browsers, Bearer tokens for server-to-server
 
-## Required Secrets
+## Troubleshooting
 
-Set these via `wrangler secret put`:
+**No clients connected error:**
+- Ensure popup-client daemon is running
+- Check WebSocket connection: `popup-client --server-url wss://your-worker.workers.dev/connect`
+- Verify client logs for connection errors
 
-- `AUTH_TOKEN` - Bearer token for `/popup` and `/header_auth` endpoints
-- `GITHUB_CLIENT_ID` - GitHub OAuth client ID (for `/mcp` OAuth flow)
-- `GITHUB_CLIENT_SECRET` - GitHub OAuth client secret (for `/mcp` OAuth flow)
-- `COOKIE_ENCRYPTION_KEY` - 32-byte hex key for OAuth cookies (generate with `openssl rand -hex 32`)
+**Timeout errors:**
+- User took too long to respond
+- Client daemon crashed/restarted during popup display
+- Network issues between client and Worker
 
-## Development Notes
+**Authentication errors:**
+- Verify secrets are set correctly: `wrangler secret list`
+- For OAuth: Check GitHub OAuth app callback URL matches Worker URL
+- For Bearer token: Ensure `AUTH_TOKEN` secret matches client configuration
 
-- TypeScript types in `src/protocol.ts` must stay synchronized with Rust types in `crates/popup-common/src/protocol.rs`
-- Uses WebSocket hibernation API for efficient resource usage
-- Single Durable Object instance (ID: "global") handles all traffic
+## Examples
+
+See example files:
+- `nested_example.json` - Complex nested conditionals
+- `test_definition.json` - Simple test popup
+- `letta_tool.py` - Letta agent integration
+
+## License
+
+MIT

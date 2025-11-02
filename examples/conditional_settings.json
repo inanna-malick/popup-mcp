@@ -1,25 +1,57 @@
 {
   "title": "Advanced Settings",
   "elements": [
-    {"type": "checkbox", "label": "Show advanced options", "default": false},
     {
-      "type": "conditional",
-      "condition": "Show advanced options",
-      "elements": [
-        {"type": "checkbox", "label": "Debug mode", "default": false},
-        {"type": "slider", "label": "Log level", "min": 0, "max": 10, "default": 3},
-        {"type": "multiselect", "label": "Output", "options": ["Console", "File", "Both"]},
-        {"type": "slider", "label": "Max threads", "min": 1, "max": 16, "default": 4}
-      ]
+      "checkbox": "Show advanced options",
+      "id": "show_advanced",
+      "default": false
     },
-    {"type": "checkbox", "label": "Performance mode", "default": true},
     {
-      "type": "conditional",
-      "condition": "Performance mode",
-      "elements": [
-        {"type": "checkbox", "label": "GPU acceleration", "default": true},
-        {"type": "slider", "label": "Cache size", "min": 0, "max": 1000, "default": 256}
-      ]
+      "checkbox": "Debug mode",
+      "id": "debug_mode",
+      "default": false,
+      "when": "@show_advanced"
+    },
+    {
+      "slider": "Log level",
+      "id": "log_level",
+      "min": 0,
+      "max": 10,
+      "default": 3,
+      "when": "@show_advanced"
+    },
+    {
+      "multiselect": "Output",
+      "id": "output",
+      "options": ["Console", "File", "Both"],
+      "when": "@show_advanced"
+    },
+    {
+      "slider": "Max threads",
+      "id": "max_threads",
+      "min": 1,
+      "max": 16,
+      "default": 4,
+      "when": "@show_advanced"
+    },
+    {
+      "checkbox": "Performance mode",
+      "id": "perf_mode",
+      "default": true
+    },
+    {
+      "checkbox": "GPU acceleration",
+      "id": "gpu_accel",
+      "default": true,
+      "when": "@perf_mode"
+    },
+    {
+      "slider": "Cache size",
+      "id": "cache_size",
+      "min": 0,
+      "max": 1000,
+      "default": 256,
+      "when": "@perf_mode"
     }
   ]
 }

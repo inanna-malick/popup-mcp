@@ -1,13 +1,46 @@
 {
   "title": "User Profile",
   "elements": [
-    {"type": "textbox", "label": "Username", "placeholder": "Enter username"},
-    {"type": "textbox", "label": "Full Name", "placeholder": "John Doe"},
-    {"type": "textbox", "label": "Email", "placeholder": "john@example.com"},
-    {"type": "textbox", "label": "Bio", "placeholder": "Tell us about yourself...", "rows": 4},
-    {"type": "multiselect", "label": "Country", "options": ["United States", "Canada", "United Kingdom", "Australia", "Other"]},
-    {"type": "multiselect", "label": "Interests", "options": ["Technology", "Sports", "Music", "Art", "Gaming", "Travel", "Food"]},
-    {"type": "checkbox", "label": "Profile visible to others", "default": true},
-    {"type": "checkbox", "label": "Receive email notifications", "default": true}
+    {
+      "textbox": "Username",
+      "id": "username",
+      "placeholder": "Enter username"
+    },
+    {
+      "textbox": "Full Name",
+      "id": "fullname",
+      "placeholder": "John Doe"
+    },
+    {
+      "textbox": "Email",
+      "id": "email",
+      "placeholder": "john@example.com"
+    },
+    {
+      "textbox": "Bio",
+      "id": "bio",
+      "placeholder": "Tell us about yourself...",
+      "rows": 4
+    },
+    {
+      "multiselect": "Country",
+      "id": "country",
+      "options": ["United States", "Canada", "United Kingdom", "Australia", "Other"]
+    },
+    {
+      "multiselect": "Interests",
+      "id": "interests",
+      "options": ["Technology", "Sports", "Music", "Art", "Gaming", "Travel", "Food"]
+    },
+    {
+      "checkbox": "Profile visible to others",
+      "id": "visible",
+      "default": true
+    },
+    {
+      "checkbox": "Receive email notifications",
+      "id": "notifications",
+      "default": true
+    }
   ]
 }

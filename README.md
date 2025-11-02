@@ -4,23 +4,34 @@
 
 ## Overview
 
-popup-mcp provides three ways to create native GUI popups with form elements:
+popup-mcp enables AI assistants to create native GUI popups with rich form elements including text, sliders, checkboxes, dropdowns, multiselect, and conditional visibility. Build dialogue trees with cascading conditional branches that adapt based on user selections.
 
-1. **Local MCP Server** - Direct stdio integration for Claude Desktop
-2. **Remote MCP Server** - Cloudflare Workers relay with WebSocket client daemon (OAuth or header auth)
-3. **Simple HTTP API** - Direct POST endpoint, no auth, no MCP overhead
-
-Built with Rust (egui GUI) and TypeScript (Cloudflare Workers), supporting text, sliders, checkboxes, dropdowns, multiselect, conditional visibility, and nested forms.
+Built with Rust (egui GUI) for native rendering and cross-platform support.
 
 ## Quick Start
 
-### Local Mode (Claude Desktop)
+### Install
 
 ```bash
-# Install popup binary
+# Install the popup binary
 cargo install --path crates/popup-gui
+```
 
-# Add to Claude Desktop config (~/.config/Claude/claude_desktop_config.json)
+### Test It
+
+```bash
+# Test with a simple popup
+echo '{"title": "Hello", "elements": [{"text": "World!"}]}' | popup --stdin
+
+# Try an example file
+popup --file examples/simple_confirm.json
+```
+
+### Integrate with Claude Desktop
+
+Add to your Claude Desktop config (`~/.config/Claude/claude_desktop_config.json`):
+
+```json
 {
   "mcpServers": {
     "popup": {
@@ -31,325 +42,381 @@ cargo install --path crates/popup-gui
 }
 ```
 
-Use `remote_popup` tool from Claude Desktop - popup appears on your machine.
-
-### Remote Mode (Distributed)
-
-```bash
-# Install client daemon
-cargo install --path crates/popup-client
-
-# Configure client (~/.config/popup-client/config.toml)
-server_url = "wss://your-worker.workers.dev/connect"
-device_name = "laptop"
-
-# Start daemon
-popup-client
-
-# Deploy Cloudflare Worker
-cd cloudflare
-npm install
-npx wrangler deploy
-
-# Configure Claude Desktop for remote access
-{
-  "mcpServers": {
-    "popup-remote": {
-      "url": "https://your-worker.workers.dev/mcp",
-      "transport": {"type": "streamableHttp"}
-    }
-  }
-}
-```
-
-Popups appear on machine running client daemon, triggered from anywhere via MCP.
-
-### Simple HTTP API
-
-```bash
-# No client needed - just running popup-gui binary required
-
-curl -X POST https://your-worker.workers.dev/popup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "definition": {
-      "title": "Confirm",
-      "elements": [
-        {"type": "text", "content": "Delete all files?"}
-      ]
-    },
-    "timeout_ms": 60000
-  }'
-```
-
-## Architecture
-
-### Components
-
-- **`popup-gui`** - Native egui GUI renderer (Rust)
-  - Reads JSON from stdin or file
-  - Displays popup window
-  - Returns JSON result to stdout
-  - MCP server mode for local integration
-
-- **`popup-client`** - WebSocket daemon (Rust)
-  - Connects to Cloudflare relay
-  - Spawns popup-gui subprocesses
-  - Forwards results back to relay
-
-- **`cloudflare/`** - Workers relay (TypeScript)
-  - Durable Object WebSocket server
-  - GitHub OAuth or header-based auth
-  - MCP agent with `remote_popup` tool
-  - Simple POST endpoint at `/popup`
-
-- **`popup-common`** - Shared protocol types (Rust)
-  - PopupDefinition, PopupResult
-  - WebSocket message types
-  - Serialization via serde
-
-### Request Flow
-
-**Remote Mode:**
-```
-Claude Desktop → Cloudflare Worker (MCP) → Durable Object
-    ↓
-WebSocket broadcast → popup-client daemon → popup-gui subprocess
-    ↓
-User interaction → JSON result → client → DO → Worker → Claude
-```
-
-**Local Mode:**
-```
-Claude Desktop → popup binary (MCP server) → spawns popup-gui
-    ↓
-User interaction → JSON result → MCP response
-```
+Restart Claude Desktop. The `popup` tool will be available for creating GUI interactions.
 
 ## Popup Definition Format
 
+Define popups using JSON with a title and array of elements. The V2 schema uses **element-as-key** format where the widget type is the JSON key, and all interactive elements require an `id` field.
+
 ```json
 {
-  "title": "Example Popup",
+  "title": "Settings",
   "elements": [
-    {"type": "text", "content": "Information text"},
-    {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 50},
-    {"type": "checkbox", "label": "Enable feature", "default": false},
-    {"type": "textbox", "label": "Name", "placeholder": "Enter name", "rows": 1},
-    {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"], "default": 0},
-    {"type": "multiselect", "label": "Features", "options": ["A", "B", "C"]},
     {
-      "type": "group",
-      "label": "Settings",
-      "elements": [/* nested elements */]
+      "text": "Configure your preferences"
     },
     {
-      "type": "conditional",
-      "condition": "Enable feature",
-      "elements": [/* shown when condition true */]
+      "slider": "Volume",
+      "id": "volume",
+      "min": 0,
+      "max": 100,
+      "default": 75
+    },
+    {
+      "checkbox": "Enable notifications",
+      "id": "notifications",
+      "default": true
+    },
+    {
+      "textbox": "Username",
+      "id": "username",
+      "placeholder": "Enter username"
+    },
+    {
+      "choice": "Theme",
+      "id": "theme",
+      "options": ["Light", "Dark", "Auto"]
+    },
+    {
+      "multiselect": "Features",
+      "id": "features",
+      "options": ["A", "B", "C"]
     }
   ]
 }
 ```
 
+### Element Types
+
+| Element | Description | Required Fields | Optional Fields |
+|---------|-------------|-----------------|-----------------|
+| **text** | Static text display | `text` (label) | `id`, `when` |
+| **slider** | Numeric range selector | `slider` (label), `id`, `min`, `max` | `default`, `when`, `reveals` |
+| **checkbox** | Boolean toggle | `checkbox` (label), `id` | `default`, `when`, `reveals` |
+| **textbox** | Text input field | `textbox` (label), `id` | `placeholder`, `rows`, `when` |
+| **choice** | Single selection dropdown | `choice` (label), `id`, `options` | `default`, `when`, `reveals`, option children |
+| **multiselect** | Multiple selection list | `multiselect` (label), `id`, `options` | `when`, `reveals`, option children |
+| **group** | Container for nested elements | `group` (label), `elements` | `when` |
+
 ### Conditional Visibility
 
-**Inline conditionals** - elements shown when option selected:
+Build rich dialogue trees where choices reveal additional options dynamically using **when clauses**, **reveals**, and **option-as-key nesting**.
+
+#### When Clauses
+
+Any element can have a `when` field for conditional visibility:
+
 ```json
 {
-  "type": "checkbox",
-  "label": "Advanced mode",
-  "conditional": [
-    {"type": "slider", "label": "Complexity", "min": 1, "max": 10}
+  "checkbox": "Enable debug mode",
+  "id": "debug_mode",
+  "default": false
+},
+{
+  "slider": "Log level",
+  "id": "log_level",
+  "min": 0,
+  "max": 5,
+  "when": "@debug_mode"
+}
+```
+
+**When Clause Syntax:**
+- `@id` - Boolean check (checkbox checked, has selections, etc.)
+- `selected(@id, value)` - Check if specific value selected
+- `count(@id) > 2` - Count-based check with operators: `>`, `<`, `>=`, `<=`, `==`
+- `@id1 && @id2` - Logical AND
+- `@id1 || @id2` - Logical OR
+- `!@id` - Logical NOT
+
+**Examples:**
+```json
+{
+  "text": "Advanced mode with multiple features",
+  "when": "@advanced && count(@features) > 2"
+}
+```
+
+```json
+{
+  "slider": "Expert complexity",
+  "id": "complexity",
+  "min": 1,
+  "max": 10,
+  "when": "selected(@mode, Expert)"
+}
+```
+
+#### Reveals (Inline Conditionals)
+
+Elements that appear when a checkbox is checked or an option is selected:
+
+```json
+{
+  "checkbox": "Enable advanced mode",
+  "id": "enable_advanced",
+  "default": false,
+  "reveals": [
+    {
+      "slider": "Complexity",
+      "id": "complexity",
+      "min": 1,
+      "max": 10
+    },
+    {
+      "textbox": "Config file",
+      "id": "config_file",
+      "placeholder": "/etc/config"
+    }
   ]
 }
 ```
 
-**Standalone conditionals** - supports complex logic:
+#### Option-as-Key Nesting
+
+Choice and multiselect options can have children using the option text as a JSON key:
+
 ```json
 {
-  "type": "conditional",
-  "condition": {"field": "Mode", "value": "Advanced"},
-  "elements": [/* shown when Mode == "Advanced" */]
+  "choice": "Installation type",
+  "id": "install_type",
+  "options": ["Standard", "Custom"],
+  "Custom": [
+    {
+      "textbox": "Install path",
+      "id": "install_path",
+      "placeholder": "/opt/app"
+    }
+  ]
 }
 ```
 
-**Count conditions:**
+Multiselect with per-option children:
+
 ```json
 {
-  "type": "conditional",
-  "condition": {"field": "Items", "count": ">2"},
-  "elements": [/* shown when >2 items selected */]
+  "multiselect": "Features",
+  "id": "features",
+  "options": ["Basic", "Database", "Authentication"],
+  "Database": [
+    {
+      "choice": "DB Type",
+      "id": "db_type",
+      "options": ["PostgreSQL", "MySQL", "MongoDB"]
+    }
+  ],
+  "Authentication": [
+    {
+      "choice": "Auth Provider",
+      "id": "auth_provider",
+      "options": ["OAuth", "SAML", "LDAP"]
+    }
+  ]
 }
 ```
 
-See `examples/` directory for comprehensive examples.
+### Cascading Conditionals
 
-## Endpoints
+Combine all three conditional approaches for deep dialogue trees:
 
-### OAuth MCP Endpoint (GitHub Auth)
+```json
+{
+  "title": "Project Setup",
+  "elements": [
+    {
+      "choice": "Project type",
+      "id": "project_type",
+      "options": ["Simple", "Advanced"],
+      "Advanced": [
+        {
+          "multiselect": "Features",
+          "id": "features",
+          "options": ["Database", "Authentication", "API"],
+          "Database": [
+            {
+              "choice": "Database type",
+              "id": "db_type",
+              "options": ["PostgreSQL", "MySQL", "MongoDB"]
+            }
+          ],
+          "Authentication": [
+            {
+              "choice": "Auth provider",
+              "id": "auth_provider",
+              "options": ["OAuth", "SAML", "LDAP"]
+            }
+          ]
+        },
+        {
+          "checkbox": "Enable monitoring",
+          "id": "enable_monitoring",
+          "default": false,
+          "when": "count(@features) >= 2",
+          "reveals": [
+            {
+              "slider": "Monitoring interval (seconds)",
+              "id": "monitor_interval",
+              "min": 10,
+              "max": 300,
+              "default": 60
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
 ```
-GET  /authorize - OAuth consent flow
-GET  /callback  - OAuth callback
-POST /mcp       - MCP Streamable HTTP endpoint
-```
 
-Tool: `remote_popup` with 30-second default timeout
+This creates a responsive dialogue:
+- Choosing "Advanced" reveals the features multiselect
+- Selecting "Database" or "Authentication" reveals specific configuration options
+- The monitoring checkbox appears only when 2+ features are selected
+- Checking the monitoring checkbox reveals the interval slider
 
-### Header Auth MCP Endpoint (For Letta, etc.)
-```
-POST /header_auth - MCP with Bearer token auth
-```
+All interactions happen in a single popup with real-time conditional visibility.
 
-Headers: `Authorization: Bearer <token>`
-Tool: `remote_popup` with 5-minute default timeout
+## Examples
 
-### Simple POST Endpoint (No Auth)
-```
-POST /popup - Direct HTTP, no MCP protocol
-```
+The `examples/` directory contains sample popups:
 
-Returns popup result JSON or timeout error.
+- **simple_confirm.json** - Basic confirmation dialog
+- **settings.json** - Multi-input settings form
+- **conditional_settings.json** - Settings with conditional sections
+- **choice_demo.json** - Demonstrations of choice widgets
 
-### WebSocket Endpoint
-```
-WS /connect - Client daemon connection
-```
-
-Accepts WebSocket upgrade, used by popup-client daemon.
-
-## Configuration
-
-### Cloudflare Worker Secrets
-
+Run any example:
 ```bash
-# Required for OAuth endpoint
-npx wrangler secret put GITHUB_CLIENT_ID
-npx wrangler secret put GITHUB_CLIENT_SECRET
-npx wrangler secret put COOKIE_ENCRYPTION_KEY
-
-# Required for header auth endpoint
-npx wrangler secret put AUTH_TOKEN
+popup --file examples/settings.json
 ```
 
-### Durable Objects
+## Use Cases
 
-- `PopupSession` - WebSocket server, manages client connections
-- `PopupMcpAgent` - OAuth-based MCP agent
-- `HeaderAuthMcpAgent` - Token-based MCP agent
+- **AI Assistant Confirmations** - Get user approval before destructive operations
+- **Form Input** - Collect structured data during AI workflows
+- **Settings Configuration** - Interactive configuration dialogs
+- **Human-in-the-Loop** - Pause AI workflow for user input/decisions
+- **Debugging** - Display state or collect debug information
+- **Guided Workflows** - Multi-step processes with conditional branches
 
-### Client Configuration
+## Template System
 
-`~/.config/popup-client/config.toml`:
+Create reusable popup templates with variables.
+
+**1. Create config** (`~/.config/popup-mcp/popup.toml`):
 ```toml
-server_url = "wss://popup-relay.example.workers.dev/connect"
-device_name = "laptop"  # Optional
-gui_binary = "popup"    # Optional, defaults to "popup-gui"
+[[template]]
+name = "confirm_delete"
+description = "Confirm file deletion"
+file = "confirm_delete.json"
+
+[template.params.filename]
+type = "string"
+description = "File to delete"
+required = true
+
+[template.params.size]
+type = "string"
+description = "File size"
+required = false
 ```
+
+**2. Create template** (`~/.config/popup-mcp/confirm_delete.json`):
+```json
+{
+  "title": "Delete {{filename}}?",
+  "elements": [
+    {
+      "text": "Permanently delete {{filename}} ({{size}})?",
+      "id": "warning"
+    }
+  ]
+}
+```
+
+**3. Use from MCP**:
+Templates automatically become MCP tools with parameters based on your config.
 
 ## Development
 
 ### Build
 
 ```bash
-# Rust workspace
+# Build all crates
 cargo build --release
 
-# TypeScript (Cloudflare)
-cd cloudflare
-npm install
-npm run build
+# Build specific crate
+cargo build -p popup-gui --release
 ```
 
 ### Test
 
 ```bash
-# Rust tests
+# Run all tests
 cargo test
 
-# TypeScript tests (includes Durable Object tests)
-cd cloudflare
-npm test
+# Run specific test
+cargo test test_simple_confirmation
 
-# Manual popup test
-echo '{"title":"Test","elements":[{"type":"text","content":"Hello"}]}' | popup --stdin
+# Test JSON parsing
+cargo test tests::json_parser_tests
 ```
 
-### Deploy
+### Lint and Format
 
 ```bash
-# Deploy to Cloudflare
-cd cloudflare
-npx wrangler deploy
-
-# Install binaries locally
-cargo install --path crates/popup-gui
-cargo install --path crates/popup-client
+cargo fmt --check
+cargo fmt
+cargo clippy
 ```
 
-## Examples
+## Architecture
 
-- `examples/simple_confirm.json` - Basic confirmation dialog
-- `examples/settings.json` - Multi-input form
-- `examples/conditional_settings.json` - Conditional visibility
-- `cloudflare/nested_example.json` - Complex nested conditionals
-- `cloudflare/test_definition.json` - Quick test example
-
-## Use Cases
-
-- **AI Assistant Confirmations** - "Delete 500 files?" before destructive operations
-- **Form Input** - Collect structured data during AI workflows
-- **Settings Configuration** - Interactive configuration dialogs
-- **Human-in-the-Loop** - Get user input/approval mid-task
-- **Debugging** - Display state or ask debug questions
-- **Templated Workflows** - Custom tools via template system
-
-## Integration Examples
-
-### Python (Letta)
-```python
-from letta_tool import show_popup
-
-result = show_popup({
-    "title": "Approve Action",
-    "elements": [
-        {"type": "text", "content": "Proceed with deployment?"}
-    ]
-})
-
-if result["status"] == "completed":
-    # User clicked Submit
-    deploy()
+**Local Mode:**
+```
+MCP Client (Claude Desktop)
+  ↓ JSON-RPC over stdio
+popup binary (MCP server mode)
+  ↓ Spawns subprocess with --stdin
+popup-gui subprocess
+  ↓ Native egui window
+User interaction
+  ↓ JSON result to stdout
+MCP Client receives result
 ```
 
-### Claude Desktop (MCP)
-Just use the `remote_popup` tool - no code needed.
+The popup binary operates in multiple modes:
+- **MCP server** (`--mcp-server`) - JSON-RPC over stdio for MCP clients
+- **Stdin mode** (`--stdin`) - Read JSON from stdin, display popup, write result to stdout
+- **File mode** (`--file`) - Read JSON from file, display popup
 
-### Custom Templates
+The MCP server mode spawns itself with `--stdin` for each popup request, providing clean process isolation.
 
-Create reusable popups at `~/.config/popup-mcp/popup.toml`:
-```toml
-[[template]]
-name = "confirm_delete"
-file = "confirm_delete.json"
+### Crates
 
-[template.params]
-item_name = { type = "string", required = true }
-```
+- **popup-common** - Shared types (`PopupDefinition`, `PopupResult`, protocol messages)
+- **popup-gui** - Native GUI renderer (egui), MCP server, JSON parser, template system
+- **popup-client** - WebSocket daemon for remote relay (see Remote Mode below)
 
-## Architecture Decisions
+## Remote Mode
 
-- **Subprocess isolation** - Each popup runs in separate process for clean lifecycle
-- **First-response-wins** - Multiple clients supported, first result completes request
-- **Hibernatable WebSockets** - Durable Objects persist connections across Worker restarts
-- **Top-level routing** - `/connect` and `/popup` bypass OAuth middleware for WebSocket/simple use
-- **Explicit binding names** - MCP agents specify DO binding to avoid collisions
-- **JSON-based structure** - Clean, explicit definitions with no parsing ambiguities
+For distributed deployments where popups appear on remote machines, see **[cloudflare/README.md](cloudflare/README.md)** for:
 
-## License
+- Cloudflare Workers deployment
+- WebSocket relay with Durable Objects
+- GitHub OAuth and Bearer token authentication
+- HTTP API for non-MCP integrations
+- Client daemon (`popup-client`) setup
 
-MIT
+Remote mode enables use cases like:
+- Triggering popups from cloud-based AI agents
+- Multi-user popup relay systems
+- Integration with services like Letta
 
 ## Contributing
 
 See `CLAUDE.md` for development guidance and architecture details.
+
+## License
+
+MIT

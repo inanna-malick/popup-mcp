@@ -2,61 +2,67 @@
   "title": "Unified Conditional Demo",
   "elements": [
     {
-      "type": "text",
-      "content": "This demo showcases the unified conditional API that works for both checkboxes and multiselects."
+      "text": "This demo showcases the unified conditional API that works for both checkboxes and multiselects.",
+      "id": "intro"
     },
-
-    {"type": "checkbox", "label": "Enable Debug", "default": false},
     {
-      "type": "conditional",
-      "condition": "Enable Debug",
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 1: Simple existence check - checkbox is checked"}
-      ]
+      "checkbox": "Enable Debug",
+      "id": "debug",
+      "default": false
     },
-
-    {"type": "multiselect", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
     {
-      "type": "conditional",
-      "condition": "Theme",
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 1: Simple existence check - any theme selected"}
-      ]
+      "text": "✓ Pattern 1: Simple existence check - checkbox is checked",
+      "id": "debug_msg",
+      "when": "@debug"
     },
-
     {
-      "type": "conditional",
-      "condition": {"field": "Theme", "value": "Dark"},
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 2: Specific value check - Dark theme selected"},
-        {"type": "slider", "label": "Contrast", "min": 0, "max": 100, "default": 75}
-      ]
+      "multiselect": "Theme",
+      "id": "theme",
+      "options": ["Light", "Dark", "Auto"]
     },
-
-    {"type": "multiselect", "label": "Features", "options": ["Analytics", "Notifications", "Sync", "Backup", "Themes"]},
     {
-      "type": "conditional",
-      "condition": {"field": "Features", "count": ">2"},
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 3: Count check - more than 2 features selected"}
-      ]
+      "text": "✓ Pattern 1: Simple existence check - any theme selected",
+      "id": "theme_msg",
+      "when": "@theme"
     },
-
     {
-      "type": "conditional",
-      "condition": {"field": "Features", "value": "Analytics"},
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 2: Specific value - Analytics feature enabled"},
-        {"type": "checkbox", "label": "Track usage", "default": true}
-      ]
+      "text": "✓ Pattern 2: Specific value check - Dark theme selected",
+      "id": "dark_msg",
+      "when": "selected(@theme, Dark)"
     },
-
     {
-      "type": "conditional",
-      "condition": {"field": "Features", "count": "=1"},
-      "elements": [
-        {"type": "text", "content": "✓ Pattern 3: Exact count - exactly one feature selected"}
-      ]
+      "slider": "Contrast",
+      "id": "contrast",
+      "min": 0,
+      "max": 100,
+      "default": 75,
+      "when": "selected(@theme, Dark)"
+    },
+    {
+      "multiselect": "Features",
+      "id": "features",
+      "options": ["Analytics", "Notifications", "Sync", "Backup", "Themes"]
+    },
+    {
+      "text": "✓ Pattern 3: Count check - more than 2 features selected",
+      "id": "count_msg",
+      "when": "count(@features) > 2"
+    },
+    {
+      "text": "✓ Pattern 2: Specific value - Analytics feature enabled",
+      "id": "analytics_msg",
+      "when": "selected(@features, Analytics)"
+    },
+    {
+      "checkbox": "Track usage",
+      "id": "track_usage",
+      "default": true,
+      "when": "selected(@features, Analytics)"
+    },
+    {
+      "text": "✓ Pattern 3: Exact count - exactly one feature selected",
+      "id": "exact_count_msg",
+      "when": "count(@features) == 1"
     }
   ]
 }

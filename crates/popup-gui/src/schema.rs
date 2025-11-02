@@ -37,27 +37,37 @@ pub fn get_input_schema() -> serde_json::Value {
                         "description": "Array of UI elements to display",
                         "items": {
                             "oneOf": [
-                                // Text element
+                                // Text element (V2: element-as-key, id optional)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "text"},
-                                        "content": {
+                                        "text": {
                                             "type": "string",
                                             "description": "Text to display"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional element ID (text elements don't need state tracking)"
+                                        },
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
                                         }
                                     },
-                                    "required": ["type", "content"],
+                                    "required": ["text"],
                                     "additionalProperties": false
                                 },
-                                // Slider element
+                                // Slider element (V2: slider is the key, id required)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "slider"},
-                                        "label": {
+                                        "slider": {
                                             "type": "string",
                                             "description": "Label for the slider"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID for state tracking (required)"
                                         },
                                         "min": {
                                             "type": "number",
@@ -70,41 +80,58 @@ pub fn get_input_schema() -> serde_json::Value {
                                         "default": {
                                             "type": "number",
                                             "description": "Default value (optional, defaults to midpoint)"
+                                        },
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
+                                        },
+                                        "reveals": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Optional inline conditional elements shown when slider is active"
                                         }
                                     },
-                                    "required": ["type", "label", "min", "max"],
+                                    "required": ["slider", "id", "min", "max"],
                                     "additionalProperties": false
                                 },
-                                // Checkbox element
+                                // Checkbox element (V2: checkbox is the key, id required)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "checkbox"},
-                                        "label": {
+                                        "checkbox": {
                                             "type": "string",
                                             "description": "Label for the checkbox"
                                         },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID for state tracking (required)"
+                                        },
                                         "default": {
                                             "type": "boolean",
-                                            "description": "Default checked state",
-                                            "default": false
+                                            "description": "Default checked state"
                                         },
-                                        "conditional": {
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
+                                        },
+                                        "reveals": {
                                             "$ref": "#/properties/json/properties/elements",
                                             "description": "Optional inline conditional elements shown when checkbox is checked"
                                         }
                                     },
-                                    "required": ["type", "label"],
+                                    "required": ["checkbox", "id"],
                                     "additionalProperties": false
                                 },
-                                // Textbox element
+                                // Textbox element (V2: textbox is the key, id required)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "textbox"},
-                                        "label": {
+                                        "textbox": {
                                             "type": "string",
                                             "description": "Label for the text input"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID for state tracking (required)"
                                         },
                                         "placeholder": {
                                             "type": "string",
@@ -114,165 +141,114 @@ pub fn get_input_schema() -> serde_json::Value {
                                             "type": "integer",
                                             "minimum": 1,
                                             "description": "Number of rows for multiline input (optional)"
+                                        },
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
                                         }
                                     },
-                                    "required": ["type", "label"],
+                                    "required": ["textbox", "id"],
                                     "additionalProperties": false
                                 },
-                                // Multiselect element
+                                // Multiselect element (V2: multiselect is the key, id required, option-as-key for children)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "multiselect"},
-                                        "label": {
+                                        "multiselect": {
                                             "type": "string",
                                             "description": "Label for the multiselect"
                                         },
-                                        "options": {
-                                            "type": "array",
-                                            "items": {
-                                                "oneOf": [
-                                                    {
-                                                        "type": "string",
-                                                        "description": "Simple option"
-                                                    },
-                                                    {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "value": {
-                                                                "type": "string",
-                                                                "description": "Option text"
-                                                            },
-                                                            "conditional": {
-                                                                "$ref": "#/properties/json/properties/elements",
-                                                                "description": "Inline conditional elements shown when this option is checked"
-                                                            }
-                                                        },
-                                                        "required": ["value", "conditional"],
-                                                        "additionalProperties": false
-                                                    }
-                                                ]
-                                            },
-                                            "minItems": 1,
-                                            "description": "Array of options (strings or objects with inline conditionals) for multiple selection"
-                                        }
-                                    },
-                                    "required": ["type", "label", "options"],
-                                    "additionalProperties": false
-                                },
-                                // Choice element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "choice"},
-                                        "label": {
+                                        "id": {
                                             "type": "string",
-                                            "description": "Label for the dropdown"
+                                            "description": "Element ID for state tracking (required)"
                                         },
                                         "options": {
                                             "type": "array",
                                             "items": {
-                                                "oneOf": [
-                                                    {
-                                                        "type": "string",
-                                                        "description": "Simple option"
-                                                    },
-                                                    {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "value": {
-                                                                "type": "string",
-                                                                "description": "Option text"
-                                                            },
-                                                            "conditional": {
-                                                                "$ref": "#/properties/json/properties/elements",
-                                                                "description": "Inline conditional elements shown when this option is selected"
-                                                            }
-                                                        },
-                                                        "required": ["value", "conditional"],
-                                                        "additionalProperties": false
-                                                    }
-                                                ]
+                                                "type": "string"
                                             },
                                             "minItems": 1,
-                                            "description": "Array of options (strings or objects with inline conditionals) for single selection dropdown"
+                                            "description": "Array of option strings"
+                                        },
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
+                                        },
+                                        "reveals": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Optional inline conditional elements shown when any option is selected"
+                                        }
+                                    },
+                                    "required": ["multiselect", "id", "options"],
+                                    "patternProperties": {
+                                        "^(?!multiselect|id|options|when|reveals).*$": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Option-as-key: Use option text as JSON key for child elements"
+                                        }
+                                    },
+                                    "additionalProperties": false
+                                },
+                                // Choice element (V2: choice is the key, id required, option-as-key for children)
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "choice": {
+                                            "type": "string",
+                                            "description": "Label for the dropdown"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID for state tracking (required)"
+                                        },
+                                        "options": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "minItems": 1,
+                                            "description": "Array of option strings"
                                         },
                                         "default": {
                                             "type": "integer",
                                             "minimum": 0,
                                             "description": "Default selected option index (optional, no selection if omitted)"
+                                        },
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
+                                        },
+                                        "reveals": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Optional inline conditional elements shown when any option is selected"
                                         }
                                     },
-                                    "required": ["type", "label", "options"],
+                                    "required": ["choice", "id", "options"],
+                                    "patternProperties": {
+                                        "^(?!choice|id|options|default|when|reveals).*$": {
+                                            "$ref": "#/properties/json/properties/elements",
+                                            "description": "Option-as-key: Use option text as JSON key for child elements"
+                                        }
+                                    },
                                     "additionalProperties": false
                                 },
-                                // Group element
+                                // Group element (V2: group is the key)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "group"},
-                                        "label": {
+                                        "group": {
                                             "type": "string",
                                             "description": "Label for the group"
                                         },
                                         "elements": {
                                             "$ref": "#/properties/json/properties/elements",
                                             "description": "Nested elements within the group"
-                                        }
-                                    },
-                                    "required": ["type", "label", "elements"],
-                                    "additionalProperties": false
-                                },
-                                // Conditional element
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {"const": "conditional"},
-                                        "condition": {
-                                            "oneOf": [
-                                                {
-                                                    "type": "string",
-                                                    "description": "Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected OR choice has selection"
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "field": {
-                                                            "type": "string",
-                                                            "description": "Field name (checkbox, multiselect, or choice)"
-                                                        },
-                                                        "value": {
-                                                            "type": "string",
-                                                            "description": "Specific value - checkbox name must match OR multiselect/choice option must be selected"
-                                                        }
-                                                    },
-                                                    "required": ["field", "value"],
-                                                    "additionalProperties": false
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "field": {
-                                                            "type": "string",
-                                                            "description": "Field name (checkbox, multiselect, or choice)"
-                                                        },
-                                                        "count": {
-                                                            "type": "string",
-                                                            "description": "Count condition like '>2', '=1', '<=3' - checkbox/choice count as 0 or 1, multiselect counts selections"
-                                                        }
-                                                    },
-                                                    "required": ["field", "count"],
-                                                    "additionalProperties": false
-                                                }
-                                            ],
-                                            "description": "Unified condition patterns that work for checkbox, multiselect, and choice"
                                         },
-                                        "elements": {
-                                            "$ref": "#/properties/json/properties/elements",
-                                            "description": "Elements shown when condition is true"
+                                        "when": {
+                                            "type": "string",
+                                            "description": "Optional when clause for conditional visibility"
                                         }
                                     },
-                                    "required": ["type", "condition", "elements"],
+                                    "required": ["group", "elements"],
                                     "additionalProperties": false
                                 }
                             ]
@@ -306,7 +282,7 @@ pub fn get_simple_popup_tool_schema() -> serde_json::Value {
 ///
 /// This radically simplified schema supports only:
 /// - text: Static text display
-/// - textbox: Text input field  
+/// - textbox: Text input field
 /// - multiselect: Multiple selection list
 pub fn get_simple_input_schema() -> serde_json::Value {
     json!({
@@ -324,27 +300,33 @@ pub fn get_simple_input_schema() -> serde_json::Value {
                         "description": "Array of UI elements (text, textbox, multiselect only)",
                         "items": {
                             "oneOf": [
-                                // Text element - static display
+                                // Text element - static display (V2: element-as-key)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "text"},
-                                        "content": {
+                                        "text": {
                                             "type": "string",
                                             "description": "Text to display"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional element ID"
                                         }
                                     },
-                                    "required": ["type", "content"],
+                                    "required": ["text"],
                                     "additionalProperties": false
                                 },
-                                // Textbox element - text input
+                                // Textbox element - text input (V2: element-as-key)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "textbox"},
-                                        "label": {
+                                        "textbox": {
                                             "type": "string",
                                             "description": "Label for the text field"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID (required)"
                                         },
                                         "placeholder": {
                                             "type": "string",
@@ -356,17 +338,20 @@ pub fn get_simple_input_schema() -> serde_json::Value {
                                             "minimum": 1
                                         }
                                     },
-                                    "required": ["type", "label"],
+                                    "required": ["textbox", "id"],
                                     "additionalProperties": false
                                 },
-                                // Multiselect element - multiple selection
+                                // Multiselect element - multiple selection (V2: element-as-key)
                                 {
                                     "type": "object",
                                     "properties": {
-                                        "type": {"const": "multiselect"},
-                                        "label": {
+                                        "multiselect": {
                                             "type": "string",
                                             "description": "Label for multiselect"
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Element ID (required)"
                                         },
                                         "options": {
                                             "type": "array",
@@ -375,7 +360,7 @@ pub fn get_simple_input_schema() -> serde_json::Value {
                                             "minItems": 1
                                         }
                                     },
-                                    "required": ["type", "label", "options"],
+                                    "required": ["multiselect", "id", "options"],
                                     "additionalProperties": false
                                 }
                             ]
@@ -395,23 +380,28 @@ pub fn get_simple_input_schema() -> serde_json::Value {
 ///
 /// Useful for documentation or help text
 pub fn get_schema_description() -> &'static str {
-    "Popup JSON structure:
+    "Popup JSON structure (V2 element-as-key format):
 {
   \"title\": \"Window title\",
   \"elements\": [
-    {\"type\": \"text\", \"content\": \"Display text\"},
-    {\"type\": \"slider\", \"label\": \"Volume\", \"min\": 0, \"max\": 100, \"default\": 50},
-    {\"type\": \"checkbox\", \"label\": \"Enable\", \"default\": true, \"conditional\": [...]},
-    {\"type\": \"textbox\", \"label\": \"Name\", \"placeholder\": \"Enter name\", \"rows\": 3},
-    {\"type\": \"choice\", \"label\": \"Color\", \"options\": [\"Red\", {\"value\": \"Blue\", \"conditional\": [...]}]},
-    {\"type\": \"multiselect\", \"label\": \"Features\", \"options\": [\"A\", {\"value\": \"B\", \"conditional\": [...]}]},
-    {\"type\": \"group\", \"label\": \"Settings\", \"elements\": [...]},
-    {\"type\": \"conditional\", \"condition\": \"checkbox_label\", \"elements\": [...]}
+    {\"text\": \"Display text\", \"id\": \"optional_id\"},
+    {\"slider\": \"Volume\", \"id\": \"volume\", \"min\": 0, \"max\": 100, \"default\": 50},
+    {\"checkbox\": \"Enable\", \"id\": \"enable\", \"default\": true, \"reveals\": [...]},
+    {\"textbox\": \"Name\", \"id\": \"name\", \"placeholder\": \"Enter name\", \"rows\": 3},
+    {\"choice\": \"Color\", \"id\": \"color\", \"options\": [\"Red\", \"Blue\"], \"Blue\": [...]},
+    {\"multiselect\": \"Features\", \"id\": \"features\", \"options\": [\"A\", \"B\"], \"A\": [...]},
+    {\"group\": \"Settings\", \"elements\": [...]},
   ]
 }
 
-Inline conditionals: Checkbox supports 'conditional' field. Choice/Multiselect options can be objects with 'value' and 'conditional' fields.
-Returns: {\"button\": \"submit\" | \"cancel\", \"field_label\": value, ...}"
+V2 Features:
+- Element-as-key: Widget type is the JSON key (\"slider\": \"Label\", not \"type\": \"slider\")
+- ID-based state: All interactive elements require \"id\" field for state tracking
+- When clauses: Any element can have \"when\": \"@id && count(@other) > 2\" for conditional visibility
+- Reveals: Inline conditionals via \"reveals\": [...] on checkbox/multiselect/choice
+- Option-as-key nesting: Use option text as JSON key for per-option children
+
+Returns: {\"button\": \"submit\" | \"cancel\", \"element_id\": value, ...}"
 }
 
 #[cfg(test)]

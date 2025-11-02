@@ -2,115 +2,132 @@
   "title": "Project Configuration",
   "elements": [
     {
-      "type": "text",
-      "content": "Configure your development environment"
+      "text": "Configure your development environment",
+      "id": "intro_text"
     },
     {
-      "type": "choice",
-      "label": "Project Type",
-      "options": [
-        "Static Website",
+      "choice": "Project Type",
+      "id": "project_type",
+      "options": ["Static Website", "Web Application", "CLI Tool"],
+      "Web Application": [
         {
-          "value": "Web Application",
-          "conditional": [
+          "choice": "Framework",
+          "id": "framework",
+          "options": ["React", "Next.js", "Vue", "Svelte"],
+          "Next.js": [
             {
-              "type": "choice",
-              "label": "Framework",
-              "options": [
-                "React",
+              "checkbox": "Enable TypeScript",
+              "id": "enable_typescript",
+              "default": true,
+              "reveals": [
                 {
-                  "value": "Next.js",
-                  "conditional": [
-                    {
-                      "type": "checkbox",
-                      "label": "Enable TypeScript",
-                      "default": true,
-                      "conditional": [
-                        {
-                          "type": "choice",
-                          "label": "TypeScript Strictness",
-                          "options": ["Strict", "Relaxed", "Custom"],
-                          "default": 0
-                        }
-                      ]
-                    },
-                    {
-                      "type": "checkbox",
-                      "label": "Enable Tailwind CSS",
-                      "conditional": [
-                        {
-                          "type": "textbox",
-                          "label": "Custom Theme Path",
-                          "placeholder": "./theme.config.js"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "Vue",
-                "Svelte"
+                  "choice": "TypeScript Strictness",
+                  "id": "ts_strictness",
+                  "options": ["Strict", "Relaxed", "Custom"],
+                  "default": 0
+                }
               ]
             },
             {
-              "type": "multiselect",
-              "label": "Additional Features",
-              "options": [
-                "Authentication",
+              "checkbox": "Enable Tailwind CSS",
+              "id": "enable_tailwind",
+              "reveals": [
                 {
-                  "value": "Database",
-                  "conditional": [
-                    {
-                      "type": "choice",
-                      "label": "Database Type",
-                      "options": ["PostgreSQL", "MySQL", "MongoDB", "SQLite"],
-                      "default": 0
-                    },
-                    {
-                      "type": "checkbox",
-                      "label": "Enable migrations",
-                      "default": true
-                    }
-                  ]
-                },
-                {
-                  "value": "API Integration",
-                  "conditional": [
-                    {
-                      "type": "textbox",
-                      "label": "API Base URL",
-                      "placeholder": "https://api.example.com"
-                    },
-                    {
-                      "type": "checkbox",
-                      "label": "Enable caching",
-                      "conditional": [
-                        {
-                          "type": "slider",
-                          "label": "Cache duration (minutes)",
-                          "min": 1,
-                          "max": 60,
-                          "default": 15
-                        }
-                      ]
-                    }
-                  ]
+                  "textbox": "Custom Theme Path",
+                  "id": "theme_path",
+                  "placeholder": "./theme.config.js"
                 }
               ]
             }
           ]
         },
         {
-          "value": "CLI Tool",
-          "conditional": [
+          "multiselect": "Additional Features",
+          "id": "additional_features",
+          "options": ["Authentication", "Database", "API Integration"],
+          "Database": [
             {
-              "type": "checkbox",
-              "label": "Include subcommands",
-              "conditional": [
+              "choice": "Database Type",
+              "id": "db_type",
+              "options": ["PostgreSQL", "MySQL", "MongoDB", "SQLite"],
+              "default": 0
+            },
+            {
+              "checkbox": "Enable migrations",
+              "id": "enable_migrations",
+              "default": true
+            }
+          ],
+          "API Integration": [
+            {
+              "textbox": "API Base URL",
+              "id": "api_base_url",
+              "placeholder": "https://api.example.com"
+            },
+            {
+              "checkbox": "Enable caching",
+              "id": "enable_caching",
+              "reveals": [
                 {
-                  "type": "textbox",
-                  "label": "Subcommand names (comma-separated)",
-                  "placeholder": "init, build, deploy",
-                  "rows": 2
+                  "slider": "Cache duration (minutes)",
+                  "id": "cache_duration",
+                  "min": 1,
+                  "max": 60,
+                  "default": 15
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "CLI Tool": [
+        {
+          "checkbox": "Include subcommands",
+          "id": "include_subcommands",
+          "reveals": [
+            {
+              "textbox": "Subcommand names (comma-separated)",
+              "id": "subcommand_names",
+              "placeholder": "init, build, deploy",
+              "rows": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Deployment Settings",
+      "elements": [
+        {
+          "checkbox": "Enable CI/CD",
+          "id": "enable_cicd",
+          "reveals": [
+            {
+              "choice": "Platform",
+              "id": "cicd_platform",
+              "options": ["GitHub Actions", "Cloudflare Workers", "Vercel", "Netlify"],
+              "Cloudflare Workers": [
+                {
+                  "textbox": "Account ID",
+                  "id": "cf_account_id",
+                  "placeholder": "your-account-id"
+                },
+                {
+                  "checkbox": "Enable preview deployments",
+                  "id": "enable_preview",
+                  "default": true
+                }
+              ]
+            },
+            {
+              "multiselect": "Deployment Triggers",
+              "id": "deployment_triggers",
+              "options": ["Push to main", "Pull request", "Manual approval", "Scheduled"],
+              "Manual approval": [
+                {
+                  "textbox": "Approver emails (comma-separated)",
+                  "id": "approver_emails",
+                  "placeholder": "admin@example.com"
                 }
               ]
             }
@@ -119,75 +136,12 @@
       ]
     },
     {
-      "type": "group",
-      "label": "Deployment Settings",
-      "elements": [
-        {
-          "type": "checkbox",
-          "label": "Enable CI/CD",
-          "conditional": [
-            {
-              "type": "choice",
-              "label": "Platform",
-              "options": [
-                "GitHub Actions",
-                {
-                  "value": "Cloudflare Workers",
-                  "conditional": [
-                    {
-                      "type": "textbox",
-                      "label": "Account ID",
-                      "placeholder": "your-account-id"
-                    },
-                    {
-                      "type": "checkbox",
-                      "label": "Enable preview deployments",
-                      "default": true
-                    }
-                  ]
-                },
-                "Vercel",
-                "Netlify"
-              ]
-            },
-            {
-              "type": "multiselect",
-              "label": "Deployment Triggers",
-              "options": [
-                "Push to main",
-                "Pull request",
-                {
-                  "value": "Manual approval",
-                  "conditional": [
-                    {
-                      "type": "textbox",
-                      "label": "Approver emails (comma-separated)",
-                      "placeholder": "admin@example.com"
-                    }
-                  ]
-                },
-                "Scheduled"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "conditional",
-      "condition": {
-        "field": "Project Type",
-        "value": "Web Application"
-      },
-      "elements": [
-        {
-          "type": "slider",
-          "label": "Performance Budget (KB)",
-          "min": 100,
-          "max": 1000,
-          "default": 500
-        }
-      ]
+      "slider": "Performance Budget (KB)",
+      "id": "perf_budget",
+      "min": 100,
+      "max": 1000,
+      "default": 500,
+      "when": "selected(@project_type, Web Application)"
     }
   ]
 }

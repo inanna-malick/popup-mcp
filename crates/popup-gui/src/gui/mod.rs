@@ -4,7 +4,8 @@ use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel,
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
-use popup_common::{Condition, Element, PopupDefinition, PopupResult, PopupState, StateKey};
+use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
+use popup_common::{evaluate_condition, parse_condition};
 
 #[cfg(test)]
 pub mod tests {
@@ -255,15 +256,42 @@ fn render_single_element(
     ctx: &mut RenderContext,
     element_path: &str,
 ) {
+    // Check if element should be visible based on when clause
+    let when_clause = match element {
+        Element::Text { when, .. } => when,
+        Element::Slider { when, .. } => when,
+        Element::Checkbox { when, .. } => when,
+        Element::Textbox { when, .. } => when,
+        Element::Multiselect { when, .. } => when,
+        Element::Choice { when, .. } => when,
+        Element::Group { when, .. } => when,
+    };
+
+    if let Some(when_expr) = when_clause {
+        let state_values = state.to_value_map();
+        match parse_condition(when_expr) {
+            Ok(ast) => {
+                if !evaluate_condition(&ast, &state_values) {
+                    // Condition not met - don't render this element
+                    return;
+                }
+            }
+            Err(e) => {
+                // Log warning but render anyway (fail-open)
+                log::warn!("Failed to parse when clause '{}': {}", when_expr, e);
+            }
+        }
+    }
+
     match element {
-        Element::Text { content: text } => {
+        Element::Text { text, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
                 ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
 
-        Element::Multiselect { label, options } => {
+        Element::Multiselect { multiselect, id, options, option_children, .. } => {
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -272,12 +300,11 @@ fn render_single_element(
                 ));
 
             widget_frame.show(ui, |ui| {
-                let key = StateKey::new(label, element_path);
                 // Clone selections to avoid borrow conflict when rendering conditionals
-                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(&key)
+                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id)
                 {
                     ui.label(
-                        RichText::new(label)
+                        RichText::new(multiselect)
                             .color(ctx.theme.matrix_green)
                             .strong()
                             .size(15.0),
@@ -297,11 +324,11 @@ fn render_single_element(
                             let col = &mut cols[i % 3];
                             if i < selections.len() {
                                 let checkbox_text = if selections[i] {
-                                    RichText::new(format!("☑ {}", option.value()))
+                                    RichText::new(format!("☑ {}", option))
                                         .color(ctx.theme.matrix_green)
                                         .strong()
                                 } else {
-                                    RichText::new(format!("☐ {}", option.value()))
+                                    RichText::new(format!("☐ {}", option))
                                         .color(ctx.theme.text_primary)
                                 };
                                 let response = col.selectable_label(false, checkbox_text);
@@ -323,8 +350,8 @@ fn render_single_element(
                 // Render inline conditionals for each checked option (after borrow is dropped)
                 for (i, option) in options.iter().enumerate() {
                     if i < selections_snapshot.len() && selections_snapshot[i] {
-                        if let Some(children) = option.conditional() {
-                            ui.indent(format!("multiselect_cond_{}_{}", label, i), |ui| {
+                        if let Some(children) = option_children.get(option) {
+                            ui.indent(format!("multiselect_cond_{}_{}", id, i), |ui| {
                                 render_elements_in_grid(
                                     ui,
                                     children,
@@ -340,19 +367,18 @@ fn render_single_element(
             });
         }
 
-        Element::Choice { label, options, .. } => {
-            let key = StateKey::new(label, element_path);
-            ui.label(RichText::new(label).color(ctx.theme.text_primary));
-            if let Some(selected) = state.get_choice_mut(&key) {
+        Element::Choice { choice, id, options, option_children, .. } => {
+            ui.label(RichText::new(choice).color(ctx.theme.text_primary));
+            if let Some(selected) = state.get_choice_mut(id) {
                 let selected_text = match *selected {
                     Some(idx) => options
                         .get(idx)
-                        .map(|opt| opt.value())
+                        .map(|s| s.as_str())
                         .unwrap_or("(invalid)"),
                     None => "(none selected)",
                 };
 
-                egui::ComboBox::from_id_salt(label)
+                egui::ComboBox::from_id_salt(id)
                     .selected_text(selected_text)
                     .show_ui(ui, |ui| {
                         // Option to clear selection
@@ -365,7 +391,7 @@ fn render_single_element(
                         // Show all options
                         for (idx, option) in options.iter().enumerate() {
                             if ui
-                                .selectable_label(*selected == Some(idx), option.value())
+                                .selectable_label(*selected == Some(idx), option)
                                 .clicked()
                             {
                                 *selected = Some(idx);
@@ -375,9 +401,9 @@ fn render_single_element(
 
                 // Render inline conditional for selected option
                 if let Some(idx) = *selected {
-                    if let Some(opt) = options.get(idx) {
-                        if let Some(children) = opt.conditional() {
-                            ui.indent(format!("choice_cond_{}_{}", label, idx), |ui| {
+                    if let Some(option_text) = options.get(idx) {
+                        if let Some(children) = option_children.get(option_text) {
+                            ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
                                 render_elements_in_grid(
                                     ui,
                                     children,
@@ -395,47 +421,44 @@ fn render_single_element(
         }
 
         Element::Checkbox {
-            label, conditional, ..
+            checkbox, id, reveals, ..
         } => {
-            let key = StateKey::new(label, element_path);
-            if let Some(value) = state.get_boolean_mut(&key) {
+            if let Some(value) = state.get_boolean_mut(id) {
                 let checkbox_text = if *value {
-                    RichText::new(format!("☑ {}", label))
+                    RichText::new(format!("☑ {}", checkbox))
                         .color(ctx.theme.matrix_green)
                         .strong()
                 } else {
-                    RichText::new(format!("☐ {}", label)).color(ctx.theme.text_primary)
+                    RichText::new(format!("☐ {}", checkbox)).color(ctx.theme.text_primary)
                 };
                 let response = ui.selectable_label(false, checkbox_text);
                 if response.clicked() {
                     *value = !*value;
                 }
 
-                // Render inline conditional if checkbox is checked
-                if *value {
-                    if let Some(children) = conditional {
-                        ui.indent(format!("checkbox_cond_{}", label), |ui| {
-                            render_elements_in_grid(
-                                ui,
-                                children,
-                                state,
-                                all_elements,
-                                ctx,
-                                &format!("{}.checkbox", element_path),
-                            );
-                        });
-                    }
+                // Render reveals if checkbox is checked
+                if *value && !reveals.is_empty() {
+                    ui.indent(format!("checkbox_reveals_{}", id), |ui| {
+                        render_elements_in_grid(
+                            ui,
+                            reveals,
+                            state,
+                            all_elements,
+                            ctx,
+                            &format!("{}.checkbox", element_path),
+                        );
+                    });
                 }
             }
         }
 
         Element::Slider {
-            label,
+            slider,
+            id,
             min,
             max,
-            default: _,
+            ..
         } => {
-            let key = StateKey::new(label, element_path);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -445,12 +468,12 @@ fn render_single_element(
 
             widget_frame.show(ui, |ui| {
                 ui.label(
-                    RichText::new(label)
+                    RichText::new(slider)
                         .color(ctx.theme.warning_orange)
                         .strong()
                         .size(15.0),
                 );
-                if let Some(value) = state.get_number_mut(&key) {
+                if let Some(value) = state.get_number_mut(id) {
                     ui.horizontal(|ui| {
                         let slider = egui::Slider::new(value, *min..=*max)
                             .show_value(false)
@@ -471,11 +494,12 @@ fn render_single_element(
         }
 
         Element::Textbox {
-            label,
+            textbox,
+            id,
             placeholder,
             rows,
+            ..
         } => {
-            let key = StateKey::new(label, element_path);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -485,12 +509,12 @@ fn render_single_element(
 
             widget_frame.show(ui, |ui| {
                 ui.label(
-                    RichText::new(label)
+                    RichText::new(textbox)
                         .color(ctx.theme.neon_purple)
                         .strong()
                         .size(15.0),
                 );
-                if let Some(value) = state.get_text_mut(&key) {
+                if let Some(value) = state.get_text_mut(id) {
                     let height = rows.unwrap_or(1) as f32 * 20.0;
                     let text_edit = egui::TextEdit::multiline(value)
                         .desired_width(ui.available_width())
@@ -505,7 +529,7 @@ fn render_single_element(
             });
         }
 
-        Element::Group { label, elements } => {
+        Element::Group { group, elements, .. } => {
             // Enhanced group with better visual separation
             let group_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(12))
@@ -516,7 +540,7 @@ fn render_single_element(
 
             group_frame.show(ui, |ui| {
                 ui.label(
-                    RichText::new(label)
+                    RichText::new(group)
                         .color(ctx.theme.neon_pink)
                         .strong()
                         .size(16.0),
@@ -533,364 +557,144 @@ fn render_single_element(
             });
         }
 
-        Element::Conditional {
-            condition,
-            elements,
-        } => {
-            // Check if condition is met using shared helper
-            let show = evaluate_condition(condition, state, all_elements, element_path);
-
-            if show {
-                render_elements_in_grid(
-                    ui,
-                    elements,
-                    state,
-                    all_elements,
-                    ctx,
-                    &format!("{}.cond", element_path),
-                );
-            }
-        }
     }
 }
 
 // Helper functions
 
-/// Collect only the active elements based on current state (evaluating conditionals)
+/// Collect only the active elements based on current state (evaluating when clauses)
 fn collect_active_elements(
     elements: &[Element],
     state: &PopupState,
-    all_elements: &[Element],
-    path_prefix: &str,
+    _all_elements: &[Element],
+    _path_prefix: &str,
 ) -> Vec<String> {
-    let mut active_labels = Vec::new();
+    let mut active_ids = Vec::new();
+    let state_values = state.to_value_map();
 
-    for (idx, element) in elements.iter().enumerate() {
-        let element_path = if path_prefix.is_empty() {
-            idx.to_string()
-        } else {
-            format!("{}.{}", path_prefix, idx)
-        };
-
-        match element {
-            Element::Slider { label, .. } | Element::Textbox { label, .. } => {
-                active_labels.push(label.clone());
+    // Helper to check if an element's when clause is satisfied
+    let is_visible = |when: &Option<String>| -> bool {
+        match when {
+            None => true, // No when clause means always visible
+            Some(when_expr) => {
+                // Parse and evaluate when clause
+                match parse_condition(when_expr) {
+                    Ok(ast) => evaluate_condition(&ast, &state_values),
+                    Err(_) => {
+                        // If parsing fails, default to visible (fail-open)
+                        log::warn!("Failed to parse when clause: {}", when_expr);
+                        true
+                    }
+                }
             }
-            Element::Checkbox {
-                label, conditional, ..
-            } => {
-                active_labels.push(label.clone());
-                // If checkbox is checked and has inline conditional, collect from it
-                let key = StateKey::new(label, &element_path);
-                if state.get_boolean(&key) {
-                    if let Some(children) = conditional {
-                        active_labels.extend(collect_active_elements(
-                            children,
+        }
+    };
+
+    for element in elements {
+        match element {
+            Element::Slider { id, when, .. } => {
+                if is_visible(when) {
+                    active_ids.push(id.clone());
+                }
+            }
+            Element::Textbox { id, when, .. } => {
+                if is_visible(when) {
+                    active_ids.push(id.clone());
+                }
+            }
+            Element::Checkbox { id, reveals, when, .. } => {
+                if is_visible(when) {
+                    active_ids.push(id.clone());
+                    // If checkbox is checked and has reveals, collect from it
+                    if state.get_boolean(id) && !reveals.is_empty() {
+                        active_ids.extend(collect_active_elements(
+                            reveals,
                             state,
-                            all_elements,
-                            &format!("{}.checkbox", element_path),
+                            _all_elements,
+                            "",
                         ));
                     }
                 }
             }
-            Element::Multiselect { label, options } => {
-                active_labels.push(label.clone());
-                // For each checked option with conditional, collect from it
-                let key = StateKey::new(label, &element_path);
-                if let Some(selections) = state.get_multichoice(&key) {
-                    for (i, option) in options.iter().enumerate() {
-                        if i < selections.len() && selections[i] {
-                            if let Some(children) = option.conditional() {
-                                active_labels.extend(collect_active_elements(
+            Element::Multiselect { id, options, option_children, reveals, when, .. } => {
+                if is_visible(when) {
+                    active_ids.push(id.clone());
+                    // For each checked option with children, collect from it
+                    if let Some(selections) = state.get_multichoice(id) {
+                        for (i, option) in options.iter().enumerate() {
+                            if i < selections.len() && selections[i] {
+                                if let Some(children) = option_children.get(option) {
+                                    active_ids.extend(collect_active_elements(
+                                        children,
+                                        state,
+                                        _all_elements,
+                                        "",
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    // Collect from reveals
+                    if !reveals.is_empty() {
+                        active_ids.extend(collect_active_elements(
+                            reveals,
+                            state,
+                            _all_elements,
+                            "",
+                        ));
+                    }
+                }
+            }
+            Element::Choice { id, options, option_children, reveals, when, .. } => {
+                if is_visible(when) {
+                    active_ids.push(id.clone());
+                    // If there's a selected option with children, collect from it
+                    if let Some(Some(idx)) = state.get_choice(id) {
+                        if let Some(option_text) = options.get(idx) {
+                            if let Some(children) = option_children.get(option_text) {
+                                active_ids.extend(collect_active_elements(
                                     children,
                                     state,
-                                    all_elements,
-                                    &format!("{}.multiselect_{}", element_path, i),
+                                    _all_elements,
+                                    "",
                                 ));
                             }
                         }
                     }
-                }
-            }
-            Element::Choice { label, options, .. } => {
-                active_labels.push(label.clone());
-                // If there's a selected option with conditional, collect from it
-                let key = StateKey::new(label, &element_path);
-                if let Some(Some(idx)) = state.get_choice(&key) {
-                    if let Some(option) = options.get(idx) {
-                        if let Some(children) = option.conditional() {
-                            active_labels.extend(collect_active_elements(
-                                children,
-                                state,
-                                all_elements,
-                                &format!("{}.choice_{}", element_path, idx),
-                            ));
-                        }
+                    // Collect from reveals
+                    if !reveals.is_empty() {
+                        active_ids.extend(collect_active_elements(
+                            reveals,
+                            state,
+                            _all_elements,
+                            "",
+                        ));
                     }
                 }
             }
-            Element::Group { elements, .. } => {
-                // Recursively collect from group
-                active_labels.extend(collect_active_elements(
-                    elements,
-                    state,
-                    all_elements,
-                    &format!("{}.group", element_path),
-                ));
-            }
-            Element::Conditional {
-                condition,
-                elements,
-            } => {
-                // Only collect from conditional if condition is met
-                if evaluate_condition(condition, state, all_elements, &element_path) {
-                    active_labels.extend(collect_active_elements(
+            Element::Group { elements, when, .. } => {
+                if is_visible(when) {
+                    // Recursively collect from group
+                    active_ids.extend(collect_active_elements(
                         elements,
                         state,
-                        all_elements,
-                        &format!("{}.cond", element_path),
+                        _all_elements,
+                        "",
                     ));
                 }
             }
-            Element::Text { .. } => {
-                // Text elements don't have state
+            Element::Text { id, when, .. } => {
+                // Text elements are included in active list if visible
+                if is_visible(when) {
+                    if let Some(text_id) = id {
+                        active_ids.push(text_id.clone());
+                    }
+                }
             }
         }
     }
 
-    active_labels
-}
-
-/// Evaluate if a condition is met based on current state
-fn evaluate_condition(
-    condition: &Condition,
-    state: &PopupState,
-    all_elements: &[Element],
-    _element_path: &str,
-) -> bool {
-    match condition {
-        Condition::Simple(label) => {
-            // Find the element with this label and get its path
-            if let Some((_, path)) = find_element_with_path(all_elements, label, "") {
-                let key = StateKey::new(label, &path);
-                // Pattern 1: Check if checkbox is true OR any multiselect option is selected OR choice has selection
-                if state.get_boolean(&key) {
-                    true // Checkbox is checked
-                } else if let Some(selections) = state.get_multichoice(&key) {
-                    selections.iter().any(|&selected| selected) // Any multiselect option selected
-                } else if let Some(Some(_)) = state.get_choice(&key) {
-                    true // Choice has a selection
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        Condition::Field { field, value } => {
-            // Find the element with this field label and get its path
-            if let Some((_, path)) = find_element_with_path(all_elements, field, "") {
-                let key = StateKey::new(field, &path);
-                // Pattern 2: Check if checkbox name matches value OR multiselect has specific option selected OR choice has specific option selected
-                if state.get_boolean(&key) && field == value {
-                    true // Checkbox checked and field name matches value
-                } else if let Some(selections) = state.get_multichoice(&key) {
-                    // Find multiselect options and check if the specified value is selected
-                    if let Some(options) = find_multiselect_options(all_elements, field) {
-                        options
-                            .iter()
-                            .position(|opt| opt == value)
-                            .and_then(|index| selections.get(index))
-                            .copied()
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
-                } else if let Some(Some(idx)) = state.get_choice(&key) {
-                    // Find choice options and check if the selected option matches value
-                    if let Some(options) = find_choice_options(all_elements, field) {
-                        options.get(idx).map(|s| s == value).unwrap_or(false)
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        Condition::Count { field, count } => {
-            // Find the element with this field label and get its path
-            if let Some((_, path)) = find_element_with_path(all_elements, field, "") {
-                let key = StateKey::new(field, &path);
-                // Pattern 3: Count-based conditions
-                use popup_common::ComparisonOp;
-
-                if let Some((op, target_value)) = ComparisonOp::parse_count_condition(count) {
-                    let actual_count = if state.get_boolean(&key) {
-                        1 // Checkbox counts as 1 if checked, 0 if not
-                    } else if let Some(selections) = state.get_multichoice(&key) {
-                        selections.iter().filter(|&&x| x).count() as i32
-                    } else if let Some(choice) = state.get_choice(&key) {
-                        if choice.is_some() {
-                            1
-                        } else {
-                            0
-                        } // Choice counts as 1 if selected, 0 if not
-                    } else {
-                        0
-                    };
-
-                    match op {
-                        ComparisonOp::Greater => actual_count > target_value,
-                        ComparisonOp::Less => actual_count < target_value,
-                        ComparisonOp::GreaterEqual => actual_count >= target_value,
-                        ComparisonOp::LessEqual => actual_count <= target_value,
-                        ComparisonOp::Equal => actual_count == target_value,
-                    }
-                } else {
-                    false // Invalid count condition
-                }
-            } else {
-                false
-            }
-        }
-    }
-}
-
-/// Find an element by label and return it with its path
-fn find_element_with_path<'a>(
-    elements: &'a [Element],
-    target_label: &str,
-    path_prefix: &str,
-) -> Option<(&'a Element, String)> {
-    for (idx, element) in elements.iter().enumerate() {
-        let element_path = if path_prefix.is_empty() {
-            idx.to_string()
-        } else {
-            format!("{}.{}", path_prefix, idx)
-        };
-
-        // Check if this element matches
-        let matches = match element {
-            Element::Checkbox { label, .. }
-            | Element::Slider { label, .. }
-            | Element::Textbox { label, .. }
-            | Element::Multiselect { label, .. }
-            | Element::Choice { label, .. } => label == target_label,
-            _ => false,
-        };
-
-        if matches {
-            return Some((element, element_path));
-        }
-
-        // Recursively search in nested elements
-        match element {
-            Element::Group { elements, .. } => {
-                if let Some(found) = find_element_with_path(
-                    elements,
-                    target_label,
-                    &format!("{}.group", element_path),
-                ) {
-                    return Some(found);
-                }
-            }
-            Element::Conditional { elements, .. } => {
-                if let Some(found) = find_element_with_path(
-                    elements,
-                    target_label,
-                    &format!("{}.cond", element_path),
-                ) {
-                    return Some(found);
-                }
-            }
-            Element::Checkbox {
-                conditional: Some(children),
-                ..
-            } => {
-                if let Some(found) = find_element_with_path(
-                    children,
-                    target_label,
-                    &format!("{}.checkbox", element_path),
-                ) {
-                    return Some(found);
-                }
-            }
-            Element::Multiselect { options, .. } => {
-                for (i, option) in options.iter().enumerate() {
-                    if let Some(children) = option.conditional() {
-                        if let Some(found) = find_element_with_path(
-                            children,
-                            target_label,
-                            &format!("{}.multiselect_{}", element_path, i),
-                        ) {
-                            return Some(found);
-                        }
-                    }
-                }
-            }
-            Element::Choice { options, .. } => {
-                for (i, option) in options.iter().enumerate() {
-                    if let Some(children) = option.conditional() {
-                        if let Some(found) = find_element_with_path(
-                            children,
-                            target_label,
-                            &format!("{}.choice_{}", element_path, i),
-                        ) {
-                            return Some(found);
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn find_multiselect_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
-    for element in elements {
-        match element {
-            Element::Multiselect {
-                label: el_label,
-                options,
-            } if el_label == label => {
-                return Some(options.iter().map(|opt| opt.value().to_string()).collect());
-            }
-            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
-                // Recursively search in nested elements
-                if let Some(options) = find_multiselect_options(elements, label) {
-                    return Some(options);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn find_choice_options(elements: &[Element], label: &str) -> Option<Vec<String>> {
-    for element in elements {
-        match element {
-            Element::Choice {
-                label: el_label,
-                options,
-                ..
-            } if el_label == label => {
-                return Some(options.iter().map(|opt| opt.value().to_string()).collect());
-            }
-            Element::Group { elements, .. } | Element::Conditional { elements, .. } => {
-                // Recursively search in nested elements
-                if let Some(options) = find_choice_options(elements, label) {
-                    return Some(options);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
+    active_ids
 }
 
 fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
@@ -911,6 +715,9 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     max_width = max_width.clamp(400.0, 700.0); // Increased minimum and maximum
     height = height.min(800.0); // Allow taller windows
 
+    // GUI hack: ensure minimum height equals width for better proportions
+    height = height.max(max_width);
+
     (max_width, height)
 }
 
@@ -929,22 +736,22 @@ fn calculate_elements_size(
 
     for element in elements {
         match element {
-            Element::Text { content: text } => {
+            Element::Text { text, .. } => {
                 *height += 40.0; // Moderately larger text requires more height
                 *max_width = max_width.max(text.len() as f32 * 12.0 + 40.0); // Moderately larger character width
             }
-            Element::Slider { label, .. } => {
+            Element::Slider { slider, .. } => {
                 if uses_slider_grid {
                     // For grid layout: need width for 2 columns + spacing with larger text
                     // Each column needs: label + slider + value display
                     *max_width = max_width.max(550.0); // More space for grid layout with moderately larger text
                 }
                 *height += 50.0; // Moderately larger slider height for bigger text and spacing
-                *max_width = max_width.max(label.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
+                *max_width = max_width.max(slider.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
             }
-            Element::Checkbox { label, .. } => {
+            Element::Checkbox { checkbox, .. } => {
                 *height += 35.0; // Moderately larger checkbox height for bigger text
-                *max_width = max_width.max(label.len() as f32 * 12.0 + 90.0); // Moderately larger character width + checkbox
+                *max_width = max_width.max(checkbox.len() as f32 * 12.0 + 90.0); // Moderately larger character width + checkbox
             }
             Element::Textbox { rows, .. } => {
                 *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
@@ -961,46 +768,28 @@ fn calculate_elements_size(
                     *height += 30.0 * options.len() as f32; // Moderately larger checkbox height
                     let longest = options
                         .iter()
-                        .map(|opt| opt.value().len())
+                        .map(|opt| opt.len())
                         .max()
                         .unwrap_or(0);
                     *max_width = max_width.max((longest as f32) * 12.0 + 130.0);
                     // Moderately larger character width + more space
                 }
             }
-            Element::Choice { label, options, .. } => {
+            Element::Choice { choice, options, .. } => {
                 *height += 35.0; // Label height
                 *height += 35.0; // ComboBox height
                 let longest = options
                     .iter()
-                    .map(|opt| opt.value().len())
+                    .map(|opt| opt.len())
                     .max()
                     .unwrap_or(0)
-                    .max(label.len());
+                    .max(choice.len());
                 *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
             }
             Element::Group { elements, .. } => {
                 *height += 40.0; // Moderately larger group header height for bigger text
                 calculate_elements_size(elements, height, max_width, include_conditionals);
                 *height += 15.0; // Proper group padding
-            }
-            Element::Conditional {
-                elements,
-                condition,
-            } => {
-                if include_conditionals {
-                    // Use probability heuristic
-                    let probability = match condition {
-                        Condition::Simple(_) => 0.3,
-                        Condition::Field { .. } => 0.4,
-                        Condition::Count { .. } => 0.2,
-                    };
-
-                    let start_height = *height;
-                    calculate_elements_size(elements, height, max_width, include_conditionals);
-                    let added_height = *height - start_height;
-                    *height = start_height + (added_height * probability);
-                }
             }
         }
         *height += 5.0; // Proper item spacing

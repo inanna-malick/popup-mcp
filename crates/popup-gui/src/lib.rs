@@ -10,7 +10,7 @@ mod tests;
 
 // Re-export from popup-common
 pub use popup_common::{
-    ComparisonOp, Condition, Element, ElementValue, PopupDefinition, PopupResult, PopupState,
+    Element, ElementValue, PopupDefinition, PopupResult, PopupState,
 };
 
 // Re-export from this crate

@@ -1,0 +1,48 @@
+// PEG grammar for popup condition expressions
+// Based on proposal.md specification
+
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+
+// Top-level expression
+expr = { or }
+
+// Logical OR (lowest precedence)
+or = { and ~ ("||" ~ and)* }
+
+// Logical AND
+and = { comp ~ ("&&" ~ comp)* }
+
+// Comparison expressions
+comp = { value ~ (op ~ value)? }
+
+// Comparison operators
+op = { ">=" | "<=" | "==" | "!=" | ">" | "<" }
+
+// Values (ordered by specificity)
+value = {
+    "(" ~ expr ~ ")"  // Parenthesized expression
+  | "!" ~ value       // Negation
+  | ref               // Field reference
+  | func              // Function call
+  | number            // Numeric literal
+  | string            // Explicit string literal
+  | ident             // Bare identifier (implicit string)
+}
+
+// Field reference (@identifier)
+ref = @{ "@" ~ ident }
+
+// Function call
+func = { ident ~ "(" ~ args? ~ ")" }
+
+// Function arguments
+args = { expr ~ ("," ~ expr)* }
+
+// Identifier (alphanumeric + underscore, must start with letter or underscore)
+ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// Number literal (integer or float)
+number = @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+
+// String literal (single or double quoted)
+string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\"" | "'" ~ (!("'") ~ ANY)* ~ "'" }

@@ -1,6 +1,9 @@
 {
   "title": "Delete File?",
   "elements": [
-    {"type": "text", "content": "This action cannot be undone."}
+    {
+      "text": "This action cannot be undone.",
+      "id": "warning_text"
+    }
   ]
 }

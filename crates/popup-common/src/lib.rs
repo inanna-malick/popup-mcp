@@ -1,80 +1,15 @@
 pub mod protocol;
+pub mod condition;
+mod element_deser;
+
+#[cfg(test)]
+mod tests;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 
-/// Unique identifier for widget state values, combining element path and label.
-/// Prevents state collisions when same label appears in multiple conditional branches.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StateKey {
-    /// Full path including element position (e.g., "0.multiselect_1.Why?")
-    full_path: String,
-    /// Original widget label for result serialization (e.g., "Why?")
-    label: String,
-}
-
-impl StateKey {
-    /// Create a new state key from label and element path
-    pub fn new(label: impl Into<String>, element_path: &str) -> Self {
-        let label = label.into();
-        let full_path = if element_path.is_empty() {
-            label.clone()
-        } else {
-            format!("{}.{}", element_path, label)
-        };
-        Self { full_path, label }
-    }
-
-    /// Get the original label (for result serialization)
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Get the full path (for debugging)
-    pub fn full_path(&self) -> &str {
-        &self.full_path
-    }
-}
-
-/// Represents an option value in Choice or Multiselect elements.
-/// Can be a simple string or include inline conditional elements.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum OptionValue {
-    /// Simple string option with no conditional UI
-    Simple(String),
-    /// Option with conditional elements shown when selected
-    WithConditional {
-        value: String,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        conditional: Vec<Element>,
-    },
-}
-
-impl OptionValue {
-    /// Get the display value of this option
-    pub fn value(&self) -> &str {
-        match self {
-            OptionValue::Simple(s) => s,
-            OptionValue::WithConditional { value, .. } => value,
-        }
-    }
-
-    /// Get the conditional elements if present
-    pub fn conditional(&self) -> Option<&[Element]> {
-        match self {
-            OptionValue::Simple(_) => None,
-            OptionValue::WithConditional { conditional, .. } => {
-                if conditional.is_empty() {
-                    None
-                } else {
-                    Some(conditional)
-                }
-            }
-        }
-    }
-}
+pub use condition::{parse_condition, evaluate_condition, ConditionExpr};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PopupDefinition {
@@ -89,141 +24,84 @@ impl PopupDefinition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+/// Schema v2: Element types using element-as-key pattern
+/// Discriminated by which field is present, not explicit "type" tag
+/// Serialize/Deserialize impls in element_deser.rs for element-as-key and option-as-key support
+#[derive(Debug, Clone, PartialEq)]
 pub enum Element {
+    /// Static text display
     Text {
-        content: String,
+        text: String,
+        id: Option<String>,
+        when: Option<String>,
     },
+
+    /// Numeric slider input
     Slider {
-        label: String,
+        slider: String, // Label text becomes the discriminator key
+        id: String,
         min: f32,
         max: f32,
-        #[serde(default)]
         default: Option<f32>,
+        reveals: Vec<Element>,
+        when: Option<String>,
     },
+
+    /// Boolean checkbox input
     Checkbox {
-        label: String,
-        #[serde(default)]
+        checkbox: String, // Label text becomes the discriminator key
+        id: String,
         default: bool,
-        /// Optional inline conditional elements shown when checkbox is checked
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        conditional: Option<Vec<Element>>,
+        reveals: Vec<Element>,
+        when: Option<String>,
     },
+
+    /// Text input field (single or multi-line)
     Textbox {
-        label: String,
-        #[serde(default)]
+        textbox: String, // Label text becomes the discriminator key
+        id: String,
         placeholder: Option<String>,
-        #[serde(default)]
         rows: Option<u32>,
+        reveals: Vec<Element>,
+        when: Option<String>,
     },
+
+    /// Multiple selection from options (with option-as-key nesting)
     Multiselect {
-        label: String,
-        options: Vec<OptionValue>,
+        multiselect: String, // Label text becomes the discriminator key
+        id: String,
+        options: Vec<String>,
+        // Option-as-key nesting: HashMap<option_value, Vec<Element>>
+        // Custom serialize/deserialize handles option children as direct JSON keys
+        option_children: HashMap<String, Vec<Element>>,
+        reveals: Vec<Element>,
+        when: Option<String>,
     },
+
+    /// Single selection from options (with option-as-key nesting)
     Choice {
-        label: String,
-        options: Vec<OptionValue>,
-        #[serde(default)]
+        choice: String, // Label text becomes the discriminator key
+        id: String,
+        options: Vec<String>,
         default: Option<usize>,
+        // Option-as-key nesting: HashMap<option_value, Vec<Element>>
+        // Custom serialize/deserialize handles option children as direct JSON keys
+        option_children: HashMap<String, Vec<Element>>,
+        reveals: Vec<Element>,
+        when: Option<String>,
     },
+
+    /// Labeled container for grouping elements
     Group {
-        label: String,
+        group: String, // Label text becomes the discriminator key
+        id: Option<String>,
         elements: Vec<Element>,
+        when: Option<String>,
     },
-    Conditional {
-        condition: Condition,
-        elements: Vec<Element>,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Condition {
-    // Pattern 1: Simple existence check - true if checkbox checked OR any multiselect option selected
-    Simple(String),
-    // Pattern 2: Specific value check - true if checkbox name matches value OR multiselect has option selected
-    Field {
-        field: String,
-        value: String,
-    },
-    // Pattern 3: Quantity check - count of selected items (checkbox: 0 or 1, multiselect: count of selected)
-    Count {
-        field: String,
-        count: String, // e.g., ">2", "=1", "<=3"
-    },
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ComparisonOp {
-    Greater,
-    Less,
-    GreaterEqual,
-    LessEqual,
-    Equal,
-}
-
-impl ComparisonOp {
-    /// Parse a count condition string like ">2", "=1", "<=3" into operator and value
-    pub fn parse_count_condition(count_str: &str) -> Option<(ComparisonOp, i32)> {
-        let count_str = count_str.trim();
-
-        if let Some(rest) = count_str.strip_prefix(">=") {
-            rest.parse().ok().map(|v| (ComparisonOp::GreaterEqual, v))
-        } else if let Some(rest) = count_str.strip_prefix("<=") {
-            rest.parse().ok().map(|v| (ComparisonOp::LessEqual, v))
-        } else if let Some(rest) = count_str.strip_prefix(">") {
-            rest.parse().ok().map(|v| (ComparisonOp::Greater, v))
-        } else if let Some(rest) = count_str.strip_prefix("<") {
-            rest.parse().ok().map(|v| (ComparisonOp::Less, v))
-        } else if let Some(rest) = count_str.strip_prefix("=") {
-            rest.parse().ok().map(|v| (ComparisonOp::Equal, v))
-        } else {
-            // Default to equality if no operator specified
-            count_str.parse().ok().map(|v| (ComparisonOp::Equal, v))
-        }
-    }
-}
-
-// Custom serialization/deserialization to handle operator strings
-impl Serialize for ComparisonOp {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let s = match self {
-            ComparisonOp::Greater => ">",
-            ComparisonOp::Less => "<",
-            ComparisonOp::GreaterEqual => ">=",
-            ComparisonOp::LessEqual => "<=",
-            ComparisonOp::Equal => "=",
-        };
-        serializer.serialize_str(s)
-    }
-}
-
-impl<'de> Deserialize<'de> for ComparisonOp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        match s.as_str() {
-            ">" => Ok(ComparisonOp::Greater),
-            "<" => Ok(ComparisonOp::Less),
-            ">=" => Ok(ComparisonOp::GreaterEqual),
-            "<=" => Ok(ComparisonOp::LessEqual),
-            "=" | "==" => Ok(ComparisonOp::Equal),
-            _ => Err(serde::de::Error::custom(format!(
-                "Invalid comparison operator: {}. Expected one of: >, <, >=, <=, =",
-                s
-            ))),
-        }
-    }
 }
 
 /// Unified value type for all widget states
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ElementValue {
     Number(f32),
     Boolean(bool),
@@ -232,170 +110,147 @@ pub enum ElementValue {
     Choice(Option<usize>),
 }
 
-/// Runtime state of the popup
+/// Runtime state of the popup (v2 schema)
 #[derive(Default)]
 pub struct PopupState {
-    pub values: HashMap<StateKey, ElementValue>,
+    pub values: HashMap<String, ElementValue>,  // ID -> value
     pub button_clicked: Option<String>,
 }
 
 impl PopupState {
     pub fn new(definition: &PopupDefinition) -> Self {
         let mut state = PopupState::default();
-        state.init_elements(&definition.elements, "");
+        state.init_elements(&definition.elements);
         state
     }
 
-    fn init_elements(&mut self, elements: &[Element], path_prefix: &str) {
-        for (idx, element) in elements.iter().enumerate() {
-            let element_path = if path_prefix.is_empty() {
-                idx.to_string()
-            } else {
-                format!("{}.{}", path_prefix, idx)
-            };
+    fn init_elements(&mut self, elements: &[Element]) {
+        for element in elements {
             match element {
-                Element::Slider {
-                    label,
-                    min,
-                    max,
-                    default,
-                } => {
+                Element::Slider { id, min, max, default, reveals, .. } => {
                     let default_value = default.unwrap_or((min + max) / 2.0);
-                    self.values.insert(
-                        StateKey::new(label, &element_path),
-                        ElementValue::Number(default_value),
-                    );
+                    self.values.insert(id.clone(), ElementValue::Number(default_value));
+                    self.init_elements(reveals);
                 }
-                Element::Checkbox {
-                    label,
-                    default,
-                    conditional,
-                } => {
-                    self.values.insert(
-                        StateKey::new(label, &element_path),
-                        ElementValue::Boolean(*default),
-                    );
-                    // Recursively init inline conditional elements
-                    if let Some(children) = conditional {
-                        self.init_elements(children, &format!("{}.checkbox", element_path));
+                Element::Checkbox { id, default, reveals, .. } => {
+                    self.values.insert(id.clone(), ElementValue::Boolean(*default));
+                    self.init_elements(reveals);
+                }
+                Element::Textbox { id, reveals, .. } => {
+                    self.values.insert(id.clone(), ElementValue::Text(String::new()));
+                    self.init_elements(reveals);
+                }
+                Element::Multiselect { id, options, option_children, reveals, .. } => {
+                    self.values.insert(id.clone(), ElementValue::MultiChoice(vec![false; options.len()]));
+                    // Recurse into option-as-key children
+                    for children in option_children.values() {
+                        self.init_elements(children);
                     }
+                    self.init_elements(reveals);
                 }
-                Element::Textbox { label, .. } => {
-                    self.values.insert(
-                        StateKey::new(label, &element_path),
-                        ElementValue::Text(String::new()),
-                    );
-                }
-                Element::Multiselect { label, options } => {
-                    self.values.insert(
-                        StateKey::new(label, &element_path),
-                        ElementValue::MultiChoice(vec![false; options.len()]),
-                    );
-                    // Recursively init inline conditionals from options
-                    for (i, opt) in options.iter().enumerate() {
-                        if let Some(children) = opt.conditional() {
-                            self.init_elements(
-                                children,
-                                &format!("{}.multiselect_{}", element_path, i),
-                            );
-                        }
+                Element::Choice { id,  default, option_children, reveals, .. } => {
+                    self.values.insert(id.clone(), ElementValue::Choice(*default));
+                    for children in option_children.values() {
+                        self.init_elements(children);
                     }
-                }
-                Element::Choice {
-                    label,
-                    default,
-                    options,
-                } => {
-                    self.values.insert(
-                        StateKey::new(label, &element_path),
-                        ElementValue::Choice(*default),
-                    );
-                    // Recursively init inline conditionals from options
-                    for (i, opt) in options.iter().enumerate() {
-                        if let Some(children) = opt.conditional() {
-                            self.init_elements(children, &format!("{}.choice_{}", element_path, i));
-                        }
-                    }
+                    self.init_elements(reveals);
                 }
                 Element::Group { elements, .. } => {
-                    self.init_elements(elements, &format!("{}.group", element_path));
+                    self.init_elements(elements);
                 }
-                Element::Conditional { elements, .. } => {
-                    self.init_elements(elements, &format!("{}.cond", element_path));
+                Element::Text { .. } => {
+                    // Text elements have no state
                 }
-                _ => {}
             }
         }
     }
 
-    // Helper methods for GUI access
-    pub fn get_number_mut(&mut self, key: &StateKey) -> Option<&mut f32> {
-        match self.values.get_mut(key) {
+    // Helper methods for GUI access - now take &str (id) instead of &StateKey
+    pub fn get_number_mut(&mut self, id: &str) -> Option<&mut f32> {
+        match self.values.get_mut(id) {
             Some(ElementValue::Number(ref mut n)) => Some(n),
             _ => None,
         }
     }
 
-    pub fn get_boolean_mut(&mut self, key: &StateKey) -> Option<&mut bool> {
-        match self.values.get_mut(key) {
+    pub fn get_boolean_mut(&mut self, id: &str) -> Option<&mut bool> {
+        match self.values.get_mut(id) {
             Some(ElementValue::Boolean(ref mut b)) => Some(b),
             _ => None,
         }
     }
 
-    pub fn get_text_mut(&mut self, key: &StateKey) -> Option<&mut String> {
-        match self.values.get_mut(key) {
+    pub fn get_text_mut(&mut self, id: &str) -> Option<&mut String> {
+        match self.values.get_mut(id) {
             Some(ElementValue::Text(ref mut s)) => Some(s),
             _ => None,
         }
     }
 
-    pub fn get_multichoice_mut(&mut self, key: &StateKey) -> Option<&mut Vec<bool>> {
-        match self.values.get_mut(key) {
+    pub fn get_multichoice_mut(&mut self, id: &str) -> Option<&mut Vec<bool>> {
+        match self.values.get_mut(id) {
             Some(ElementValue::MultiChoice(ref mut v)) => Some(v),
             _ => None,
         }
     }
 
-    pub fn get_choice_mut(&mut self, key: &StateKey) -> Option<&mut Option<usize>> {
-        match self.values.get_mut(key) {
+    pub fn get_choice_mut(&mut self, id: &str) -> Option<&mut Option<usize>> {
+        match self.values.get_mut(id) {
             Some(ElementValue::Choice(ref mut c)) => Some(c),
             _ => None,
         }
     }
 
-    pub fn get_boolean(&self, key: &StateKey) -> bool {
-        match self.values.get(key) {
+    // Const accessors for condition evaluation
+    pub fn get_boolean(&self, id: &str) -> bool {
+        match self.values.get(id) {
             Some(ElementValue::Boolean(b)) => *b,
             _ => false,
         }
     }
 
-    pub fn get_multichoice(&self, key: &StateKey) -> Option<&Vec<bool>> {
-        match self.values.get(key) {
+    pub fn get_multichoice(&self, id: &str) -> Option<&Vec<bool>> {
+        match self.values.get(id) {
             Some(ElementValue::MultiChoice(v)) => Some(v),
             _ => None,
         }
     }
 
-    pub fn get_text(&self, key: &StateKey) -> Option<&String> {
-        match self.values.get(key) {
-            Some(ElementValue::Text(s)) => Some(s),
-            _ => None,
-        }
-    }
-
-    pub fn get_choice(&self, key: &StateKey) -> Option<Option<usize>> {
-        match self.values.get(key) {
+    pub fn get_choice(&self, id: &str) -> Option<Option<usize>> {
+        match self.values.get(id) {
             Some(ElementValue::Choice(c)) => Some(*c),
             _ => None,
         }
     }
 
-    /// Find StateKey by label - useful for tests and simple lookups
-    /// Returns first matching key if multiple elements share same label
-    pub fn find_key_by_label(&self, label: &str) -> Option<StateKey> {
-        self.values.keys().find(|k| k.label() == label).cloned()
+    pub fn get_text(&self, id: &str) -> Option<&String> {
+        match self.values.get(id) {
+            Some(ElementValue::Text(s)) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Convert PopupState to HashMap<String, Value> for condition evaluation
+    /// Maps id -> JSON value for use with evaluate_condition()
+    pub fn to_value_map(&self) -> HashMap<String, Value> {
+        use serde_json::json;
+
+        self.values.iter().map(|(id, val)| {
+            let json_val = match val {
+                ElementValue::Number(n) => json!(*n),
+                ElementValue::Boolean(b) => json!(*b),
+                ElementValue::Text(s) => json!(s),
+                ElementValue::MultiChoice(selections) => {
+                    // Array of booleans for condition evaluation
+                    json!(selections)
+                }
+                ElementValue::Choice(idx) => {
+                    // Numeric index or null
+                    json!(idx)
+                }
+            };
+            (id.clone(), json_val)
+        }).collect()
     }
 }
 
@@ -417,10 +272,12 @@ pub enum PopupResult {
 
 impl PopupResult {
     pub fn from_state(state: &PopupState) -> Self {
+        use serde_json::json;
+
         let values = state
             .values
             .iter()
-            .filter_map(|(key, value)| {
+            .filter_map(|(id, value)| {
                 let json_value = match value {
                     ElementValue::Number(n) => json!(*n as i32),
                     ElementValue::Boolean(b) => json!(*b),
@@ -433,9 +290,10 @@ impl PopupResult {
                             .collect();
                         json!(indices)
                     }
-                    _ => return None, // Skip empty text fields
+                    ElementValue::Choice(Some(idx)) => json!(*idx),
+                    _ => return None, // Skip empty text, unselected choice
                 };
-                Some((key.label().to_string(), json_value))
+                Some((id.clone(), json_value))
             })
             .collect();
 
@@ -449,35 +307,48 @@ impl PopupResult {
     }
 
     pub fn from_state_with_context(state: &PopupState, definition: &PopupDefinition) -> Self {
-        let mut values = HashMap::new();
+        use serde_json::json;
 
-        // Helper to find element metadata by label
-        fn find_element<'a>(elements: &'a [Element], label: &str) -> Option<&'a Element> {
+        // Helper to find element by ID recursively
+        fn find_element_by_id<'a>(elements: &'a [Element], id: &str) -> Option<&'a Element> {
             for element in elements {
                 match element {
-                    e @ Element::Slider { label: l, .. }
-                    | e @ Element::Checkbox { label: l, .. }
-                    | e @ Element::Textbox { label: l, .. }
-                    | e @ Element::Multiselect { label: l, .. }
-                    | e @ Element::Choice { label: l, .. }
-                        if l == label =>
-                    {
-                        return Some(e)
-                    }
-                    Element::Group {
-                        elements: group_elements,
-                        ..
-                    } => {
-                        if let Some(e) = find_element(group_elements, label) {
+                    e @ Element::Slider { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Checkbox { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Textbox { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Multiselect { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Choice { id: eid, .. } if eid == id => return Some(e),
+                    Element::Group { elements: children, .. } => {
+                        if let Some(e) = find_element_by_id(children, id) {
                             return Some(e);
                         }
                     }
-                    Element::Conditional {
-                        elements: cond_elements,
-                        ..
-                    } => {
-                        if let Some(e) = find_element(cond_elements, label) {
-                            return Some(e);
+                    // Search in reveals for Slider, Checkbox, Textbox
+                    Element::Slider { reveals, .. }
+                    | Element::Checkbox { reveals, .. }
+                    | Element::Textbox { reveals, .. } => {
+                        if !reveals.is_empty() {
+                            if let Some(e) = find_element_by_id(reveals, id) {
+                                return Some(e);
+                            }
+                        }
+                    }
+                    // Search in both reveals and option_children for Multiselect and Choice
+                    Element::Multiselect { reveals, option_children, .. }
+                    | Element::Choice { reveals, option_children, .. } => {
+                        // Search reveals first
+                        if !reveals.is_empty() {
+                            if let Some(e) = find_element_by_id(reveals, id) {
+                                return Some(e);
+                            }
+                        }
+                        // Then search option_children
+                        if !option_children.is_empty() {
+                            for child_elements in option_children.values() {
+                                if let Some(e) = find_element_by_id(child_elements, id) {
+                                    return Some(e);
+                                }
+                            }
                         }
                     }
                     _ => {}
@@ -486,12 +357,13 @@ impl PopupResult {
             None
         }
 
-        for (key, value) in &state.values {
-            let element = find_element(&definition.elements, key.label());
+        let mut values = HashMap::new();
+
+        for (id, value) in &state.values {
+            let element = find_element_by_id(&definition.elements, id);
 
             let json_value = match (value, element) {
                 (ElementValue::Number(n), Some(Element::Slider { max, .. })) => {
-                    // Format as "value/max" for sliders
                     json!(format!("{}/{}", *n as i32, *max as i32))
                 }
                 (ElementValue::Boolean(b), _) => json!(*b),
@@ -500,26 +372,18 @@ impl PopupResult {
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
                 ) => {
-                    // Return selected option texts instead of indices
-                    let selected: Vec<String> = selections
+                    let selected: Vec<&String> = selections
                         .iter()
                         .enumerate()
-                        .filter_map(|(i, &selected)| {
-                            selected
-                                .then_some(options.get(i).map(|opt| opt.value().to_string()))
-                                .flatten()
-                        })
+                        .filter_map(|(i, &sel)| sel.then_some(options.get(i)))
+                        .flatten()
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    // Return selected option text
-                    options
-                        .get(*idx)
-                        .map(|opt| json!(opt.value()))
-                        .unwrap_or_else(|| json!(null))
+                    options.get(*idx).map(|opt| json!(opt)).unwrap_or(json!(null))
                 }
-                (ElementValue::Choice(None), _) => continue, // Skip unselected choice
+                (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
@@ -529,10 +393,10 @@ impl PopupResult {
                         .collect();
                     json!(indices)
                 }
-                _ => continue, // Skip empty text fields
+                _ => continue,
             };
 
-            values.insert(key.label().to_string(), json_value);
+            values.insert(id.clone(), json_value);
         }
 
         PopupResult::Completed {
@@ -547,37 +411,50 @@ impl PopupResult {
     pub fn from_state_with_active_elements(
         state: &PopupState,
         definition: &PopupDefinition,
-        active_labels: &[String],
+        active_ids: &[String],
     ) -> Self {
-        let mut values = HashMap::new();
+        use serde_json::json;
 
-        // Helper to find element metadata by label
-        fn find_element<'a>(elements: &'a [Element], label: &str) -> Option<&'a Element> {
+        // Helper to find element by ID recursively (reuse from from_state_with_context)
+        fn find_element_by_id<'a>(elements: &'a [Element], id: &str) -> Option<&'a Element> {
             for element in elements {
                 match element {
-                    e @ Element::Slider { label: l, .. }
-                    | e @ Element::Checkbox { label: l, .. }
-                    | e @ Element::Textbox { label: l, .. }
-                    | e @ Element::Multiselect { label: l, .. }
-                    | e @ Element::Choice { label: l, .. }
-                        if l == label =>
-                    {
-                        return Some(e)
-                    }
-                    Element::Group {
-                        elements: group_elements,
-                        ..
-                    } => {
-                        if let Some(e) = find_element(group_elements, label) {
+                    e @ Element::Slider { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Checkbox { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Textbox { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Multiselect { id: eid, .. } if eid == id => return Some(e),
+                    e @ Element::Choice { id: eid, .. } if eid == id => return Some(e),
+                    Element::Group { elements: children, .. } => {
+                        if let Some(e) = find_element_by_id(children, id) {
                             return Some(e);
                         }
                     }
-                    Element::Conditional {
-                        elements: cond_elements,
-                        ..
-                    } => {
-                        if let Some(e) = find_element(cond_elements, label) {
-                            return Some(e);
+                    // Search in reveals for Slider, Checkbox, Textbox
+                    Element::Slider { reveals, .. }
+                    | Element::Checkbox { reveals, .. }
+                    | Element::Textbox { reveals, .. } => {
+                        if !reveals.is_empty() {
+                            if let Some(e) = find_element_by_id(reveals, id) {
+                                return Some(e);
+                            }
+                        }
+                    }
+                    // Search in both reveals and option_children for Multiselect and Choice
+                    Element::Multiselect { reveals, option_children, .. }
+                    | Element::Choice { reveals, option_children, .. } => {
+                        // Search reveals first
+                        if !reveals.is_empty() {
+                            if let Some(e) = find_element_by_id(reveals, id) {
+                                return Some(e);
+                            }
+                        }
+                        // Then search option_children
+                        if !option_children.is_empty() {
+                            for child_elements in option_children.values() {
+                                if let Some(e) = find_element_by_id(child_elements, id) {
+                                    return Some(e);
+                                }
+                            }
                         }
                     }
                     _ => {}
@@ -586,17 +463,18 @@ impl PopupResult {
             None
         }
 
-        for (key, value) in &state.values {
+        let mut values = HashMap::new();
+
+        for (id, value) in &state.values {
             // Skip this value if it's not in the active elements
-            if !active_labels.contains(&key.label().to_string()) {
+            if !active_ids.contains(id) {
                 continue;
             }
 
-            let element = find_element(&definition.elements, key.label());
+            let element = find_element_by_id(&definition.elements, id);
 
             let json_value = match (value, element) {
                 (ElementValue::Number(n), Some(Element::Slider { max, .. })) => {
-                    // Format as "value/max" for sliders
                     json!(format!("{}/{}", *n as i32, *max as i32))
                 }
                 (ElementValue::Boolean(b), _) => json!(*b),
@@ -605,26 +483,18 @@ impl PopupResult {
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
                 ) => {
-                    // Return selected option texts instead of indices
-                    let selected: Vec<String> = selections
+                    let selected: Vec<&String> = selections
                         .iter()
                         .enumerate()
-                        .filter_map(|(i, &selected)| {
-                            selected
-                                .then_some(options.get(i).map(|opt| opt.value().to_string()))
-                                .flatten()
-                        })
+                        .filter_map(|(i, &sel)| sel.then_some(options.get(i)))
+                        .flatten()
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    // Return selected option text
-                    options
-                        .get(*idx)
-                        .map(|opt| json!(opt.value()))
-                        .unwrap_or_else(|| json!(null))
+                    options.get(*idx).map(|opt| json!(opt)).unwrap_or(json!(null))
                 }
-                (ElementValue::Choice(None), _) => continue, // Skip unselected choice
+                (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {
                     let indices: Vec<usize> = selections
@@ -634,10 +504,10 @@ impl PopupResult {
                         .collect();
                     json!(indices)
                 }
-                _ => continue, // Skip empty text fields
+                _ => continue,
             };
 
-            values.insert(key.label().to_string(), json_value);
+            values.insert(id.clone(), json_value);
         }
 
         PopupResult::Completed {

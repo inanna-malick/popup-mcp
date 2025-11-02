@@ -45,7 +45,7 @@ cargo fmt
 cargo clippy
 
 # Test popup directly from command line with JSON
-echo '{"title": "Test", "elements": [{"type": "text", "content": "Hello"}]}' | cargo run -p popup-gui -- --stdin
+echo '{"title": "Test", "elements": [{"text": "Hello"}]}' | cargo run -p popup-gui -- --stdin
 
 # Test with example file
 cargo run -p popup-gui -- --file examples/simple_confirm.json
@@ -233,7 +233,14 @@ MCP Client (receives result)
 - `conditional_settings.json`: Settings with conditional visibility
 - `choice_demo.json`: Choice widget demonstrations
 
-## JSON Structure Reference
+## JSON Structure Reference (V2 Schema)
+
+**Key Concepts:**
+- **Element-as-key**: Widget type is the JSON key (e.g., `{"slider": "Volume"}` not `{"type": "slider"}`)
+- **Required IDs**: All interactive elements must have an `"id"` field for state management
+- **When clauses**: Replace standalone Conditional elements with `"when"` field on any element
+- **Reveals**: Inline conditionals on checkboxes/multiselect/choice using `"reveals"` field
+- **Option-as-key nesting**: Choice/Multiselect children use option text as direct JSON keys
 
 ### Basic Structure
 ```json
@@ -249,14 +256,17 @@ MCP Client (receives result)
 
 #### Text
 ```json
-{"type": "text", "content": "Display text"}
+{
+  "text": "Display text",
+  "id": "message"  // Optional for text elements
+}
 ```
 
 #### Slider
 ```json
 {
-  "type": "slider",
-  "label": "Volume",
+  "slider": "Volume",
+  "id": "volume",
   "min": 0,
   "max": 100,
   "default": 50  // Optional, defaults to midpoint
@@ -266,22 +276,22 @@ MCP Client (receives result)
 #### Checkbox
 ```json
 {
-  "type": "checkbox",
-  "label": "Enable feature",
+  "checkbox": "Enable feature",
+  "id": "enable_feature",
   "default": true  // Optional, defaults to false
 }
 ```
 
-With inline conditional (shown when checked):
+With reveals (shown when checked):
 ```json
 {
-  "type": "checkbox",
-  "label": "Enable advanced",
+  "checkbox": "Enable advanced",
+  "id": "enable_advanced",
   "default": false,
-  "conditional": [
+  "reveals": [
     {
-      "type": "slider",
-      "label": "Advanced level",
+      "slider": "Advanced level",
+      "id": "advanced_level",
       "min": 1,
       "max": 10
     }
@@ -292,8 +302,8 @@ With inline conditional (shown when checked):
 #### Textbox
 ```json
 {
-  "type": "textbox",
-  "label": "Name",
+  "textbox": "Name",
+  "id": "user_name",
   "placeholder": "Enter your name",  // Optional
   "rows": 5  // Optional, for multiline
 }
@@ -302,29 +312,24 @@ With inline conditional (shown when checked):
 #### Choice (Single Selection)
 ```json
 {
-  "type": "choice",
-  "label": "Theme",
+  "choice": "Theme",
+  "id": "theme",
   "options": ["Light", "Dark", "Auto"]
 }
 ```
 
-With per-option conditional (shown when that option is selected):
+With per-option children (option-as-key nesting):
 ```json
 {
-  "type": "choice",
-  "label": "Mode",
-  "options": [
-    "Simple",
+  "choice": "Mode",
+  "id": "mode",
+  "options": ["Simple", "Advanced"],
+  "Advanced": [
     {
-      "value": "Advanced",
-      "conditional": [
-        {
-          "type": "slider",
-          "label": "Complexity",
-          "min": 1,
-          "max": 10
-        }
-      ]
+      "slider": "Complexity",
+      "id": "complexity",
+      "min": 1,
+      "max": 10
     }
   ]
 }
@@ -333,39 +338,31 @@ With per-option conditional (shown when that option is selected):
 #### Multiselect
 ```json
 {
-  "type": "multiselect",
-  "label": "Features",
+  "multiselect": "Features",
+  "id": "features",
   "options": ["Feature A", "Feature B", "Feature C"]
 }
 ```
 
-With per-option conditionals (shown when that option is checked):
+With per-option children (option-as-key nesting):
 ```json
 {
-  "type": "multiselect",
-  "label": "Features",
-  "options": [
-    "Basic",
+  "multiselect": "Features",
+  "id": "features",
+  "options": ["Basic", "Advanced", "Expert"],
+  "Advanced": [
     {
-      "value": "Advanced",
-      "conditional": [
-        {
-          "type": "slider",
-          "label": "Advanced Level",
-          "min": 1,
-          "max": 5
-        }
-      ]
-    },
+      "slider": "Advanced Level",
+      "id": "advanced_level",
+      "min": 1,
+      "max": 5
+    }
+  ],
+  "Expert": [
     {
-      "value": "Expert",
-      "conditional": [
-        {
-          "type": "textbox",
-          "label": "Expert Config",
-          "placeholder": "Enter configuration"
-        }
-      ]
+      "textbox": "Expert Config",
+      "id": "expert_config",
+      "placeholder": "Enter configuration"
     }
   ]
 }
@@ -374,48 +371,47 @@ With per-option conditionals (shown when that option is checked):
 #### Group
 ```json
 {
-  "type": "group",
-  "label": "Settings",
+  "group": "Settings",
   "elements": [
     // Nested elements
   ]
 }
 ```
 
-#### Conditional
-```json
-{
-  "type": "conditional",
-  "condition": "Checkbox Label",  // Simple form
-  "elements": [
-    // Elements shown when condition is true
-  ]
-}
-```
+#### When Clauses (Conditional Visibility)
 
-Complex conditions:
-```json
-{
-  "type": "conditional",
-  "condition": {
-    "type": "selected",
-    "label": "Mode",
-    "value": "Advanced"
-  },
-  "elements": [...]
-}
-```
+Any element can have a `"when"` field for conditional visibility:
 
 ```json
 {
-  "type": "conditional",
-  "condition": {
-    "type": "count",
-    "label": "Items",
-    "value": 5,
-    "op": ">"  // Operators: >, <, >=, <=, =
-  },
-  "elements": [...]
+  "slider": "Debug level",
+  "id": "debug_level",
+  "min": 0,
+  "max": 10,
+  "when": "@show_advanced"  // Simple boolean check
+}
+```
+
+**When Clause Syntax:**
+- `@id` - Boolean check (true if checkbox checked, multiselect has selections, etc.)
+- `selected(@id, value)` - Check if specific value is selected
+- `count(@id) > 2` - Check selection count with operators: `>`, `<`, `>=`, `<=`, `==`
+- `@id1 && @id2` - Logical AND
+- `@id1 || @id2` - Logical OR
+- `!@id` - Logical NOT
+
+**Complex When Examples:**
+```json
+{
+  "text": "Advanced mode active",
+  "when": "@enable_advanced && selected(@mode, Pro)"
+}
+```
+
+```json
+{
+  "text": "Many items selected",
+  "when": "count(@features) >= 3"
 }
 ```
 
@@ -426,7 +422,10 @@ Complex conditions:
 {
   "title": "Delete File?",
   "elements": [
-    {"type": "text", "content": "This action cannot be undone."}
+    {
+      "text": "This action cannot be undone.",
+      "id": "warning"
+    }
   ]
 }
 ```
@@ -436,56 +435,118 @@ Complex conditions:
 {
   "title": "Settings",
   "elements": [
-    {"type": "slider", "label": "Volume", "min": 0, "max": 100, "default": 75},
-    {"type": "checkbox", "label": "Notifications", "default": true},
-    {"type": "choice", "label": "Theme", "options": ["Light", "Dark", "Auto"]}
+    {
+      "slider": "Volume",
+      "id": "volume",
+      "min": 0,
+      "max": 100,
+      "default": 75
+    },
+    {
+      "checkbox": "Notifications",
+      "id": "notifications",
+      "default": true
+    },
+    {
+      "choice": "Theme",
+      "id": "theme",
+      "options": ["Light", "Dark", "Auto"]
+    }
   ]
 }
 ```
 
-### Conditional UI (Standalone)
+### Conditional UI (When Clauses)
 ```json
 {
   "title": "Advanced Settings",
   "elements": [
-    {"type": "checkbox", "label": "Show advanced", "default": false},
     {
-      "type": "conditional",
-      "condition": "Show advanced",
-      "elements": [
-        {"type": "slider", "label": "Debug level", "min": 0, "max": 10},
-        {"type": "textbox", "label": "Log file", "placeholder": "/tmp/debug.log"}
+      "checkbox": "Show advanced",
+      "id": "show_advanced",
+      "default": false
+    },
+    {
+      "slider": "Debug level",
+      "id": "debug_level",
+      "min": 0,
+      "max": 10,
+      "when": "@show_advanced"
+    },
+    {
+      "textbox": "Log file",
+      "id": "log_file",
+      "placeholder": "/tmp/debug.log",
+      "when": "@show_advanced"
+    }
+  ]
+}
+```
+
+### Reveals (Inline Conditionals)
+```json
+{
+  "title": "Feature Configuration",
+  "elements": [
+    {
+      "checkbox": "Enable advanced mode",
+      "id": "enable_advanced",
+      "default": false,
+      "reveals": [
+        {
+          "slider": "Complexity",
+          "id": "complexity",
+          "min": 1,
+          "max": 10
+        }
+      ]
+    },
+    {
+      "choice": "Profile",
+      "id": "profile",
+      "options": ["Basic", "Pro"],
+      "Pro": [
+        {
+          "textbox": "License Key",
+          "id": "license_key",
+          "placeholder": "XXXX-XXXX-XXXX"
+        }
       ]
     }
   ]
 }
 ```
 
-### Inline Conditionals
+### Complex When Expressions
 ```json
 {
-  "title": "Feature Configuration",
+  "title": "Multi-Conditional Example",
   "elements": [
     {
-      "type": "checkbox",
-      "label": "Enable advanced mode",
-      "default": false,
-      "conditional": [
-        {"type": "slider", "label": "Complexity", "min": 1, "max": 10}
-      ]
+      "checkbox": "Debug mode",
+      "id": "debug",
+      "default": false
     },
     {
-      "type": "choice",
-      "label": "Profile",
-      "options": [
-        "Basic",
-        {
-          "value": "Pro",
-          "conditional": [
-            {"type": "textbox", "label": "License Key", "placeholder": "XXXX-XXXX-XXXX"}
-          ]
-        }
-      ]
+      "multiselect": "Features",
+      "id": "features",
+      "options": ["Analytics", "Sync", "Backup"]
+    },
+    {
+      "text": "Debug mode active with multiple features",
+      "when": "@debug && count(@features) > 1"
+    },
+    {
+      "choice": "Mode",
+      "id": "mode",
+      "options": ["Simple", "Advanced", "Expert"]
+    },
+    {
+      "slider": "Expert complexity",
+      "id": "expert_complexity",
+      "min": 1,
+      "max": 10,
+      "when": "selected(@mode, Expert)"
     }
   ]
 }
@@ -580,7 +641,10 @@ file = "quick_settings.json"
 {
   "title": "Delete {{item_name}}?",
   "elements": [
-    {"type": "text", "content": "Permanently delete {{item_name}}?"}
+    {
+      "text": "Permanently delete {{item_name}}?",
+      "id": "warning"
+    }
   ]
 }
 ```

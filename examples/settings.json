@@ -1,20 +1,74 @@
 {
   "title": "Application Settings",
   "elements": [
-    {"type": "group", "label": "General", "elements": [
-      {"type": "multiselect", "label": "Language", "options": ["English", "Spanish", "French", "German"]},
-      {"type": "multiselect", "label": "Theme", "options": ["Light", "Dark", "Auto"]},
-      {"type": "checkbox", "label": "Show notifications", "default": true}
-    ]},
-    {"type": "group", "label": "Performance", "elements": [
-      {"type": "slider", "label": "Cache size (MB)", "min": 50, "max": 500, "default": 200},
-      {"type": "slider", "label": "Max connections", "min": 1, "max": 10, "default": 5},
-      {"type": "checkbox", "label": "Enable hardware acceleration", "default": false}
-    ]},
-    {"type": "group", "label": "Privacy", "elements": [
-      {"type": "checkbox", "label": "Send anonymous usage data", "default": false},
-      {"type": "checkbox", "label": "Save history", "default": true},
-      {"type": "slider", "label": "History days", "min": 1, "max": 365, "default": 30}
-    ]}
+    {
+      "group": "General",
+      "id": "general_group",
+      "elements": [
+        {
+          "multiselect": "Language",
+          "id": "language",
+          "options": ["English", "Spanish", "French", "German"]
+        },
+        {
+          "multiselect": "Theme",
+          "id": "theme",
+          "options": ["Light", "Dark", "Auto"]
+        },
+        {
+          "checkbox": "Show notifications",
+          "id": "notifications",
+          "default": true
+        }
+      ]
+    },
+    {
+      "group": "Performance",
+      "id": "performance_group",
+      "elements": [
+        {
+          "slider": "Cache size (MB)",
+          "id": "cache_size",
+          "min": 50,
+          "max": 500,
+          "default": 200
+        },
+        {
+          "slider": "Max connections",
+          "id": "max_connections",
+          "min": 1,
+          "max": 10,
+          "default": 5
+        },
+        {
+          "checkbox": "Enable hardware acceleration",
+          "id": "hw_accel",
+          "default": false
+        }
+      ]
+    },
+    {
+      "group": "Privacy",
+      "id": "privacy_group",
+      "elements": [
+        {
+          "checkbox": "Send anonymous usage data",
+          "id": "usage_data",
+          "default": false
+        },
+        {
+          "checkbox": "Save history",
+          "id": "save_history",
+          "default": true
+        },
+        {
+          "slider": "History days",
+          "id": "history_days",
+          "min": 1,
+          "max": 365,
+          "default": 30
+        }
+      ]
+    }
   ]
 }

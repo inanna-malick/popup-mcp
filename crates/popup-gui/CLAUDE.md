@@ -133,7 +133,7 @@ cargo install --path crates/popup-gui
 cargo run -p popup-gui -- --file examples/simple_confirm.json
 
 # Run with stdin
-echo '{"title":"Test","elements":[{"type":"text","content":"Hello"}]}' | cargo run -p popup-gui -- --stdin
+echo '{"title":"Test","elements":[{"text":"Hello"}]}' | cargo run -p popup-gui -- --stdin
 
 # Run MCP server mode (default - uses stdio for JSON-RPC)
 cargo run -p popup-gui
@@ -212,7 +212,10 @@ file = "quick_settings.json"
 {
   "title": "Delete {{item_name}}?",
   "elements": [
-    {"type": "text", "content": "This will permanently delete {{item_name}}."}
+    {
+      "text": "This will permanently delete {{item_name}}.",
+      "id": "warning"
+    }
   ]
 }
 ```

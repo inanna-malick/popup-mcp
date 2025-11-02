@@ -1,0 +1,403 @@
+{
+  "title": "Audio Mastering Configuration",
+  "elements": [
+    {
+      "text": "Configure mastering chain for optimal sound quality."
+    },
+    {
+      "choice": "Genre Preset",
+      "id": "genre",
+      "options": ["Electronic/EDM", "Hip-Hop", "Rock/Metal", "Jazz/Acoustic", "Classical", "Custom"],
+      "Electronic/EDM": [
+        {
+          "text": "Preset optimized for loudness, punch, and sub-bass clarity"
+        },
+        {
+          "slider": "Target LUFS",
+          "id": "edm_lufs",
+          "min": -14,
+          "max": -6,
+          "default": -8,
+          "reveals": [
+            {"text": "⚠ LUFS > -7: Extreme loudness - expect distortion", "when": "@edm_lufs > -7"},
+            {"text": "Modern EDM target range", "when": "@edm_lufs >= -9 && @edm_lufs <= -7"},
+            {"text": "Quieter master - more dynamic range preserved", "when": "@edm_lufs < -10"}
+          ]
+        }
+      ],
+      "Hip-Hop": [
+        {
+          "text": "Preset emphasizes low-end punch and vocal clarity"
+        },
+        {
+          "slider": "Sub-bass boost (dB)",
+          "id": "hiphop_sub",
+          "min": 0,
+          "max": 6,
+          "default": 2,
+          "reveals": [
+            {"text": "⚠ Excessive sub boost - check for muddiness", "when": "@hiphop_sub > 4"}
+          ]
+        }
+      ],
+      "Rock/Metal": [
+        {
+          "text": "Preset for midrange aggression and guitar clarity"
+        },
+        {
+          "checkbox": "Vintage analog warmth",
+          "id": "vintage_warmth",
+          "default": true,
+          "reveals": [
+            {
+              "slider": "Harmonic saturation",
+              "id": "harmonic_saturation",
+              "min": 0,
+              "max": 100,
+              "default": 25
+            }
+          ]
+        }
+      ],
+      "Jazz/Acoustic": [
+        {
+          "text": "Preserve dynamics and natural timbre"
+        },
+        {
+          "slider": "Dynamic range target (dB)",
+          "id": "jazz_dr",
+          "min": 8,
+          "max": 18,
+          "default": 12,
+          "reveals": [
+            {"text": "✓ High dynamic range - authentic acoustic sound", "when": "@jazz_dr >= 14"},
+            {"text": "Moderate compression for accessibility", "when": "@jazz_dr >= 10 && @jazz_dr < 14"},
+            {"text": "⚠ Low DR for acoustic - consider preserving more dynamics", "when": "@jazz_dr < 10"}
+          ]
+        }
+      ],
+      "Classical": [
+        {
+          "text": "Minimal processing, maximize transparency"
+        },
+        {
+          "slider": "Target LUFS",
+          "id": "classical_lufs",
+          "min": -23,
+          "max": -14,
+          "default": -18
+        },
+        {
+          "checkbox": "Apply limiting",
+          "id": "classical_limit",
+          "default": false,
+          "reveals": [
+            {
+              "text": "⚠ Limiting on classical - use sparingly, very high threshold"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "EQ Stage",
+      "elements": [
+        {
+          "checkbox": "Enable EQ",
+          "id": "eq_enable",
+          "default": true,
+          "reveals": [
+            {
+              "slider": "Low shelf (80Hz) dB",
+              "id": "eq_low",
+              "min": -6,
+              "max": 6,
+              "default": 0,
+              "reveals": [
+                {"text": "Boosting sub-bass presence", "when": "@eq_low > 1"},
+                {"text": "Cutting mud/rumble", "when": "@eq_low < -1"}
+              ]
+            },
+            {
+              "slider": "Low-mid (250Hz) dB",
+              "id": "eq_lowmid",
+              "min": -6,
+              "max": 6,
+              "default": 0,
+              "reveals": [
+                {"text": "Boosting warmth/body", "when": "@eq_lowmid > 1"},
+                {"text": "Cutting boxiness", "when": "@eq_lowmid < -2"}
+              ]
+            },
+            {
+              "slider": "Mid (1kHz) dB",
+              "id": "eq_mid",
+              "min": -6,
+              "max": 6,
+              "default": 0,
+              "reveals": [
+                {"text": "Boosting presence/clarity", "when": "@eq_mid > 1"},
+                {"text": "Reducing harshness", "when": "@eq_mid < -2"}
+              ]
+            },
+            {
+              "slider": "High-mid (4kHz) dB",
+              "id": "eq_highmid",
+              "min": -6,
+              "max": 6,
+              "default": 0,
+              "reveals": [
+                {"text": "Boosting definition/attack", "when": "@eq_highmid > 1"},
+                {"text": "Taming sibilance", "when": "@eq_highmid < -2"}
+              ]
+            },
+            {
+              "slider": "Air (12kHz) dB",
+              "id": "eq_air",
+              "min": -3,
+              "max": 6,
+              "default": 0,
+              "reveals": [
+                {"text": "Adding sparkle/shimmer", "when": "@eq_air > 2"}
+              ]
+            },
+            {
+              "text": "⚠ Extreme EQ curve - multiple bands > ±4dB",
+              "when": "(@eq_low > 4 || @eq_low < -4) && (@eq_mid > 4 || @eq_mid < -4)"
+            },
+            {
+              "text": "⚠ Smiley face EQ - boosting both lows and highs significantly",
+              "when": "@eq_low > 3 && @eq_air > 3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Compression Stage",
+      "elements": [
+        {
+          "checkbox": "Enable compression",
+          "id": "comp_enable",
+          "default": true,
+          "reveals": [
+            {
+              "slider": "Threshold (dB)",
+              "id": "comp_threshold",
+              "min": -30,
+              "max": -6,
+              "default": -18,
+              "reveals": [
+                {"text": "Low threshold - more compression", "when": "@comp_threshold < -20"},
+                {"text": "High threshold - gentle compression", "when": "@comp_threshold > -12"}
+              ]
+            },
+            {
+              "slider": "Ratio",
+              "id": "comp_ratio",
+              "min": 1.5,
+              "max": 10,
+              "default": 3,
+              "reveals": [
+                {"text": "Light compression (glue)", "when": "@comp_ratio < 2.5"},
+                {"text": "Moderate compression (control)", "when": "@comp_ratio >= 2.5 && @comp_ratio < 5"},
+                {"text": "Heavy compression (limiting territory)", "when": "@comp_ratio >= 5"},
+                {"text": "⚠ Aggressive ratio - may sound pumpy", "when": "@comp_ratio >= 6"}
+              ]
+            },
+            {
+              "slider": "Attack (ms)",
+              "id": "comp_attack",
+              "min": 0.1,
+              "max": 100,
+              "default": 10,
+              "reveals": [
+                {"text": "Fast attack - controlling transients", "when": "@comp_attack < 5"},
+                {"text": "Medium attack - balanced", "when": "@comp_attack >= 5 && @comp_attack < 30"},
+                {"text": "Slow attack - preserving punch", "when": "@comp_attack >= 30"}
+              ]
+            },
+            {
+              "slider": "Release (ms)",
+              "id": "comp_release",
+              "min": 10,
+              "max": 1000,
+              "default": 100,
+              "reveals": [
+                {"text": "Fast release - responsive, may pump", "when": "@comp_release < 50"},
+                {"text": "Medium release - natural", "when": "@comp_release >= 50 && @comp_release < 300"},
+                {"text": "Slow release - smooth, may lose dynamics", "when": "@comp_release >= 300"}
+              ]
+            },
+            {
+              "slider": "Makeup gain (dB)",
+              "id": "comp_makeup",
+              "min": 0,
+              "max": 12,
+              "default": 0,
+              "reveals": [
+                {"text": "⚠ High makeup gain - watch for clipping", "when": "@comp_makeup > 8"}
+              ]
+            },
+            {
+              "text": "⚠ Extreme compression: High ratio + low threshold",
+              "when": "@comp_ratio >= 6 && @comp_threshold < -20"
+            },
+            {
+              "text": "⚠ Pumping risk: Fast attack + fast release + heavy compression",
+              "when": "@comp_attack < 5 && @comp_release < 50 && @comp_ratio >= 5"
+            },
+            {
+              "text": "✓ Gentle glue compression: Low ratio + high threshold",
+              "when": "@comp_ratio < 3 && @comp_threshold > -15"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Limiting Stage",
+      "elements": [
+        {
+          "checkbox": "Enable limiter",
+          "id": "limiter_enable",
+          "default": true,
+          "reveals": [
+            {
+              "slider": "Ceiling (dBFS)",
+              "id": "limiter_ceiling",
+              "min": -3,
+              "max": -0.1,
+              "default": -0.3,
+              "reveals": [
+                {"text": "Conservative ceiling - headroom for codec", "when": "@limiter_ceiling < -1"},
+                {"text": "Hot ceiling - may clip on some systems", "when": "@limiter_ceiling > -0.5"}
+              ]
+            },
+            {
+              "slider": "Target LUFS (overall loudness)",
+              "id": "target_lufs",
+              "min": -23,
+              "max": -6,
+              "default": -14,
+              "reveals": [
+                {"text": "⚠ Very loud master - heavy limiting applied", "when": "@target_lufs > -8"},
+                {"text": "Streaming-friendly loudness (Spotify/Apple)", "when": "@target_lufs >= -14 && @target_lufs <= -10"},
+                {"text": "Dynamic master - minimal limiting", "when": "@target_lufs < -16"},
+                {"text": "Broadcast standard (EBU R128)", "when": "@target_lufs >= -23 && @target_lufs <= -22"}
+              ]
+            },
+            {
+              "slider": "Limiter release (ms)",
+              "id": "limiter_release",
+              "min": 1,
+              "max": 1000,
+              "default": 100,
+              "reveals": [
+                {"text": "Fast release - transparent but may distort", "when": "@limiter_release < 50"},
+                {"text": "Medium release - balanced", "when": "@limiter_release >= 50 && @limiter_release < 300"},
+                {"text": "Slow release - smooth but may reduce dynamics", "when": "@limiter_release >= 300"}
+              ]
+            },
+            {
+              "text": "🚨 DANGER ZONE: Extreme loudness + aggressive compression + fast limiter release",
+              "when": "@target_lufs > -7 && @comp_ratio >= 6 && @limiter_release < 50"
+            },
+            {
+              "text": "⚠ Over-processing: Heavy compression + hot limiting",
+              "when": "@comp_ratio >= 5 && @target_lufs > -9"
+            },
+            {
+              "text": "⚠ Limiting aggressive - expect audible pumping",
+              "when": "@target_lufs > -8 && @limiter_release < 100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Stereo Imaging",
+      "elements": [
+        {
+          "checkbox": "Enable stereo enhancement",
+          "id": "stereo_enable",
+          "default": false,
+          "reveals": [
+            {
+              "slider": "Stereo width (%)",
+              "id": "stereo_width",
+              "min": 0,
+              "max": 200,
+              "default": 100,
+              "reveals": [
+                {"text": "Narrowing stereo field", "when": "@stereo_width < 100"},
+                {"text": "Mono summing (check phase)", "when": "@stereo_width == 0"},
+                {"text": "Widening stereo field", "when": "@stereo_width > 100"},
+                {"text": "⚠ Extreme widening - check mono compatibility", "when": "@stereo_width > 150"}
+              ]
+            },
+            {
+              "checkbox": "Mid/side processing",
+              "id": "mid_side_processing",
+              "default": false,
+              "reveals": [
+                {
+                  "slider": "Mid level (dB)",
+                  "id": "mid_level",
+                  "min": -6,
+                  "max": 6,
+                  "default": 0
+                },
+                {
+                  "slider": "Side level (dB)",
+                  "id": "side_level",
+                  "min": -6,
+                  "max": 6,
+                  "default": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Output Analysis",
+      "elements": [
+        {
+          "text": "✓ Clean master: Moderate compression, streaming-friendly loudness",
+          "when": "@comp_ratio < 4 && @target_lufs >= -14 && @target_lufs <= -10"
+        },
+        {
+          "text": "✓ Dynamic master: Gentle processing, high fidelity",
+          "when": "@comp_ratio < 3 && @target_lufs < -12"
+        },
+        {
+          "text": "⚠ Loudness war victim: Heavy compression + extreme loudness",
+          "when": "@comp_ratio >= 6 && @target_lufs > -8"
+        },
+        {
+          "text": "🚨 RED ALERT: Multiple danger signals - expect distortion and pumping",
+          "when": "@target_lufs > -7 && @comp_ratio >= 6 && @limiter_release < 50 && @comp_attack < 5"
+        },
+        {
+          "text": "ℹ️ Genre mismatch: Heavy processing on classical/acoustic material",
+          "when": "(selected(@genre, 'Classical') || selected(@genre, 'Jazz/Acoustic')) && @target_lufs > -12"
+        },
+        {
+          "checkbox": "Export detailed processing report",
+          "id": "export_report",
+          "default": false,
+          "reveals": [
+            {
+              "textbox": "Additional notes",
+              "id": "additional_notes",
+              "rows": 3,
+              "placeholder": "Reference tracks, revision requests, special considerations..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
