@@ -666,4 +666,229 @@ mod tests {
         assert!(active_ids.contains(&"expert_config".to_string()));
         assert_eq!(active_ids.len(), 2);
     }
+
+    #[test]
+    fn test_slider_reveals_with_when_clause() {
+        // Test case from user bug report: slider with reveals containing when clause
+        let json = json!({
+            "title": "Slider Reveals Test",
+            "elements": [
+                {
+                    "slider": "How deep should we go?",
+                    "id": "depth",
+                    "min": 1,
+                    "max": 5,
+                    "default": 1,
+                    "reveals": [
+                        {
+                            "text": "✓ Slider reveal working",
+                            "id": "reveal_text",
+                            "when": "@depth >= 3"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially depth is 1, so when clause should not be satisfied
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["depth"]);
+        assert!(!active_ids.contains(&"reveal_text".to_string()));
+
+        // Set depth to 2 - still below threshold
+        *state.get_number_mut("depth").unwrap() = 2.0;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["depth"]);
+        assert!(!active_ids.contains(&"reveal_text".to_string()));
+
+        // Set depth to 3 - exactly at threshold, should appear
+        *state.get_number_mut("depth").unwrap() = 3.0;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"depth".to_string()));
+        assert!(active_ids.contains(&"reveal_text".to_string()));
+        assert_eq!(active_ids.len(), 2);
+
+        // Set depth to 5 - well above threshold, should still appear
+        *state.get_number_mut("depth").unwrap() = 5.0;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"depth".to_string()));
+        assert!(active_ids.contains(&"reveal_text".to_string()));
+        assert_eq!(active_ids.len(), 2);
+    }
+
+    #[test]
+    fn test_textbox_no_reveals_field() {
+        // Textbox should not have reveals field (protocol consistency)
+        let json = json!({
+            "title": "Textbox Test",
+            "elements": [
+                {
+                    "textbox": "Enter configuration",
+                    "id": "config",
+                    "placeholder": "JSON config..."
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let state = PopupState::new(&popup);
+
+        // Only textbox should be active
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["config"]);
+    }
+
+    #[test]
+    fn test_multiselect_reveals_conditional_on_selection() {
+        // Test multiselect reveals only appear when ANY option is selected
+        let json = json!({
+            "title": "Multiselect Reveals Test",
+            "elements": [
+                {
+                    "multiselect": "Select features",
+                    "id": "features",
+                    "options": ["Feature A", "Feature B", "Feature C"],
+                    "reveals": [
+                        {
+                            "text": "✓ At least one feature selected",
+                            "id": "selection_notice"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially no selections, reveals should NOT appear
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["features"]);
+        assert!(!active_ids.contains(&"selection_notice".to_string()));
+
+        // Select one option - reveals should NOW appear
+        state.get_multichoice_mut("features").unwrap()[0] = true;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(active_ids.contains(&"selection_notice".to_string()));
+        assert_eq!(active_ids.len(), 2);
+
+        // Deselect all - reveals should disappear
+        state.get_multichoice_mut("features").unwrap()[0] = false;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["features"]);
+        assert!(!active_ids.contains(&"selection_notice".to_string()));
+
+        // Select multiple - reveals should still appear
+        state.get_multichoice_mut("features").unwrap()[1] = true;
+        state.get_multichoice_mut("features").unwrap()[2] = true;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"features".to_string()));
+        assert!(active_ids.contains(&"selection_notice".to_string()));
+        assert_eq!(active_ids.len(), 2);
+    }
+
+    #[test]
+    fn test_choice_reveals_conditional_on_selection() {
+        // Test choice reveals only appear when ANY option is selected
+        let json = json!({
+            "title": "Choice Reveals Test",
+            "elements": [
+                {
+                    "choice": "Select mode",
+                    "id": "mode",
+                    "options": ["Basic", "Advanced", "Expert"],
+                    "reveals": [
+                        {
+                            "text": "Mode selected",
+                            "id": "selection_notice"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let popup = parse_popup_json_value(json).unwrap();
+        let mut state = PopupState::new(&popup);
+
+        // Initially no selection, reveals should NOT appear
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["mode"]);
+        assert!(!active_ids.contains(&"selection_notice".to_string()));
+
+        // Select "Basic" (index 0) - reveals should NOW appear
+        *state.get_choice_mut("mode").unwrap() = Some(0);
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"mode".to_string()));
+        assert!(active_ids.contains(&"selection_notice".to_string()));
+        assert_eq!(active_ids.len(), 2);
+
+        // Clear selection - reveals should disappear
+        *state.get_choice_mut("mode").unwrap() = None;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert_eq!(active_ids, vec!["mode"]);
+        assert!(!active_ids.contains(&"selection_notice".to_string()));
+
+        // Select different option - reveals should appear again
+        *state.get_choice_mut("mode").unwrap() = Some(2);
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        assert!(active_ids.contains(&"mode".to_string()));
+        assert!(active_ids.contains(&"selection_notice".to_string()));
+        assert_eq!(active_ids.len(), 2);
+    }
 }

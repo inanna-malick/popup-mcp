@@ -268,7 +268,7 @@ fn render_single_element(
     };
 
     if let Some(when_expr) = when_clause {
-        let state_values = state.to_value_map();
+        let state_values = state.to_value_map(all_elements);
         match parse_condition(when_expr) {
             Ok(ast) => {
                 if !evaluate_condition(&ast, &state_values) {
@@ -291,7 +291,7 @@ fn render_single_element(
             });
         }
 
-        Element::Multiselect { multiselect, id, options, option_children, .. } => {
+        Element::Multiselect { multiselect, id, options, option_children, reveals, .. } => {
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -364,11 +364,30 @@ fn render_single_element(
                         }
                     }
                 }
+
+                // Render reveals if multiselect has any AND any option is selected
+                let has_selection = selections_snapshot.iter().any(|&s| s);
+                if has_selection && !reveals.is_empty() {
+                    ui.indent(format!("multiselect_reveals_{}", id), |ui| {
+                        render_elements_in_grid(
+                            ui,
+                            reveals,
+                            state,
+                            all_elements,
+                            ctx,
+                            element_path,
+                        );
+                    });
+                }
             });
         }
 
-        Element::Choice { choice, id, options, option_children, .. } => {
+        Element::Choice { choice, id, options, option_children, reveals, .. } => {
             ui.label(RichText::new(choice).color(ctx.theme.text_primary));
+
+            // Clone selection state to avoid borrow conflict
+            let selected_option = state.get_choice_mut(id).and_then(|s| *s);
+
             if let Some(selected) = state.get_choice_mut(id) {
                 let selected_text = match *selected {
                     Some(idx) => options
@@ -398,25 +417,40 @@ fn render_single_element(
                             }
                         }
                     });
+            }
 
-                // Render inline conditional for selected option
-                if let Some(idx) = *selected {
-                    if let Some(option_text) = options.get(idx) {
-                        if let Some(children) = option_children.get(option_text) {
-                            ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
-                                render_elements_in_grid(
-                                    ui,
-                                    children,
-                                    state,
-                                    all_elements,
-                                    ctx,
-                                    &format!("{}.choice_{}", element_path, idx),
-                                );
-                            });
-                        }
+            // Render inline conditional for selected option (after borrow is dropped)
+            if let Some(idx) = selected_option {
+                if let Some(option_text) = options.get(idx) {
+                    if let Some(children) = option_children.get(option_text) {
+                        ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
+                            render_elements_in_grid(
+                                ui,
+                                children,
+                                state,
+                                all_elements,
+                                ctx,
+                                &format!("{}.choice_{}", element_path, idx),
+                            );
+                        });
                     }
                 }
             }
+
+            // Render reveals if choice has any AND an option is selected
+            if selected_option.is_some() && !reveals.is_empty() {
+                ui.indent(format!("choice_reveals_{}", id), |ui| {
+                    render_elements_in_grid(
+                        ui,
+                        reveals,
+                        state,
+                        all_elements,
+                        ctx,
+                        element_path,
+                    );
+                });
+            }
+
             ui.add_space(6.0);
         }
 
@@ -457,6 +491,7 @@ fn render_single_element(
             id,
             min,
             max,
+            reveals,
             ..
         } => {
             let widget_frame = egui::Frame::group(ui.style())
@@ -488,6 +523,20 @@ fn render_single_element(
                         if ctx.first_widget_id.is_none() && !ctx.widget_focused {
                             *ctx.first_widget_id = Some(response.id);
                         }
+                    });
+                }
+
+                // Render reveals if slider has any
+                if !reveals.is_empty() {
+                    ui.indent(format!("slider_reveals_{}", id), |ui| {
+                        render_elements_in_grid(
+                            ui,
+                            reveals,
+                            state,
+                            all_elements,
+                            ctx,
+                            element_path,
+                        );
                     });
                 }
             });
@@ -566,11 +615,11 @@ fn render_single_element(
 fn collect_active_elements(
     elements: &[Element],
     state: &PopupState,
-    _all_elements: &[Element],
+    all_elements: &[Element],
     _path_prefix: &str,
 ) -> Vec<String> {
     let mut active_ids = Vec::new();
-    let state_values = state.to_value_map();
+    let state_values = state.to_value_map(all_elements);
 
     // Helper to check if an element's when clause is satisfied
     let is_visible = |when: &Option<String>| -> bool {
@@ -592,9 +641,18 @@ fn collect_active_elements(
 
     for element in elements {
         match element {
-            Element::Slider { id, when, .. } => {
+            Element::Slider { id, reveals, when, .. } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
+                    // Collect from reveals
+                    if !reveals.is_empty() {
+                        active_ids.extend(collect_active_elements(
+                            reveals,
+                            state,
+                            all_elements,
+                            "",
+                        ));
+                    }
                 }
             }
             Element::Textbox { id, when, .. } => {
@@ -610,7 +668,7 @@ fn collect_active_elements(
                         active_ids.extend(collect_active_elements(
                             reveals,
                             state,
-                            _all_elements,
+                            all_elements,
                             "",
                         ));
                     }
@@ -621,33 +679,39 @@ fn collect_active_elements(
                     active_ids.push(id.clone());
                     // For each checked option with children, collect from it
                     if let Some(selections) = state.get_multichoice(id) {
+                        let has_selection = selections.iter().any(|&s| s);
+
                         for (i, option) in options.iter().enumerate() {
                             if i < selections.len() && selections[i] {
                                 if let Some(children) = option_children.get(option) {
                                     active_ids.extend(collect_active_elements(
                                         children,
                                         state,
-                                        _all_elements,
+                                        all_elements,
                                         "",
                                     ));
                                 }
                             }
                         }
-                    }
-                    // Collect from reveals
-                    if !reveals.is_empty() {
-                        active_ids.extend(collect_active_elements(
-                            reveals,
-                            state,
-                            _all_elements,
-                            "",
-                        ));
+
+                        // Collect from reveals only if any option is selected
+                        if has_selection && !reveals.is_empty() {
+                            active_ids.extend(collect_active_elements(
+                                reveals,
+                                state,
+                                all_elements,
+                                "",
+                            ));
+                        }
                     }
                 }
             }
             Element::Choice { id, options, option_children, reveals, when, .. } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
+
+                    let has_selection = state.get_choice(id).map(|opt| opt.is_some()).unwrap_or(false);
+
                     // If there's a selected option with children, collect from it
                     if let Some(Some(idx)) = state.get_choice(id) {
                         if let Some(option_text) = options.get(idx) {
@@ -655,18 +719,19 @@ fn collect_active_elements(
                                 active_ids.extend(collect_active_elements(
                                     children,
                                     state,
-                                    _all_elements,
+                                    all_elements,
                                     "",
                                 ));
                             }
                         }
                     }
-                    // Collect from reveals
-                    if !reveals.is_empty() {
+
+                    // Collect from reveals only if an option is selected
+                    if has_selection && !reveals.is_empty() {
                         active_ids.extend(collect_active_elements(
                             reveals,
                             state,
-                            _all_elements,
+                            all_elements,
                             "",
                         ));
                     }
@@ -678,7 +743,7 @@ fn collect_active_elements(
                     active_ids.extend(collect_active_elements(
                         elements,
                         state,
-                        _all_elements,
+                        all_elements,
                         "",
                     ));
                 }

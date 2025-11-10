@@ -346,7 +346,12 @@ fn count_selections(state: &HashMap<String, Value>, id: &str) -> i64 {
     state.get(id).map(|v| {
         match v {
             Value::Bool(b) => if *b { 1 } else { 0 },
-            Value::Array(arr) => arr.iter().filter(|v| v.as_bool().unwrap_or(false)).count() as i64,
+            Value::Array(arr) => arr.iter().filter(|v| {
+                // Count booleans (true), non-empty strings, and positive numbers
+                v.as_bool().unwrap_or(false)
+                    || v.as_str().map(|s| !s.is_empty()).unwrap_or(false)
+                    || v.as_i64().map(|n| n > 0).unwrap_or(false)
+            }).count() as i64,
             Value::Number(n) => if n.as_i64().unwrap_or(0) > 0 { 1 } else { 0 },
             _ => 0,
         }

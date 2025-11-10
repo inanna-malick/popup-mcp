@@ -70,7 +70,7 @@ impl Serialize for Element {
                 map.end()
             }
 
-            Element::Textbox { textbox, id, placeholder, rows, reveals, when } => {
+            Element::Textbox { textbox, id, placeholder, rows, when } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("textbox", textbox)?;
                 map.serialize_entry("id", id)?;
@@ -79,9 +79,6 @@ impl Serialize for Element {
                 }
                 if let Some(r) = rows {
                     map.serialize_entry("rows", r)?;
-                }
-                if !reveals.is_empty() {
-                    map.serialize_entry("reveals", reveals)?;
                 }
                 if let Some(w) = when {
                     map.serialize_entry("when", w)?;
@@ -277,15 +274,9 @@ fn deserialize_textbox<E: serde::de::Error>(obj: &serde_json::Map<String, Value>
     let placeholder = obj.get("placeholder").and_then(|v| v.as_str()).map(|s| s.to_string());
     let rows = obj.get("rows").and_then(|v| v.as_u64()).map(|n| n as u32);
 
-    let reveals = obj.get("reveals")
-        .map(|v| serde_json::from_value::<Vec<Element>>(v.clone()))
-        .transpose()
-        .map_err(serde::de::Error::custom)?
-        .unwrap_or_default();
-
     let when = obj.get("when").and_then(|v| v.as_str()).map(|s| s.to_string());
 
-    Ok(Element::Textbox { textbox, id, placeholder, rows, reveals, when })
+    Ok(Element::Textbox { textbox, id, placeholder, rows, when })
 }
 
 fn deserialize_multiselect<E: serde::de::Error>(obj: &serde_json::Map<String, Value>) -> Result<Element, E> {
@@ -594,7 +585,6 @@ mod tests {
                 id: "name".to_string(),
                 placeholder: Some("Enter name".to_string()),
                 rows: Some(3),
-                reveals: vec![],
                 when: None,
             },
             Element::Multiselect {

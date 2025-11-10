@@ -62,7 +62,6 @@ pub enum Element {
         id: String,
         placeholder: Option<String>,
         rows: Option<u32>,
-        reveals: Vec<Element>,
         when: Option<String>,
     },
 
@@ -136,9 +135,8 @@ impl PopupState {
                     self.values.insert(id.clone(), ElementValue::Boolean(*default));
                     self.init_elements(reveals);
                 }
-                Element::Textbox { id, reveals, .. } => {
+                Element::Textbox { id, .. } => {
                     self.values.insert(id.clone(), ElementValue::Text(String::new()));
-                    self.init_elements(reveals);
                 }
                 Element::Multiselect { id, options, option_children, reveals, .. } => {
                     self.values.insert(id.clone(), ElementValue::MultiChoice(vec![false; options.len()]));
@@ -232,8 +230,55 @@ impl PopupState {
 
     /// Convert PopupState to HashMap<String, Value> for condition evaluation
     /// Maps id -> JSON value for use with evaluate_condition()
-    pub fn to_value_map(&self) -> HashMap<String, Value> {
+    ///
+    /// For Choice fields: converts index to selected option text (or null if none selected)
+    /// For Multiselect fields: converts to array of selected option texts
+    pub fn to_value_map(&self, elements: &[Element]) -> HashMap<String, Value> {
         use serde_json::json;
+
+        // Helper to find element by ID
+        fn find_element_by_id<'a>(elements: &'a [Element], target_id: &str) -> Option<&'a Element> {
+            for element in elements {
+                match element {
+                    Element::Text { id: Some(id), .. } if id == target_id => return Some(element),
+                    Element::Slider { id, .. } if id == target_id => return Some(element),
+                    Element::Checkbox { id, .. } if id == target_id => return Some(element),
+                    Element::Textbox { id, .. } if id == target_id => return Some(element),
+                    Element::Multiselect { id, .. } if id == target_id => return Some(element),
+                    Element::Choice { id, .. } if id == target_id => return Some(element),
+                    Element::Group { id: Some(id), .. } if id == target_id => return Some(element),
+
+                    // Recurse into nested structures
+                    Element::Group { elements: nested, .. } => {
+                        if let Some(e) = find_element_by_id(nested, target_id) {
+                            return Some(e);
+                        }
+                    }
+                    Element::Checkbox { reveals, .. }
+                    | Element::Slider { reveals, .. } => {
+                        if let Some(e) = find_element_by_id(reveals, target_id) {
+                            return Some(e);
+                        }
+                    }
+                    Element::Textbox { .. } => {
+                        // Textbox has no reveals, nothing to search
+                    }
+                    Element::Multiselect { reveals, option_children, .. }
+                    | Element::Choice { reveals, option_children, .. } => {
+                        if let Some(e) = find_element_by_id(reveals, target_id) {
+                            return Some(e);
+                        }
+                        for children in option_children.values() {
+                            if let Some(e) = find_element_by_id(children, target_id) {
+                                return Some(e);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
 
         self.values.iter().map(|(id, val)| {
             let json_val = match val {
@@ -241,12 +286,35 @@ impl PopupState {
                 ElementValue::Boolean(b) => json!(*b),
                 ElementValue::Text(s) => json!(s),
                 ElementValue::MultiChoice(selections) => {
-                    // Array of booleans for condition evaluation
-                    json!(selections)
+                    // Convert to array of selected option texts for selected() function
+                    if let Some(Element::Multiselect { options, .. }) = find_element_by_id(elements, id) {
+                        let selected_texts: Vec<&str> = selections.iter()
+                            .enumerate()
+                            .filter_map(|(i, &selected)| {
+                                if selected {
+                                    options.get(i).map(|s| s.as_str())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        json!(selected_texts)
+                    } else {
+                        // Fallback: array of booleans
+                        json!(selections)
+                    }
                 }
                 ElementValue::Choice(idx) => {
-                    // Numeric index or null
-                    json!(idx)
+                    // Convert index to option text for selected() function
+                    if let Some(Element::Choice { options, .. }) = find_element_by_id(elements, id) {
+                        match idx {
+                            Some(i) => options.get(*i).map(|s| json!(s)).unwrap_or(json!(null)),
+                            None => json!(null),
+                        }
+                    } else {
+                        // Fallback: numeric index or null
+                        json!(idx)
+                    }
                 }
             };
             (id.clone(), json_val)
@@ -325,13 +393,15 @@ impl PopupResult {
                     }
                     // Search in reveals for Slider, Checkbox, Textbox
                     Element::Slider { reveals, .. }
-                    | Element::Checkbox { reveals, .. }
-                    | Element::Textbox { reveals, .. } => {
+                    | Element::Checkbox { reveals, .. } => {
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
                                 return Some(e);
                             }
                         }
+                    }
+                    Element::Textbox { .. } => {
+                        // Textbox has no reveals or option_children
                     }
                     // Search in both reveals and option_children for Multiselect and Choice
                     Element::Multiselect { reveals, option_children, .. }
@@ -431,13 +501,15 @@ impl PopupResult {
                     }
                     // Search in reveals for Slider, Checkbox, Textbox
                     Element::Slider { reveals, .. }
-                    | Element::Checkbox { reveals, .. }
-                    | Element::Textbox { reveals, .. } => {
+                    | Element::Checkbox { reveals, .. } => {
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
                                 return Some(e);
                             }
                         }
+                    }
+                    Element::Textbox { .. } => {
+                        // Textbox has no reveals or option_children
                     }
                     // Search in both reveals and option_children for Multiselect and Choice
                     Element::Multiselect { reveals, option_children, .. }

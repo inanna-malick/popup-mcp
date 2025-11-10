@@ -146,7 +146,6 @@ fn test_popupstate_init_textbox() {
             id: "name".to_string(),
             placeholder: None,
             rows: None,
-            reveals: vec![],
             when: None,
         }],
     };
@@ -196,7 +195,8 @@ fn test_to_value_map() {
     state.values.insert("enabled".to_string(), ElementValue::Boolean(true));
     state.values.insert("name".to_string(), ElementValue::Text("Alice".to_string()));
 
-    let value_map = state.to_value_map();
+    // Empty elements array for this simple test
+    let value_map = state.to_value_map(&[]);
     assert_eq!(value_map.get("cpu").unwrap().as_f64(), Some(85.0));
     assert_eq!(value_map.get("enabled").unwrap().as_bool(), Some(true));
     assert_eq!(value_map.get("name").unwrap().as_str(), Some("Alice"));
