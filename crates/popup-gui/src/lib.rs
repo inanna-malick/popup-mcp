@@ -20,6 +20,5 @@ pub use json_parser::{
     parse_popup_json_value, validate_popup_json,
 };
 pub use schema::{
-    get_input_schema, get_popup_tool_schema, get_schema_description, get_simple_input_schema,
-    get_simple_popup_tool_schema,
+    get_input_schema, get_popup_tool_schema, get_schema_description,
 };

@@ -5,13 +5,14 @@ mod element_deser;
 #[cfg(test)]
 mod tests;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
 pub use condition::{parse_condition, evaluate_condition, ConditionExpr};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PopupDefinition {
     pub title: Option<String>,
     pub elements: Vec<Element>,
@@ -27,7 +28,7 @@ impl PopupDefinition {
 /// Schema v2: Element types using element-as-key pattern
 /// Discriminated by which field is present, not explicit "type" tag
 /// Serialize/Deserialize impls in element_deser.rs for element-as-key and option-as-key support
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, JsonSchema)]
 pub enum Element {
     /// Static text display
     Text {
@@ -100,7 +101,7 @@ pub enum Element {
 }
 
 /// Unified value type for all widget states
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, JsonSchema)]
 pub enum ElementValue {
     Number(f32),
     Boolean(bool),
@@ -323,7 +324,7 @@ impl PopupState {
 }
 
 /// Result that gets serialized to JSON
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status")]
 pub enum PopupResult {
     #[serde(rename = "completed")]
