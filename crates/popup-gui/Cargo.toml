@@ -24,7 +24,15 @@ tokio = { workspace = true, optional = true }
 
 # GUI-specific dependencies
 env_logger = "0.11"
-eframe = "0.31"
+# Disable clipboard feature to fix WSL "Broken pipe" errors
+# See: https://github.com/emilk/egui/issues/4938
+eframe = { version = "0.31", default-features = false, features = [
+    "accesskit",
+    "default_fonts",
+    "glow",
+    "wayland",
+    "x11"
+] }
 egui = "0.31"
 egui_extras = { version = "0.31", features = ["svg", "image"] }
 egui-twemoji = "0.7"

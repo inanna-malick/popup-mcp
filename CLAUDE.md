@@ -8,6 +8,14 @@ Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants t
 - **Rust workspace**: Native GUI rendering, local MCP server, and remote client daemon
 - **Cloudflare Workers**: Distributed relay infrastructure for remote popup invocation
 
+## WSL Compatibility
+
+The popup GUI works in WSL2 with WSLg. The clipboard feature is disabled in `Cargo.toml` to avoid "Broken pipe" errors from smithay-clipboard in WSL environments. This means copy/paste will work within the popup but not with the system clipboard.
+
+**Issue**: eframe's default clipboard integration (via smithay-clipboard) crashes in WSL with `Io error: Broken pipe (os error 32)`
+**Solution**: Disable clipboard feature in eframe dependency, falling back to in-app-only clipboard
+**Reference**: https://github.com/emilk/egui/issues/4938
+
 ## Common Development Commands
 
 ### Rust Workspace
