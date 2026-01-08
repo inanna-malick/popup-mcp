@@ -321,9 +321,9 @@ fn test_choice_no_default() {
             assert_eq!(choice, "Theme");
             assert_eq!(id, "theme");
             assert_eq!(options.len(), 3);
-            assert_eq!(options[0], "Light");
-            assert_eq!(options[1], "Dark");
-            assert_eq!(options[2], "Auto");
+            assert_eq!(options[0].value(), "Light");
+            assert_eq!(options[1].value(), "Dark");
+            assert_eq!(options[2].value(), "Auto");
             assert_eq!(*default, None); // No default, should be None
         }
         _ => panic!("Expected choice element"),
@@ -353,9 +353,9 @@ fn test_choice_with_default() {
             assert_eq!(choice, "Mode");
             assert_eq!(id, "mode");
             assert_eq!(options.len(), 3);
-            assert_eq!(options[0], "Easy");
-            assert_eq!(options[1], "Medium");
-            assert_eq!(options[2], "Hard");
+            assert_eq!(options[0].value(), "Easy");
+            assert_eq!(options[1].value(), "Medium");
+            assert_eq!(options[2].value(), "Hard");
             assert_eq!(*default, Some(1)); // Default to index 1 (Medium)
         }
         _ => panic!("Expected choice element"),

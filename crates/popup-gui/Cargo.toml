@@ -35,6 +35,7 @@ eframe = { version = "0.31", default-features = false, features = [
 ] }
 egui = "0.31"
 egui_extras = { version = "0.31", features = ["svg", "image"] }
+egui_commonmark = "0.20"
 egui-twemoji = "0.7"
 mcpr = "0.2.3"
 log = "0.4"

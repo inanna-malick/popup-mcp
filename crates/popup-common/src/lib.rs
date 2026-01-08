@@ -12,6 +12,38 @@ use std::collections::HashMap;
 
 pub use condition::{parse_condition, evaluate_condition, ConditionExpr};
 
+/// Option value for Choice/Multiselect - can be simple string or with description
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum OptionValue {
+    /// Simple string option
+    Simple(String),
+    /// Option with description (supports both "description" and "because" as aliases)
+    WithDescription {
+        value: String,
+        #[serde(alias = "because")]
+        description: String,
+    },
+}
+
+impl OptionValue {
+    /// Get the option value string
+    pub fn value(&self) -> &str {
+        match self {
+            OptionValue::Simple(s) => s,
+            OptionValue::WithDescription { value, .. } => value,
+        }
+    }
+
+    /// Get the description if present
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            OptionValue::Simple(_) => None,
+            OptionValue::WithDescription { description, .. } => Some(description),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PopupDefinition {
     pub title: Option<String>,
@@ -35,6 +67,15 @@ pub enum Element {
         text: String,
         id: Option<String>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why this content is shown
+    },
+
+    /// Rich markdown text display
+    Markdown {
+        markdown: String, // Markdown content becomes the discriminator key
+        id: Option<String>,
+        when: Option<String>,
+        context: Option<String>, // Markdown explaining why this content is shown
     },
 
     /// Numeric slider input
@@ -46,6 +87,7 @@ pub enum Element {
         default: Option<f32>,
         reveals: Vec<Element>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why I'm asking
     },
 
     /// Boolean checkbox input
@@ -55,6 +97,7 @@ pub enum Element {
         default: bool,
         reveals: Vec<Element>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why I'm asking
     },
 
     /// Text input field (single or multi-line)
@@ -64,31 +107,34 @@ pub enum Element {
         placeholder: Option<String>,
         rows: Option<u32>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why I'm asking
     },
 
     /// Multiple selection from options (with option-as-key nesting)
     Multiselect {
         multiselect: String, // Label text becomes the discriminator key
         id: String,
-        options: Vec<String>,
+        options: Vec<OptionValue>,
         // Option-as-key nesting: HashMap<option_value, Vec<Element>>
         // Custom serialize/deserialize handles option children as direct JSON keys
         option_children: HashMap<String, Vec<Element>>,
         reveals: Vec<Element>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why I'm asking
     },
 
     /// Single selection from options (with option-as-key nesting)
     Choice {
         choice: String, // Label text becomes the discriminator key
         id: String,
-        options: Vec<String>,
+        options: Vec<OptionValue>,
         default: Option<usize>,
         // Option-as-key nesting: HashMap<option_value, Vec<Element>>
         // Custom serialize/deserialize handles option children as direct JSON keys
         option_children: HashMap<String, Vec<Element>>,
         reveals: Vec<Element>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why I'm asking
     },
 
     /// Labeled container for grouping elements
@@ -97,6 +143,7 @@ pub enum Element {
         id: Option<String>,
         elements: Vec<Element>,
         when: Option<String>,
+        context: Option<String>, // Markdown explaining why this group exists
     },
 }
 
@@ -140,7 +187,7 @@ impl PopupState {
                     self.values.insert(id.clone(), ElementValue::Text(String::new()));
                 }
                 Element::Multiselect { id, options, option_children, reveals, .. } => {
-                    self.values.insert(id.clone(), ElementValue::MultiChoice(vec![false; options.len()]));
+                    self.values.insert(id.clone(), ElementValue::MultiChoice(vec![false; options.len()]));  // options.len() still works with Vec<OptionValue>
                     // Recurse into option-as-key children
                     for children in option_children.values() {
                         self.init_elements(children);
@@ -159,6 +206,9 @@ impl PopupState {
                 }
                 Element::Text { .. } => {
                     // Text elements have no state
+                }
+                Element::Markdown { .. } => {
+                    // Markdown elements have no state
                 }
             }
         }
@@ -293,7 +343,7 @@ impl PopupState {
                             .enumerate()
                             .filter_map(|(i, &selected)| {
                                 if selected {
-                                    options.get(i).map(|s| s.as_str())
+                                    options.get(i).map(|opt| opt.value())
                                 } else {
                                     None
                                 }
@@ -309,7 +359,7 @@ impl PopupState {
                     // Convert index to option text for selected() function
                     if let Some(Element::Choice { options, .. }) = find_element_by_id(elements, id) {
                         match idx {
-                            Some(i) => options.get(*i).map(|s| json!(s)).unwrap_or(json!(null)),
+                            Some(i) => options.get(*i).map(|opt| json!(opt.value())).unwrap_or(json!(null)),
                             None => json!(null),
                         }
                     } else {
@@ -443,16 +493,16 @@ impl PopupResult {
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
                 ) => {
-                    let selected: Vec<&String> = selections
+                    let selected: Vec<&str> = selections
                         .iter()
                         .enumerate()
-                        .filter_map(|(i, &sel)| sel.then_some(options.get(i)))
+                        .filter_map(|(i, &sel)| sel.then_some(options.get(i).map(|o| o.value())))
                         .flatten()
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    options.get(*idx).map(|opt| json!(opt)).unwrap_or(json!(null))
+                    options.get(*idx).map(|opt| json!(opt.value())).unwrap_or(json!(null))
                 }
                 (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),
@@ -556,16 +606,16 @@ impl PopupResult {
                     ElementValue::MultiChoice(selections),
                     Some(Element::Multiselect { options, .. }),
                 ) => {
-                    let selected: Vec<&String> = selections
+                    let selected: Vec<&str> = selections
                         .iter()
                         .enumerate()
-                        .filter_map(|(i, &sel)| sel.then_some(options.get(i)))
+                        .filter_map(|(i, &sel)| sel.then_some(options.get(i).map(|o| o.value())))
                         .flatten()
                         .collect();
                     json!(selected)
                 }
                 (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    options.get(*idx).map(|opt| json!(opt)).unwrap_or(json!(null))
+                    options.get(*idx).map(|opt| json!(opt.value())).unwrap_or(json!(null))
                 }
                 (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),

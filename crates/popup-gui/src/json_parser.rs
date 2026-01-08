@@ -1,14 +1,27 @@
 use anyhow::Result;
-use popup_common::PopupDefinition;
+use popup_common::{Element, PopupDefinition};
 use serde_json::Value;
 
-/// Parse JSON input into a PopupDefinition with fallback for both schema formats
+/// Element type discriminator keys used for single-element root detection
+const ELEMENT_KEYS: &[&str] = &[
+    "text", "markdown", "slider", "checkbox", "textbox", "choice", "multiselect", "group",
+];
+
+/// Check if a JSON object looks like a single element (has an element type key)
+fn is_element_object(obj: &serde_json::Map<String, Value>) -> bool {
+    ELEMENT_KEYS.iter().any(|key| obj.contains_key(*key))
+}
+
+/// Parse JSON input into a PopupDefinition with support for multiple formats
 ///
-/// This function handles both the direct format `{"title": "...", "elements": [...]}`
-/// and the MCP wrapper format `{"json": {"title": "...", "elements": [...]}}`.
+/// This function handles:
+/// 1. **Direct format**: `{"title": "...", "elements": [...]}`
+/// 2. **MCP wrapper format**: `{"json": {"title": "...", "elements": [...]}}`
+/// 3. **Single-element root**: `{"text": "Hello"}` → wraps in PopupDefinition
+/// 4. **Array root**: `[{"text": "Hello"}, {"checkbox": "OK"}]` → wraps in PopupDefinition
 ///
 /// **Recommended for external tools**: Instead of using `serde_json::from_str::<PopupDefinition>()`
-/// directly, external tools should use this function to ensure compatibility with both formats.
+/// directly, external tools should use this function to ensure compatibility with all formats.
 ///
 /// # Examples
 ///
@@ -45,31 +58,22 @@ use serde_json::Value;
 /// // OLD (may fail with wrapper format):
 /// let popup: PopupDefinition = serde_json::from_str(json_str)?;
 ///
-/// // NEW (handles both formats):
+/// // NEW (handles all formats):
 /// let popup = parse_popup_json(json_str)?;
 /// ```
 pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
-    // First try direct format: {"title": "...", "elements": [...]}
-    if let Ok(popup) = serde_json::from_str::<PopupDefinition>(input) {
-        return Ok(popup);
-    }
-
-    // Fallback: try MCP wrapper format: {"json": {"title": "...", "elements": [...]}}
     let value: Value = serde_json::from_str(input)?;
-    if let Some(json_obj) = value.get("json") {
-        let popup: PopupDefinition = serde_json::from_value(json_obj.clone())?;
-        return Ok(popup);
-    }
-
-    // If neither worked, return the original error from direct parsing
-    let popup: PopupDefinition = serde_json::from_str(input)?;
-    Ok(popup)
+    parse_popup_json_value(value)
 }
 
-/// Parse JSON Value into a PopupDefinition with fallback for both schema formats
+/// Parse JSON Value into a PopupDefinition with support for multiple formats
 ///
 /// This function is similar to `parse_popup_json()` but works with pre-parsed `serde_json::Value`
-/// objects instead of JSON strings. It handles both direct and MCP wrapper formats.
+/// objects instead of JSON strings. It handles all supported formats:
+/// 1. Direct format: `{"title": "...", "elements": [...]}`
+/// 2. MCP wrapper format: `{"json": {...}}`
+/// 3. Single-element root: `{"text": "Hello"}` → wraps in PopupDefinition
+/// 4. Array root: `[{...}, {...}]` → wraps in PopupDefinition
 ///
 /// **Use when**: You already have a `serde_json::Value` object and want wrapper-aware parsing.
 ///
@@ -89,20 +93,45 @@ pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
 /// let popup = parse_popup_json_value(value).unwrap();
 /// ```
 pub fn parse_popup_json_value(value: Value) -> Result<PopupDefinition> {
-    // First try direct format: {"title": "...", "elements": [...]}
-    if let Ok(popup) = serde_json::from_value::<PopupDefinition>(value.clone()) {
+    // Handle array root: [...] → wrap elements in PopupDefinition
+    if let Value::Array(arr) = &value {
+        let elements: Vec<Element> = arr
+            .iter()
+            .map(|v| serde_json::from_value(v.clone()))
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(PopupDefinition {
+            title: None,
+            elements,
+        });
+    }
+
+    // Handle object types
+    if let Value::Object(obj) = &value {
+        // Check for MCP wrapper format first: {"json": {...}}
+        if let Some(json_obj) = obj.get("json") {
+            // Recursively parse the inner json object
+            return parse_popup_json_value(json_obj.clone());
+        }
+
+        // Check for single-element root: {"text": "..."} or {"slider": "...", ...}
+        if is_element_object(obj) {
+            let element: Element = serde_json::from_value(value)?;
+            return Ok(PopupDefinition {
+                title: None,
+                elements: vec![element],
+            });
+        }
+
+        // Otherwise, try standard PopupDefinition format: {"title": "...", "elements": [...]}
+        let popup: PopupDefinition = serde_json::from_value(value)?;
         return Ok(popup);
     }
 
-    // Fallback: try MCP wrapper format: {"json": {"title": "...", "elements": [...]}}
-    if let Some(json_obj) = value.get("json") {
-        let popup: PopupDefinition = serde_json::from_value(json_obj.clone())?;
-        return Ok(popup);
-    }
-
-    // If neither worked, return the original error from direct parsing
-    let popup: PopupDefinition = serde_json::from_value(value)?;
-    Ok(popup)
+    // Neither object nor array - return error
+    Err(anyhow::anyhow!(
+        "Invalid popup JSON: expected object or array, got {:?}",
+        value
+    ))
 }
 
 /// Parse JSON specifically expecting MCP wrapper format: `{"json": {"title": "...", "elements": [...]}}`
@@ -155,7 +184,12 @@ pub fn parse_popup_from_direct(input: &str) -> Result<PopupDefinition> {
 
 /// Detect which format a JSON string is using
 ///
-/// Returns a string indicating the detected format: "direct", "wrapper", or "unknown".
+/// Returns a string indicating the detected format:
+/// - "direct" - standard PopupDefinition format
+/// - "wrapper" - MCP wrapper format with "json" key
+/// - "element" - single element at root
+/// - "array" - array of elements at root
+/// - "unknown" - unrecognized format
 ///
 /// # Examples
 ///
@@ -170,16 +204,19 @@ pub fn parse_popup_from_direct(input: &str) -> Result<PopupDefinition> {
 /// ```
 pub fn detect_popup_format(input: &str) -> &'static str {
     match serde_json::from_str::<Value>(input) {
-        Ok(value) => {
-            if value.get("json").is_some() {
+        Ok(Value::Array(_)) => "array",
+        Ok(Value::Object(obj)) => {
+            if obj.get("json").is_some() {
                 "wrapper"
-            } else if value.get("title").is_some() || value.get("elements").is_some() {
+            } else if obj.get("title").is_some() || obj.get("elements").is_some() {
                 "direct"
+            } else if is_element_object(&obj) {
+                "element"
             } else {
                 "unknown"
             }
         }
-        Err(_) => "unknown",
+        _ => "unknown",
     }
 }
 
@@ -372,7 +409,7 @@ mod tests {
                 assert_eq!(multiselect, "Primary growth focus");
                 assert_eq!(options.len(), 4);
                 assert_eq!(
-                    options[0],
+                    options[0].value(),
                     "Cognitive Architecture - proactive design, meta-patterns"
                 );
             }
@@ -442,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_malformed_wrapper_formats() {
-        // Test nested wrapper (double wrapped)
+        // Test nested wrapper (double wrapped) - now works due to recursive parsing
         let json = r#"{
             "json": {
                 "json": {
@@ -452,12 +489,16 @@ mod tests {
             }
         }"#;
         let result = parse_popup_json(json);
-        assert!(result.is_err(), "Should fail with double-wrapped json");
+        assert!(result.is_ok(), "Double-wrapped json now works due to recursive parsing");
+        let popup = result.unwrap();
+        assert_eq!(popup.title, Some("Double Wrapped".to_string()));
 
-        // Test array instead of object in json field
+        // Test empty array in json field - now valid (empty popup)
         let json = r#"{"json": []}"#;
         let result = parse_popup_json(json);
-        assert!(result.is_err(), "Should fail when json field is array");
+        assert!(result.is_ok(), "Empty array in json field is now valid");
+        let popup = result.unwrap();
+        assert_eq!(popup.elements.len(), 0);
     }
 
     #[test]
@@ -508,6 +549,13 @@ mod tests {
 
         let invalid = r#"{"incomplete": json"#;
         assert_eq!(detect_popup_format(invalid), "unknown");
+
+        // New formats
+        let element = r#"{"text": "Hello"}"#;
+        assert_eq!(detect_popup_format(element), "element");
+
+        let array = r#"[{"text": "Hello"}, {"checkbox": "OK", "id": "ok"}]"#;
+        assert_eq!(detect_popup_format(array), "array");
     }
 
     #[test]
@@ -523,5 +571,146 @@ mod tests {
         // Invalid - missing elements
         let invalid = r#"{"json": {"title": "test"}}"#;
         assert!(validate_popup_json(invalid).is_err());
+    }
+
+    // Phase 6: Single-element root tests
+
+    #[test]
+    fn test_single_element_root_text() {
+        // Simplest case: just text
+        let json = r#"{"text": "Delete this file? This cannot be undone."}"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 1);
+        match &popup.elements[0] {
+            Element::Text { text, .. } => assert_eq!(text, "Delete this file? This cannot be undone."),
+            _ => panic!("Expected text element"),
+        }
+    }
+
+    #[test]
+    fn test_single_element_root_slider() {
+        let json = r#"{"slider": "Volume", "id": "volume", "min": 0, "max": 100}"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 1);
+        match &popup.elements[0] {
+            Element::Slider { slider, min, max, .. } => {
+                assert_eq!(slider, "Volume");
+                assert_eq!(*min, 0.0);
+                assert_eq!(*max, 100.0);
+            }
+            _ => panic!("Expected slider element"),
+        }
+    }
+
+    #[test]
+    fn test_single_element_root_choice_with_option_children() {
+        // Complex single element with nested structure
+        let json = r#"{
+            "choice": "Mode",
+            "id": "mode",
+            "options": ["Simple", "Advanced"],
+            "Advanced": [
+                {"slider": "Level", "id": "level", "min": 1, "max": 10}
+            ]
+        }"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 1);
+        match &popup.elements[0] {
+            Element::Choice { choice, options, option_children, .. } => {
+                assert_eq!(choice, "Mode");
+                assert_eq!(options.len(), 2);
+                assert!(option_children.contains_key("Advanced"));
+            }
+            _ => panic!("Expected choice element"),
+        }
+    }
+
+    // Phase 6: Array root tests
+
+    #[test]
+    fn test_array_root_simple() {
+        let json = r#"[
+            {"text": "Configure audio settings"},
+            {"slider": "Volume", "id": "volume", "min": 0, "max": 100},
+            {"checkbox": "Mute", "id": "mute"}
+        ]"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 3);
+
+        match &popup.elements[0] {
+            Element::Text { text, .. } => assert_eq!(text, "Configure audio settings"),
+            _ => panic!("Expected text element"),
+        }
+        match &popup.elements[1] {
+            Element::Slider { slider, .. } => assert_eq!(slider, "Volume"),
+            _ => panic!("Expected slider element"),
+        }
+        match &popup.elements[2] {
+            Element::Checkbox { checkbox, .. } => assert_eq!(checkbox, "Mute"),
+            _ => panic!("Expected checkbox element"),
+        }
+    }
+
+    #[test]
+    fn test_array_root_with_when_clauses() {
+        let json = r#"[
+            {"checkbox": "Enable advanced", "id": "enable_advanced"},
+            {"slider": "Level", "id": "level", "min": 1, "max": 10, "when": "@enable_advanced"}
+        ]"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.elements.len(), 2);
+        match &popup.elements[1] {
+            Element::Slider { when, .. } => assert_eq!(when.as_deref(), Some("@enable_advanced")),
+            _ => panic!("Expected slider element"),
+        }
+    }
+
+    #[test]
+    fn test_wrapper_with_single_element() {
+        // MCP wrapper around single element
+        let json = r#"{"json": {"text": "Hello from MCP"}}"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 1);
+        match &popup.elements[0] {
+            Element::Text { text, .. } => assert_eq!(text, "Hello from MCP"),
+            _ => panic!("Expected text element"),
+        }
+    }
+
+    #[test]
+    fn test_wrapper_with_array() {
+        // MCP wrapper around array
+        let json = r#"{"json": [
+            {"text": "First"},
+            {"text": "Second"}
+        ]}"#;
+        let popup = parse_popup_json(json).unwrap();
+
+        assert_eq!(popup.title, None);
+        assert_eq!(popup.elements.len(), 2);
+    }
+
+    #[test]
+    fn test_validation_of_new_formats() {
+        // Single element
+        assert!(validate_popup_json(r#"{"text": "Hello"}"#).is_ok());
+        assert!(validate_popup_json(r#"{"slider": "Vol", "id": "vol", "min": 0, "max": 100}"#).is_ok());
+
+        // Array
+        assert!(validate_popup_json(r#"[{"text": "A"}, {"text": "B"}]"#).is_ok());
+
+        // Invalid single element (missing required fields)
+        assert!(validate_popup_json(r#"{"slider": "Vol"}"#).is_err()); // missing id, min, max
     }
 }

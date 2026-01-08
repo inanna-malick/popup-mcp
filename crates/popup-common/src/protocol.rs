@@ -95,6 +95,7 @@ mod tests {
                 text: "Hello".to_string(),
                 id: None,
                 when: None,
+                context: None,
             }],
         };
 

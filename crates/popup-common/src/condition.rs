@@ -226,7 +226,7 @@ pub fn evaluate_condition(
 
         ConditionExpr::Ref(id) => {
             // Reference to field - check truthiness of value
-            state.get(id).map(|v| is_truthy(v)).unwrap_or(false)
+            state.get(id).map(is_truthy).unwrap_or(false)
         }
 
         ConditionExpr::Number(n) => *n != 0.0, // Non-zero is truthy
@@ -452,5 +452,80 @@ mod tests {
 
         let ast = parse_condition("@cpu < 80").unwrap();
         assert!(!evaluate_condition(&ast, &state));
+    }
+
+    #[test]
+    fn test_slider_comparisons_all_operators() {
+        // Test slider comparison with all operators (for Phase 5: slider comparisons in when clauses)
+        let mut state = HashMap::new();
+        // Use float value like sliders produce
+        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(7.5).unwrap()));
+
+        // Greater than
+        assert!(evaluate_condition(&parse_condition("@severity > 5").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity > 8").unwrap(), &state));
+
+        // Less than
+        assert!(evaluate_condition(&parse_condition("@severity < 10").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity < 7").unwrap(), &state));
+
+        // Greater or equal
+        assert!(evaluate_condition(&parse_condition("@severity >= 7.5").unwrap(), &state));
+        assert!(evaluate_condition(&parse_condition("@severity >= 7").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity >= 8").unwrap(), &state));
+
+        // Less or equal
+        assert!(evaluate_condition(&parse_condition("@severity <= 7.5").unwrap(), &state));
+        assert!(evaluate_condition(&parse_condition("@severity <= 8").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity <= 7").unwrap(), &state));
+
+        // Equality
+        assert!(evaluate_condition(&parse_condition("@severity == 7.5").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity == 7").unwrap(), &state));
+
+        // Not equal
+        assert!(evaluate_condition(&parse_condition("@severity != 8").unwrap(), &state));
+        assert!(!evaluate_condition(&parse_condition("@severity != 7.5").unwrap(), &state));
+    }
+
+    #[test]
+    fn test_slider_with_logical_operators() {
+        // Test combining slider comparisons with logical operators
+        let mut state = HashMap::new();
+        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(8.0).unwrap()));
+        state.insert("debug".to_string(), Value::Bool(true));
+
+        // Combined conditions (typical use case: show warning when severity high AND debug enabled)
+        assert!(evaluate_condition(&parse_condition("@severity >= 8 && @debug").unwrap(), &state));
+
+        // Turn off debug
+        state.insert("debug".to_string(), Value::Bool(false));
+        assert!(!evaluate_condition(&parse_condition("@severity >= 8 && @debug").unwrap(), &state));
+
+        // OR logic
+        assert!(evaluate_condition(&parse_condition("@severity >= 8 || @debug").unwrap(), &state));
+
+        // Lower severity
+        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(5.0).unwrap()));
+        assert!(!evaluate_condition(&parse_condition("@severity >= 8 || @debug").unwrap(), &state));
+    }
+
+    #[test]
+    fn test_slider_range_conditions() {
+        // Test range conditions like "5 <= severity <= 8"
+        // (Since we don't have direct range syntax, this uses AND)
+        let mut state = HashMap::new();
+        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(6.0).unwrap()));
+
+        // Value in range [5, 8]
+        assert!(evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
+
+        // Value at boundary
+        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(5.0).unwrap()));
+        assert!(evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
+
+        // Value outside range
+        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(4.0).unwrap()));
+        assert!(!evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
     }
 }

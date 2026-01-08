@@ -1,4 +1,4 @@
-use crate::{Element, ElementValue, PopupDefinition, PopupState};
+use crate::{Element, ElementValue, OptionValue, PopupDefinition, PopupState};
 use std::collections::HashMap;
 
 #[test]
@@ -13,6 +13,8 @@ fn test_popupstate_init_slider() {
             default: Some(75.0),
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -32,6 +34,8 @@ fn test_popupstate_init_slider_default_midpoint() {
             default: None, // Should default to midpoint
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -49,6 +53,8 @@ fn test_popupstate_init_checkbox() {
             default: true,
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -72,8 +78,12 @@ fn test_popupstate_init_with_reveals() {
                 default: None,
                 reveals: vec![],
                 when: None,
+                context: None,
+                
             }],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -95,6 +105,8 @@ fn test_popupstate_init_with_option_children() {
             default: Some(50.0),
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     );
 
@@ -103,11 +115,13 @@ fn test_popupstate_init_with_option_children() {
         elements: vec![Element::Choice {
             choice: "Theme".to_string(),
             id: "theme".to_string(),
-            options: vec!["Light".to_string(), "Dark".to_string()],
+            options: vec![OptionValue::Simple("Light".to_string()), OptionValue::Simple("Dark".to_string())],
             default: None,
             option_children,
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -123,10 +137,12 @@ fn test_popupstate_init_multiselect() {
         elements: vec![Element::Multiselect {
             multiselect: "Features".to_string(),
             id: "features".to_string(),
-            options: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            options: vec![OptionValue::Simple("A".to_string()), OptionValue::Simple("B".to_string()), OptionValue::Simple("C".to_string())],
             option_children: HashMap::new(),
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -147,6 +163,8 @@ fn test_popupstate_init_textbox() {
             placeholder: None,
             rows: None,
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -170,6 +188,8 @@ fn test_popupstate_init_group() {
                     default: Some(50.0),
                     reveals: vec![],
                     when: None,
+                context: None,
+                
                 },
                 Element::Checkbox {
                     checkbox: "Mute".to_string(),
@@ -177,9 +197,12 @@ fn test_popupstate_init_group() {
                     default: false,
                     reveals: vec![],
                     when: None,
+                context: None,
+                
                 },
             ],
             when: None,
+            context: None,
         }],
     };
 
@@ -215,6 +238,8 @@ fn test_get_mut_methods() {
                 default: Some(50.0),
                 reveals: vec![],
                 when: None,
+                context: None,
+                
             },
             Element::Checkbox {
                 checkbox: "Enabled".to_string(),
@@ -222,6 +247,8 @@ fn test_get_mut_methods() {
                 default: false,
                 reveals: vec![],
                 when: None,
+                context: None,
+                
             },
         ],
     };
@@ -255,6 +282,8 @@ fn test_nested_reveals_and_option_children() {
             default: Some(5.0),
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     );
 
@@ -267,13 +296,17 @@ fn test_nested_reveals_and_option_children() {
             reveals: vec![Element::Choice {
                 choice: "Mode".to_string(),
                 id: "mode".to_string(),
-                options: vec!["Basic".to_string(), "Advanced".to_string()],
+                options: vec![OptionValue::Simple("Basic".to_string()), OptionValue::Simple("Advanced".to_string())],
                 default: Some(0),
                 option_children,
                 reveals: vec![],
                 when: None,
+                context: None,
+                
             }],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -300,6 +333,8 @@ fn test_find_element_in_option_children() {
             default: Some(50.0),
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     );
 
@@ -308,11 +343,13 @@ fn test_find_element_in_option_children() {
         elements: vec![Element::Choice {
             choice: "Plan".to_string(),
             id: "plan".to_string(),
-            options: vec!["Basic".to_string(), "Pro".to_string()],
+            options: vec![OptionValue::Simple("Basic".to_string()), OptionValue::Simple("Pro".to_string())],
             default: Some(1), // Select "Pro"
             option_children,
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 
@@ -357,8 +394,12 @@ fn test_find_element_in_nested_reveals_and_option_children() {
                 default: Some(5.0),
                 reveals: vec![],
                 when: None,
+                context: None,
+                
             }],
             when: None,
+                context: None,
+                
         }],
     );
 
@@ -367,11 +408,13 @@ fn test_find_element_in_nested_reveals_and_option_children() {
         elements: vec![Element::Choice {
             choice: "Mode".to_string(),
             id: "mode".to_string(),
-            options: vec!["Simple".to_string(), "Advanced".to_string()],
+            options: vec![OptionValue::Simple("Simple".to_string()), OptionValue::Simple("Advanced".to_string())],
             default: Some(1),
             option_children,
             reveals: vec![],
             when: None,
+                context: None,
+                
         }],
     };
 

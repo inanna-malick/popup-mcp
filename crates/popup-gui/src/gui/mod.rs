@@ -1,6 +1,7 @@
 use anyhow::Result;
 use eframe::egui;
 use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel, Vec2};
+use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
@@ -259,6 +260,7 @@ fn render_single_element(
     // Check if element should be visible based on when clause
     let when_clause = match element {
         Element::Text { when, .. } => when,
+        Element::Markdown { when, .. } => when,
         Element::Slider { when, .. } => when,
         Element::Checkbox { when, .. } => when,
         Element::Textbox { when, .. } => when,
@@ -283,15 +285,43 @@ fn render_single_element(
         }
     }
 
+    // Helper to render context markdown (smaller, italicized)
+    let render_context = |ui: &mut egui::Ui, context: &Option<String>| {
+        if let Some(ctx_text) = context {
+            ui.push_id("context", |ui| {
+                let mut cache = CommonMarkCache::default();
+                // Render context in smaller, muted style
+                ui.scope(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                    CommonMarkViewer::new().show(ui, &mut cache, ctx_text);
+                });
+            });
+            ui.add_space(4.0);
+        }
+    };
+
     match element {
-        Element::Text { text, .. } => {
+        Element::Text { text, context, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
+                render_context(ui, context);
                 ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
 
-        Element::Multiselect { multiselect, id, options, option_children, reveals, .. } => {
+        Element::Markdown { markdown, context, .. } => {
+            // Use element path as unique ID to prevent collisions in conditionals
+            ui.push_id(format!("markdown_{}", element_path), |ui| {
+                render_context(ui, context);
+                // Create a temporary cache for this render - caching across frames
+                // would require storing in app state, but this works for simple cases
+                let mut cache = CommonMarkCache::default();
+                CommonMarkViewer::new().show(ui, &mut cache, markdown);
+            });
+        }
+
+        Element::Multiselect { multiselect, id, options, option_children, reveals, context, .. } => {
+            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -324,14 +354,18 @@ fn render_single_element(
                             let col = &mut cols[i % 3];
                             if i < selections.len() {
                                 let checkbox_text = if selections[i] {
-                                    RichText::new(format!("☑ {}", option))
+                                    RichText::new(format!("☑ {}", option.value()))
                                         .color(ctx.theme.matrix_green)
                                         .strong()
                                 } else {
-                                    RichText::new(format!("☐ {}", option))
+                                    RichText::new(format!("☐ {}", option.value()))
                                         .color(ctx.theme.text_primary)
                                 };
+                                // Show description as tooltip if present
                                 let response = col.selectable_label(false, checkbox_text);
+                                if let Some(desc) = option.description() {
+                                    response.clone().on_hover_text(desc);
+                                }
                                 if response.clicked() {
                                     selections[i] = !selections[i];
                                 }
@@ -350,7 +384,7 @@ fn render_single_element(
                 // Render inline conditionals for each checked option (after borrow is dropped)
                 for (i, option) in options.iter().enumerate() {
                     if i < selections_snapshot.len() && selections_snapshot[i] {
-                        if let Some(children) = option_children.get(option) {
+                        if let Some(children) = option_children.get(option.value()) {
                             ui.indent(format!("multiselect_cond_{}_{}", id, i), |ui| {
                                 render_elements_in_grid(
                                     ui,
@@ -382,7 +416,8 @@ fn render_single_element(
             });
         }
 
-        Element::Choice { choice, id, options, option_children, reveals, .. } => {
+        Element::Choice { choice, id, options, option_children, reveals, context, .. } => {
+            render_context(ui, context);
             ui.label(RichText::new(choice).color(ctx.theme.text_primary));
 
             // Clone selection state to avoid borrow conflict
@@ -392,7 +427,7 @@ fn render_single_element(
                 let selected_text = match *selected {
                     Some(idx) => options
                         .get(idx)
-                        .map(|s| s.as_str())
+                        .map(|s| s.value())
                         .unwrap_or("(invalid)"),
                     None => "(none selected)",
                 };
@@ -407,12 +442,13 @@ fn render_single_element(
                         {
                             *selected = None;
                         }
-                        // Show all options
+                        // Show all options with descriptions as tooltips
                         for (idx, option) in options.iter().enumerate() {
-                            if ui
-                                .selectable_label(*selected == Some(idx), option)
-                                .clicked()
-                            {
+                            let response = ui.selectable_label(*selected == Some(idx), option.value());
+                            if let Some(desc) = option.description() {
+                                response.clone().on_hover_text(desc);
+                            }
+                            if response.clicked() {
                                 *selected = Some(idx);
                             }
                         }
@@ -421,8 +457,8 @@ fn render_single_element(
 
             // Render inline conditional for selected option (after borrow is dropped)
             if let Some(idx) = selected_option {
-                if let Some(option_text) = options.get(idx) {
-                    if let Some(children) = option_children.get(option_text) {
+                if let Some(option_val) = options.get(idx) {
+                    if let Some(children) = option_children.get(option_val.value()) {
                         ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
                             render_elements_in_grid(
                                 ui,
@@ -455,8 +491,9 @@ fn render_single_element(
         }
 
         Element::Checkbox {
-            checkbox, id, reveals, ..
+            checkbox, id, reveals, context, ..
         } => {
+            render_context(ui, context);
             if let Some(value) = state.get_boolean_mut(id) {
                 let checkbox_text = if *value {
                     RichText::new(format!("☑ {}", checkbox))
@@ -492,8 +529,10 @@ fn render_single_element(
             min,
             max,
             reveals,
+            context,
             ..
         } => {
+            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -547,8 +586,10 @@ fn render_single_element(
             id,
             placeholder,
             rows,
+            context,
             ..
         } => {
+            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -578,7 +619,8 @@ fn render_single_element(
             });
         }
 
-        Element::Group { group, elements, .. } => {
+        Element::Group { group, elements, context, .. } => {
+            render_context(ui, context);
             // Enhanced group with better visual separation
             let group_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(12))
@@ -683,7 +725,7 @@ fn collect_active_elements(
 
                         for (i, option) in options.iter().enumerate() {
                             if i < selections.len() && selections[i] {
-                                if let Some(children) = option_children.get(option) {
+                                if let Some(children) = option_children.get(option.value()) {
                                     active_ids.extend(collect_active_elements(
                                         children,
                                         state,
@@ -715,7 +757,7 @@ fn collect_active_elements(
                     // If there's a selected option with children, collect from it
                     if let Some(Some(idx)) = state.get_choice(id) {
                         if let Some(option_text) = options.get(idx) {
-                            if let Some(children) = option_children.get(option_text) {
+                            if let Some(children) = option_children.get(option_text.value()) {
                                 active_ids.extend(collect_active_elements(
                                     children,
                                     state,
@@ -756,6 +798,14 @@ fn collect_active_elements(
                     }
                 }
             }
+            Element::Markdown { id, when, .. } => {
+                // Markdown elements are included in active list if visible
+                if is_visible(when) {
+                    if let Some(md_id) = id {
+                        active_ids.push(md_id.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -790,7 +840,7 @@ fn calculate_elements_size(
     elements: &[Element],
     height: &mut f32,
     max_width: &mut f32,
-    include_conditionals: bool,
+    _include_conditionals: bool,
 ) {
     // Count sliders to see if we need grid layout
     let slider_count = elements
@@ -804,6 +854,14 @@ fn calculate_elements_size(
             Element::Text { text, .. } => {
                 *height += 40.0; // Moderately larger text requires more height
                 *max_width = max_width.max(text.len() as f32 * 12.0 + 40.0); // Moderately larger character width
+            }
+            Element::Markdown { markdown, .. } => {
+                // Estimate height based on line count (rough approximation)
+                let line_count = markdown.lines().count().max(1);
+                *height += 25.0 * line_count as f32;
+                // Estimate width based on longest line
+                let longest_line = markdown.lines().map(|l| l.len()).max().unwrap_or(20);
+                *max_width = max_width.max(longest_line as f32 * 10.0 + 40.0);
             }
             Element::Slider { slider, .. } => {
                 if uses_slider_grid {
@@ -833,7 +891,7 @@ fn calculate_elements_size(
                     *height += 30.0 * options.len() as f32; // Moderately larger checkbox height
                     let longest = options
                         .iter()
-                        .map(|opt| opt.len())
+                        .map(|opt| opt.value().len())
                         .max()
                         .unwrap_or(0);
                     *max_width = max_width.max((longest as f32) * 12.0 + 130.0);
@@ -845,7 +903,7 @@ fn calculate_elements_size(
                 *height += 35.0; // ComboBox height
                 let longest = options
                     .iter()
-                    .map(|opt| opt.len())
+                    .map(|opt| opt.value().len())
                     .max()
                     .unwrap_or(0)
                     .max(choice.len());
@@ -853,7 +911,7 @@ fn calculate_elements_size(
             }
             Element::Group { elements, .. } => {
                 *height += 40.0; // Moderately larger group header height for bigger text
-                calculate_elements_size(elements, height, max_width, include_conditionals);
+                calculate_elements_size(elements, height, max_width, _include_conditionals);
                 *height += 15.0; // Proper group padding
             }
         }
