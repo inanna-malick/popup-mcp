@@ -21,63 +21,65 @@ fn error(msg: impl std::fmt::Display) -> Value {
 }
 
 fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
-    // Get the current executable path
-    let popup_path = std::env::current_exe().ok();
+    // Try to find the popup binary:
+    // 1. Current executable (self-spawning)
+    // 2. "popup" in PATH
+    let binary_path = std::env::current_exe()
+        .ok()
+        .filter(|p| p.exists())
+        .or_else(|| which::which("popup").ok())
+        .ok_or_else(|| "Could not find popup binary (not in PATH and current_exe failed)".to_string())?;
 
-    if let Some(binary_path) = popup_path {
-        log::info!("Spawning popup binary with --stdin: {:?}", binary_path);
+    log::info!("Spawning popup binary with --stdin: {:?}", binary_path);
 
-        // Spawn the popup binary with --stdin flag
-        let mut child = std::process::Command::new(binary_path)
-            .arg("--stdin")
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))?;
+    // Spawn the popup binary with --stdin flag
+    let mut child = std::process::Command::new(binary_path)
+        .arg("--stdin")
+        .env("WAYLAND_DISPLAY", "") // Force X11 on WSL
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn popup subprocess: {}", e))?;
 
-        log::info!("Subprocess spawned with PID: {:?}", child.id());
+    log::info!("Subprocess spawned with PID: {:?}", child.id());
 
-        // Write JSON to stdin
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            log::info!("Writing JSON to subprocess stdin...");
-            stdin
-                .write_all(json_str.as_bytes())
-                .map_err(|e| format!("Failed to write JSON to subprocess: {}", e))?;
-            drop(stdin); // Close stdin to signal EOF
+    // Write JSON to stdin
+    let mut stdin = child.stdin.take()
+        .ok_or_else(|| "Failed to get subprocess stdin".to_string())?;
 
-            // Wait for subprocess to complete and get output
-            let output = child
-                .wait_with_output()
-                .map_err(|e| format!("Failed to wait for popup: {}", e))?;
+    use std::io::Write;
+    log::info!("Writing JSON to subprocess stdin...");
+    stdin
+        .write_all(json_str.as_bytes())
+        .map_err(|e| format!("Failed to write JSON to subprocess: {}", e))?;
+    drop(stdin); // Close stdin to signal EOF
 
-            let stdout_str = String::from_utf8_lossy(&output.stdout);
-            let stderr_str = String::from_utf8_lossy(&output.stderr);
+    // Wait for subprocess to complete and get output
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("Failed to wait for popup: {}", e))?;
 
-            if !stderr_str.is_empty() {
-                log::info!("Subprocess stderr: {}", stderr_str);
-            }
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
 
-            // Small delay to ensure window cleanup
-            std::thread::sleep(std::time::Duration::from_millis(100));
+    if !stderr_str.is_empty() {
+        log::info!("Subprocess stderr: {}", stderr_str);
+    }
 
-            // Parse the output
-            if output.status.success() || !stdout_str.trim().is_empty() {
-                serde_json::from_str::<Value>(&stdout_str).map_err(|e| {
-                    format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str)
-                })
-            } else {
-                Err(format!(
-                    "Popup process failed with status: {}. Stderr: {}",
-                    output.status, stderr_str
-                ))
-            }
-        } else {
-            Err("Failed to get subprocess stdin".to_string())
-        }
+    // Small delay to ensure window cleanup
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    // Parse the output
+    if output.status.success() || !stdout_str.trim().is_empty() {
+        serde_json::from_str::<Value>(&stdout_str).map_err(|e| {
+            format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str)
+        })
     } else {
-        Err("Could not determine current executable path".to_string())
+        Err(format!(
+            "Popup process failed with status: {}. Stderr: {}",
+            output.status, stderr_str
+        ))
     }
 }
 
@@ -284,29 +286,19 @@ pub fn run(args: ServerArgs) -> Result<()> {
                         let tool_args = params.get("arguments").cloned().unwrap_or(Value::Null);
 
                         let result = if tool_name == "popup" {
-                            let json_value = tool_args.get("json").cloned();
+                            // tool_args IS the popup definition (title, elements, etc.)
+                            log::info!("Showing popup with args: {:?}", tool_args);
 
-                            log::info!("Showing popup with JSON: {:?}", json_value);
+                            let json_str =
+                                serde_json::to_string(&tool_args).unwrap_or_else(|e| {
+                                    log::error!("Failed to serialize JSON: {}", e);
+                                    "{}".to_string()
+                                });
 
-                            // Check JSON value exists and process it
-                            match json_value {
-                                Some(value) => {
-                                    let json_str =
-                                        serde_json::to_string(&value).unwrap_or_else(|e| {
-                                            log::error!("Failed to serialize JSON: {}", e);
-                                            "{}".to_string()
-                                        });
-
-                                    // Spawn popup subprocess and get result
-                                    match spawn_popup_subprocess(&json_str) {
-                                        Ok(popup_result) => popup_result,
-                                        Err(e) => error(e),
-                                    }
-                                }
-                                None => {
-                                    log::error!("No JSON provided in tool arguments");
-                                    error("Missing 'json' parameter in tool arguments")
-                                }
+                            // Spawn popup subprocess and get result
+                            match spawn_popup_subprocess(&json_str) {
+                                Ok(popup_result) => popup_result,
+                                Err(e) => error(e),
                             }
                         } else {
                             // Check if it's a template tool

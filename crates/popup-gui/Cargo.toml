@@ -38,6 +38,7 @@ egui_extras = { version = "0.31", features = ["svg", "image"] }
 egui_commonmark = "0.20"
 egui-twemoji = "0.7"
 mcpr = "0.2.3"
+which = "7"
 log = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
