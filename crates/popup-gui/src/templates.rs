@@ -63,6 +63,17 @@ pub enum ParamType {
     Array,
 }
 
+impl std::fmt::Display for ParamType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParamType::String => write!(f, "string"),
+            ParamType::Number => write!(f, "number"),
+            ParamType::Boolean => write!(f, "boolean"),
+            ParamType::Array => write!(f, "array"),
+        }
+    }
+}
+
 /// A loaded template with its content
 pub struct LoadedTemplate {
     pub config: Template,
@@ -228,7 +239,11 @@ pub fn instantiate_template(
             full_params.insert(name.clone(), default.clone());
         } else if param_def.required {
             // Required parameter missing
-            return Err(anyhow!("Required parameter '{}' not provided", name));
+            return Err(anyhow!(
+                "Required parameter '{}' (type: {}) not provided",
+                name,
+                param_def.param_type
+            ));
         }
     }
 

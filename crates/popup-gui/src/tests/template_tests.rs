@@ -69,7 +69,7 @@ fn test_template_instantiation() {
     assert!(result
         .unwrap_err()
         .to_string()
-        .contains("Required parameter 'name' not provided"));
+        .contains("Required parameter 'name' (type: string) not provided"));
 }
 
 #[test]

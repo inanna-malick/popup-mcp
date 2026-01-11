@@ -205,6 +205,7 @@ pub fn run(args: ServerArgs) -> Result<()> {
                 let response = match req.method.as_str() {
                     "initialize" => {
                         log::debug!("Handling initialization");
+                        let version = env!("CARGO_PKG_VERSION");
                         JSONRPCResponse::new(
                             req.id,
                             serde_json::json!({
@@ -222,20 +223,18 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                         "element_types": {
                                             "text": "Static text display",
                                             "slider": "Numeric range selector with min/max/default",
-                                            "checkbox": "Boolean toggle with default state",
-                                            "choice": "Single selection from options",
-                                            "multiselect": "Multiple selection from options",
-                                            "textbox": "Text input with optional placeholder",
-                                            "buttons": "Action buttons",
-                                            "conditional": "Show/hide elements based on conditions",
-                                            "group": "Group related elements"
+                                            "checkbox": "Boolean toggle with default state and reveals",
+                                            "choice": "Single selection dropdown with option-as-key nesting",
+                                            "multiselect": "Multiple selection with option-as-key nesting",
+                                            "textbox": "Text input with optional placeholder and multiline",
+                                            "group": "Collapsible container for related elements"
                                         },
-                                        "version": "0.4.0"
+                                        "version": version
                                     }
                                 },
                                 "serverInfo": {
                                     "name": "popup-mcp",
-                                    "version": "0.4.0",
+                                    "version": version,
                                     "description": "Native GUI popup server for MCP. Create interactive forms, settings dialogs, and confirmation prompts using JSON structure. Features conditional UI, rich widgets, and full keyboard navigation."
                                 }
                             }),
@@ -249,7 +248,8 @@ pub fn run(args: ServerArgs) -> Result<()> {
 
                         // Add template tools
                         for template in &loaded_templates {
-                            let mut description = template.config.description.clone();
+                            let mut description =
+                                format!("[Template] {}", template.config.description);
 
                             // Add examples if present
                             if !template.config.examples.is_empty() {
@@ -340,7 +340,14 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                     }
                                 }
                             } else {
-                                error(format!("Unknown tool: {}", tool_name))
+                                let available: Vec<&str> = std::iter::once("popup")
+                                    .chain(loaded_templates.iter().map(|t| t.config.name.as_str()))
+                                    .collect();
+                                error(format!(
+                                    "Unknown tool: '{}'. Available tools: {}",
+                                    tool_name,
+                                    available.join(", ")
+                                ))
                             }
                         };
 
