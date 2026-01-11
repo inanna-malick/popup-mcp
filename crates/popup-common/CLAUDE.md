@@ -4,11 +4,9 @@ Shared data structures and protocol definitions for the popup-mcp system.
 
 ## Purpose
 
-Provides core types and protocol definitions shared across the entire popup-mcp architecture:
+Provides core types shared across the popup-mcp architecture:
 - **popup-gui** - Native renderer consumes PopupDefinition, produces PopupResult
-- **popup-client** - WebSocket daemon uses protocol messages to coordinate with relay
-- **Cloudflare relay** - Durable Object uses protocol for client communication
-- **TypeScript mirror** - cloudflare/src/protocol.ts maintains wire format compatibility
+- Condition evaluation for when clauses
 
 ## Core Types
 
@@ -137,31 +135,6 @@ Serialized user interaction result.
 - `from_state_with_context(state, definition)` - Rich format (slider "50/100", option texts)
 - `from_state_with_active_elements(state, definition, active_labels)` - Filtered by visibility
 
-## Protocol
-
-### ServerMessage
-Cloudflare DO → popup-client
-
-```rust
-enum ServerMessage {
-    ShowPopup { id: String, definition: PopupDefinition, timeout_ms: u64 },
-    ClosePopup { id: String },
-    Ping,
-}
-```
-
-### ClientMessage
-popup-client → Cloudflare DO
-
-```rust
-enum ClientMessage {
-    Ready { device_name: Option<String> },
-    Result { id: String, result: PopupResult },
-    Pong,
-}
-```
-
-Messages use `#[serde(tag = "type", rename_all = "snake_case")]` for clean JSON.
 
 ## Example JSON (V2 Schema)
 
@@ -248,12 +221,11 @@ Messages use `#[serde(tag = "type", rename_all = "snake_case")]` for clean JSON.
 ## Design Notes
 
 **Why separate crate:**
-- Shared types eliminate duplication between Rust crates
-- TypeScript can mirror protocol types for wire compatibility
-- Clean separation between data model and rendering/networking logic
-- Enables protocol evolution without touching GUI or network code
+- Shared types eliminate duplication between GUI and potential future integrations
+- Clean separation between data model and rendering logic
+- Enables type evolution without touching GUI code
 
 **Serialization strategy:**
-- Tagged enums with `#[serde(tag = "type", rename_all = "snake_case")]` for clean JSON
+- Tagged enums with `#[serde(tag = "status")]` for PopupResult
 - Optional fields use `#[serde(default)]` for forward compatibility
 - Result variants cover all possible popup outcomes (completed/cancelled/timeout)

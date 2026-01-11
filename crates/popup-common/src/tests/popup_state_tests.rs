@@ -13,8 +13,7 @@ fn test_popupstate_init_slider() {
             default: Some(75.0),
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
@@ -34,8 +33,7 @@ fn test_popupstate_init_slider_default_midpoint() {
             default: None, // Should default to midpoint
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
@@ -53,13 +51,15 @@ fn test_popupstate_init_checkbox() {
             default: true,
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
     let state = PopupState::new(&def);
-    assert_eq!(state.values.get("enable"), Some(&ElementValue::Boolean(true)));
+    assert_eq!(
+        state.values.get("enable"),
+        Some(&ElementValue::Boolean(true))
+    );
 }
 
 #[test]
@@ -79,16 +79,17 @@ fn test_popupstate_init_with_reveals() {
                 reveals: vec![],
                 when: None,
                 context: None,
-                
             }],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
     let state = PopupState::new(&def);
-    assert_eq!(state.values.get("enable"), Some(&ElementValue::Boolean(false)));
+    assert_eq!(
+        state.values.get("enable"),
+        Some(&ElementValue::Boolean(false))
+    );
     assert_eq!(state.values.get("level"), Some(&ElementValue::Number(5.5))); // midpoint
 }
 
@@ -105,8 +106,7 @@ fn test_popupstate_init_with_option_children() {
             default: Some(50.0),
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     );
 
@@ -115,19 +115,24 @@ fn test_popupstate_init_with_option_children() {
         elements: vec![Element::Choice {
             choice: "Theme".to_string(),
             id: "theme".to_string(),
-            options: vec![OptionValue::Simple("Light".to_string()), OptionValue::Simple("Dark".to_string())],
+            options: vec![
+                OptionValue::Simple("Light".to_string()),
+                OptionValue::Simple("Dark".to_string()),
+            ],
             default: None,
             option_children,
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("theme"), Some(&ElementValue::Choice(None)));
-    assert_eq!(state.values.get("brightness"), Some(&ElementValue::Number(50.0)));
+    assert_eq!(
+        state.values.get("brightness"),
+        Some(&ElementValue::Number(50.0))
+    );
 }
 
 #[test]
@@ -137,12 +142,15 @@ fn test_popupstate_init_multiselect() {
         elements: vec![Element::Multiselect {
             multiselect: "Features".to_string(),
             id: "features".to_string(),
-            options: vec![OptionValue::Simple("A".to_string()), OptionValue::Simple("B".to_string()), OptionValue::Simple("C".to_string())],
+            options: vec![
+                OptionValue::Simple("A".to_string()),
+                OptionValue::Simple("B".to_string()),
+                OptionValue::Simple("C".to_string()),
+            ],
             option_children: HashMap::new(),
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
@@ -163,13 +171,15 @@ fn test_popupstate_init_textbox() {
             placeholder: None,
             rows: None,
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
     let state = PopupState::new(&def);
-    assert_eq!(state.values.get("name"), Some(&ElementValue::Text(String::new())));
+    assert_eq!(
+        state.values.get("name"),
+        Some(&ElementValue::Text(String::new()))
+    );
 }
 
 #[test]
@@ -188,8 +198,7 @@ fn test_popupstate_init_group() {
                     default: Some(50.0),
                     reveals: vec![],
                     when: None,
-                context: None,
-                
+                    context: None,
                 },
                 Element::Checkbox {
                     checkbox: "Mute".to_string(),
@@ -197,8 +206,7 @@ fn test_popupstate_init_group() {
                     default: false,
                     reveals: vec![],
                     when: None,
-                context: None,
-                
+                    context: None,
                 },
             ],
             when: None,
@@ -208,15 +216,24 @@ fn test_popupstate_init_group() {
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("vol"), Some(&ElementValue::Number(50.0)));
-    assert_eq!(state.values.get("mute"), Some(&ElementValue::Boolean(false)));
+    assert_eq!(
+        state.values.get("mute"),
+        Some(&ElementValue::Boolean(false))
+    );
 }
 
 #[test]
 fn test_to_value_map() {
     let mut state = PopupState::default();
-    state.values.insert("cpu".to_string(), ElementValue::Number(85.0));
-    state.values.insert("enabled".to_string(), ElementValue::Boolean(true));
-    state.values.insert("name".to_string(), ElementValue::Text("Alice".to_string()));
+    state
+        .values
+        .insert("cpu".to_string(), ElementValue::Number(85.0));
+    state
+        .values
+        .insert("enabled".to_string(), ElementValue::Boolean(true));
+    state
+        .values
+        .insert("name".to_string(), ElementValue::Text("Alice".to_string()));
 
     // Empty elements array for this simple test
     let value_map = state.to_value_map(&[]);
@@ -239,7 +256,6 @@ fn test_get_mut_methods() {
                 reveals: vec![],
                 when: None,
                 context: None,
-                
             },
             Element::Checkbox {
                 checkbox: "Enabled".to_string(),
@@ -248,7 +264,6 @@ fn test_get_mut_methods() {
                 reveals: vec![],
                 when: None,
                 context: None,
-                
             },
         ],
     };
@@ -265,7 +280,10 @@ fn test_get_mut_methods() {
     if let Some(enabled) = state.get_boolean_mut("enabled") {
         *enabled = true;
     }
-    assert_eq!(state.values.get("enabled"), Some(&ElementValue::Boolean(true)));
+    assert_eq!(
+        state.values.get("enabled"),
+        Some(&ElementValue::Boolean(true))
+    );
 }
 
 #[test]
@@ -282,8 +300,7 @@ fn test_nested_reveals_and_option_children() {
             default: Some(5.0),
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     );
 
@@ -296,24 +313,34 @@ fn test_nested_reveals_and_option_children() {
             reveals: vec![Element::Choice {
                 choice: "Mode".to_string(),
                 id: "mode".to_string(),
-                options: vec![OptionValue::Simple("Basic".to_string()), OptionValue::Simple("Advanced".to_string())],
+                options: vec![
+                    OptionValue::Simple("Basic".to_string()),
+                    OptionValue::Simple("Advanced".to_string()),
+                ],
                 default: Some(0),
                 option_children,
                 reveals: vec![],
                 when: None,
                 context: None,
-                
             }],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
     let state = PopupState::new(&def);
-    assert_eq!(state.values.get("show_opts"), Some(&ElementValue::Boolean(false)));
-    assert_eq!(state.values.get("mode"), Some(&ElementValue::Choice(Some(0))));
-    assert_eq!(state.values.get("complexity"), Some(&ElementValue::Number(5.0)));
+    assert_eq!(
+        state.values.get("show_opts"),
+        Some(&ElementValue::Boolean(false))
+    );
+    assert_eq!(
+        state.values.get("mode"),
+        Some(&ElementValue::Choice(Some(0)))
+    );
+    assert_eq!(
+        state.values.get("complexity"),
+        Some(&ElementValue::Number(5.0))
+    );
 }
 
 #[test]
@@ -333,8 +360,7 @@ fn test_find_element_in_option_children() {
             default: Some(50.0),
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     );
 
@@ -343,13 +369,15 @@ fn test_find_element_in_option_children() {
         elements: vec![Element::Choice {
             choice: "Plan".to_string(),
             id: "plan".to_string(),
-            options: vec![OptionValue::Simple("Basic".to_string()), OptionValue::Simple("Pro".to_string())],
+            options: vec![
+                OptionValue::Simple("Basic".to_string()),
+                OptionValue::Simple("Pro".to_string()),
+            ],
             default: Some(1), // Select "Pro"
             option_children,
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 
@@ -367,7 +395,10 @@ fn test_find_element_in_option_children() {
     match result {
         PopupResult::Completed { values, .. } => {
             // Should find the element and format it as "75/100"
-            assert_eq!(values.get("feature_level").unwrap().as_str(), Some("75/100"));
+            assert_eq!(
+                values.get("feature_level").unwrap().as_str(),
+                Some("75/100")
+            );
             assert_eq!(values.get("plan").unwrap().as_str(), Some("Pro"));
         }
         _ => panic!("Expected Completed result"),
@@ -395,11 +426,9 @@ fn test_find_element_in_nested_reveals_and_option_children() {
                 reveals: vec![],
                 when: None,
                 context: None,
-                
             }],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     );
 
@@ -408,13 +437,15 @@ fn test_find_element_in_nested_reveals_and_option_children() {
         elements: vec![Element::Choice {
             choice: "Mode".to_string(),
             id: "mode".to_string(),
-            options: vec![OptionValue::Simple("Simple".to_string()), OptionValue::Simple("Advanced".to_string())],
+            options: vec![
+                OptionValue::Simple("Simple".to_string()),
+                OptionValue::Simple("Advanced".to_string()),
+            ],
             default: Some(1),
             option_children,
             reveals: vec![],
             when: None,
-                context: None,
-                
+            context: None,
         }],
     };
 

@@ -1,9 +1,0 @@
-{
-  "title": "Quick Test",
-  "elements": [
-    {"text": "This is a test popup!", "id": "test_message"},
-    {"textbox": "Your name", "id": "name", "placeholder": "Enter name here"},
-    {"slider": "Rating", "id": "rating", "min": 1, "max": 10, "default": 5},
-    {"checkbox": "I agree to the terms", "id": "agree"}
-  ]
-}

@@ -372,7 +372,6 @@ cargo clippy
 
 ## Architecture
 
-**Local Mode:**
 ```
 MCP Client (Claude Desktop)
   ↓ JSON-RPC over stdio
@@ -394,24 +393,8 @@ The MCP server mode spawns itself with `--stdin` for each popup request, providi
 
 ### Crates
 
-- **popup-common** - Shared types (`PopupDefinition`, `PopupResult`, protocol messages)
+- **popup-common** - Shared types (`PopupDefinition`, `PopupResult`, condition evaluation)
 - **popup-gui** - Native GUI renderer (egui), MCP server, JSON parser, template system
-- **popup-client** - WebSocket daemon for remote relay (see Remote Mode below)
-
-## Remote Mode
-
-For distributed deployments where popups appear on remote machines, see **[cloudflare/README.md](cloudflare/README.md)** for:
-
-- Cloudflare Workers deployment
-- WebSocket relay with Durable Objects
-- GitHub OAuth and Bearer token authentication
-- HTTP API for non-MCP integrations
-- Client daemon (`popup-client`) setup
-
-Remote mode enables use cases like:
-- Triggering popups from cloud-based AI agents
-- Multi-user popup relay systems
-- Integration with services like Letta
 
 ## Contributing
 

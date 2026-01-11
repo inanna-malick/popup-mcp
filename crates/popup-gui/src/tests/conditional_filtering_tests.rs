@@ -158,11 +158,8 @@ mod tests {
         );
 
         // Create result with active filtering
-        let result = popup_common::PopupResult::from_state_with_active_elements(
-            &state,
-            &popup,
-            &active_ids,
-        );
+        let result =
+            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
 
         // Should only have the visible elements
         let values = match result {
@@ -182,11 +179,8 @@ mod tests {
             &popup.elements,
         );
 
-        let result = popup_common::PopupResult::from_state_with_active_elements(
-            &state,
-            &popup,
-            &active_ids,
-        );
+        let result =
+            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
 
         // Now should include the conditional slider
         let values = match result {
@@ -430,11 +424,8 @@ mod tests {
             &state,
             &popup.elements,
         );
-        let new_result = popup_common::PopupResult::from_state_with_active_elements(
-            &state,
-            &popup,
-            &active_ids,
-        );
+        let new_result =
+            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
 
         // Destructure results to get values
         let old_values = match old_result {

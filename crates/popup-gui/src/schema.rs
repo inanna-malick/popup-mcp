@@ -281,7 +281,6 @@ pub fn get_input_schema() -> serde_json::Value {
     })
 }
 
-
 /// Get a human-readable description of the popup schema
 ///
 /// Useful for documentation or help text

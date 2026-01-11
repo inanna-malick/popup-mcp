@@ -5,8 +5,8 @@ use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
-use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
 use popup_common::{evaluate_condition, parse_condition};
+use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
 
 #[cfg(test)]
 pub mod tests {
@@ -309,7 +309,9 @@ fn render_single_element(
             });
         }
 
-        Element::Markdown { markdown, context, .. } => {
+        Element::Markdown {
+            markdown, context, ..
+        } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("markdown_{}", element_path), |ui| {
                 render_context(ui, context);
@@ -320,7 +322,15 @@ fn render_single_element(
             });
         }
 
-        Element::Multiselect { multiselect, id, options, option_children, reveals, context, .. } => {
+        Element::Multiselect {
+            multiselect,
+            id,
+            options,
+            option_children,
+            reveals,
+            context,
+            ..
+        } => {
             render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
@@ -331,8 +341,7 @@ fn render_single_element(
 
             widget_frame.show(ui, |ui| {
                 // Clone selections to avoid borrow conflict when rendering conditionals
-                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id)
-                {
+                let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id) {
                     ui.label(
                         RichText::new(multiselect)
                             .color(ctx.theme.matrix_green)
@@ -416,7 +425,15 @@ fn render_single_element(
             });
         }
 
-        Element::Choice { choice, id, options, option_children, reveals, context, .. } => {
+        Element::Choice {
+            choice,
+            id,
+            options,
+            option_children,
+            reveals,
+            context,
+            ..
+        } => {
             render_context(ui, context);
             ui.label(RichText::new(choice).color(ctx.theme.text_primary));
 
@@ -425,10 +442,7 @@ fn render_single_element(
 
             if let Some(selected) = state.get_choice_mut(id) {
                 let selected_text = match *selected {
-                    Some(idx) => options
-                        .get(idx)
-                        .map(|s| s.value())
-                        .unwrap_or("(invalid)"),
+                    Some(idx) => options.get(idx).map(|s| s.value()).unwrap_or("(invalid)"),
                     None => "(none selected)",
                 };
 
@@ -444,7 +458,8 @@ fn render_single_element(
                         }
                         // Show all options with descriptions as tooltips
                         for (idx, option) in options.iter().enumerate() {
-                            let response = ui.selectable_label(*selected == Some(idx), option.value());
+                            let response =
+                                ui.selectable_label(*selected == Some(idx), option.value());
                             if let Some(desc) = option.description() {
                                 response.clone().on_hover_text(desc);
                             }
@@ -476,14 +491,7 @@ fn render_single_element(
             // Render reveals if choice has any AND an option is selected
             if selected_option.is_some() && !reveals.is_empty() {
                 ui.indent(format!("choice_reveals_{}", id), |ui| {
-                    render_elements_in_grid(
-                        ui,
-                        reveals,
-                        state,
-                        all_elements,
-                        ctx,
-                        element_path,
-                    );
+                    render_elements_in_grid(ui, reveals, state, all_elements, ctx, element_path);
                 });
             }
 
@@ -491,7 +499,11 @@ fn render_single_element(
         }
 
         Element::Checkbox {
-            checkbox, id, reveals, context, ..
+            checkbox,
+            id,
+            reveals,
+            context,
+            ..
         } => {
             render_context(ui, context);
             if let Some(value) = state.get_boolean_mut(id) {
@@ -619,7 +631,12 @@ fn render_single_element(
             });
         }
 
-        Element::Group { group, elements, context, .. } => {
+        Element::Group {
+            group,
+            elements,
+            context,
+            ..
+        } => {
             render_context(ui, context);
             // Enhanced group with better visual separation
             let group_frame = egui::Frame::group(ui.style())
@@ -647,7 +664,6 @@ fn render_single_element(
                 );
             });
         }
-
     }
 }
 
@@ -683,7 +699,9 @@ fn collect_active_elements(
 
     for element in elements {
         match element {
-            Element::Slider { id, reveals, when, .. } => {
+            Element::Slider {
+                id, reveals, when, ..
+            } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
                     // Collect from reveals
@@ -702,7 +720,9 @@ fn collect_active_elements(
                     active_ids.push(id.clone());
                 }
             }
-            Element::Checkbox { id, reveals, when, .. } => {
+            Element::Checkbox {
+                id, reveals, when, ..
+            } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
                     // If checkbox is checked and has reveals, collect from it
@@ -716,7 +736,14 @@ fn collect_active_elements(
                     }
                 }
             }
-            Element::Multiselect { id, options, option_children, reveals, when, .. } => {
+            Element::Multiselect {
+                id,
+                options,
+                option_children,
+                reveals,
+                when,
+                ..
+            } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
                     // For each checked option with children, collect from it
@@ -748,11 +775,21 @@ fn collect_active_elements(
                     }
                 }
             }
-            Element::Choice { id, options, option_children, reveals, when, .. } => {
+            Element::Choice {
+                id,
+                options,
+                option_children,
+                reveals,
+                when,
+                ..
+            } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
 
-                    let has_selection = state.get_choice(id).map(|opt| opt.is_some()).unwrap_or(false);
+                    let has_selection = state
+                        .get_choice(id)
+                        .map(|opt| opt.is_some())
+                        .unwrap_or(false);
 
                     // If there's a selected option with children, collect from it
                     if let Some(Some(idx)) = state.get_choice(id) {
@@ -782,12 +819,7 @@ fn collect_active_elements(
             Element::Group { elements, when, .. } => {
                 if is_visible(when) {
                     // Recursively collect from group
-                    active_ids.extend(collect_active_elements(
-                        elements,
-                        state,
-                        all_elements,
-                        "",
-                    ));
+                    active_ids.extend(collect_active_elements(elements, state, all_elements, ""));
                 }
             }
             Element::Text { id, when, .. } => {
@@ -874,7 +906,8 @@ fn calculate_elements_size(
             }
             Element::Checkbox { checkbox, .. } => {
                 *height += 35.0; // Moderately larger checkbox height for bigger text
-                *max_width = max_width.max(checkbox.len() as f32 * 12.0 + 90.0); // Moderately larger character width + checkbox
+                *max_width = max_width.max(checkbox.len() as f32 * 12.0 + 90.0);
+                // Moderately larger character width + checkbox
             }
             Element::Textbox { rows, .. } => {
                 *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
@@ -898,7 +931,9 @@ fn calculate_elements_size(
                     // Moderately larger character width + more space
                 }
             }
-            Element::Choice { choice, options, .. } => {
+            Element::Choice {
+                choice, options, ..
+            } => {
                 *height += 35.0; // Label height
                 *height += 35.0; // ComboBox height
                 let longest = options

@@ -5,8 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Popup-MCP: Native GUI Popups via MCP
 
 Popup-MCP is an MCP (Model Context Protocol) server that enables AI assistants to create native GUI popup windows using JSON structure. The project consists of:
-- **Rust workspace**: Native GUI rendering, local MCP server, and remote client daemon
-- **Cloudflare Workers**: Distributed relay infrastructure for remote popup invocation
+- **Rust workspace**: Native GUI rendering and local MCP server
 
 ## WSL Compatibility
 
@@ -26,7 +25,6 @@ cargo build --release
 
 # Build specific crate
 cargo build -p popup-gui --release
-cargo build -p popup-client --release
 
 # Run all tests
 cargo test
@@ -57,34 +55,6 @@ echo '{"title": "Test", "elements": [{"text": "Hello"}]}' | cargo run -p popup-g
 
 # Test with example file
 cargo run -p popup-gui -- --file examples/simple_confirm.json
-
-# Run popup client daemon (connects to Cloudflare relay)
-cargo run -p popup-client -- --server-url wss://your-worker.workers.dev/connect
-```
-
-### Cloudflare Workers (TypeScript)
-
-```bash
-# Navigate to cloudflare directory
-cd cloudflare
-
-# Run tests with Miniflare (includes Durable Object and WebSocket tests)
-npm test
-
-# Run specific test file
-npm test -- durable-object.test.ts
-
-# Run tests in watch mode
-npm run test:watch
-
-# Local development server
-npm run dev
-
-# Deploy to Cloudflare
-npm run deploy
-
-# Type check
-npx tsc --noEmit
 ```
 
 ## Important Note on Buttons
@@ -95,35 +65,15 @@ npx tsc --noEmit
 
 ### System Overview
 
-The project implements a distributed popup system with three main components:
+The project implements a local popup system with two main components:
 
-1. **Local GUI** (`crates/popup-gui`): Native egui-based popup renderer
-2. **Remote Client** (`crates/popup-client`): WebSocket daemon that connects to Cloudflare relay
-3. **Cloudflare Relay** (`cloudflare/`): Durable Object-based WebSocket bridge for remote invocation
+1. **popup-common** (`crates/popup-common`): Shared types and condition evaluation
+2. **popup-gui** (`crates/popup-gui`): Native egui-based popup renderer and MCP server
 
 ### Architecture Flow
 
 ```
 MCP Client (Claude Desktop)
-  ↓ (1) Streamable HTTP with GitHub OAuth
-Cloudflare Worker (MCP Agent DO)
-  ↓ (2) Internal HTTP to PopupSession DO
-PopupSession Durable Object
-  ↓ (3) WebSocket broadcast to clients
-popup-client daemon (wss://)
-  ↓ (4) Spawn subprocess with --stdin
-popup binary (native egui window)
-  ↓ (5) JSON result to stdout
-popup-client daemon
-  ↓ (6) WebSocket result back to DO
-PopupSession DO
-  ↓ (7) HTTP response to MCP Agent
-MCP Client (receives result)
-```
-
-**Local MCP Usage (no Cloudflare):**
-```
-MCP Client
   ↓ JSON-RPC over stdio
 popup binary (MCP server mode)
   ↓ Spawns itself with --stdin
@@ -134,10 +84,10 @@ MCP Client (receives result)
 
 ### Rust Workspace Structure
 
-**crates/popup-common** - Shared protocol types
+**crates/popup-common** - Shared types
 - `PopupDefinition`, `Element`, `PopupResult` - Core data structures
-- `ServerMessage`, `ClientMessage` - WebSocket protocol types
-- Serialization via serde for JSON/MessagePack compatibility
+- `condition.rs` - When clause parsing and evaluation
+- Serialization via serde for JSON compatibility
 
 **crates/popup-gui** - Native GUI implementation
 - `json_parser.rs`: JSON → PopupDefinition deserialization
@@ -148,57 +98,7 @@ MCP Client (receives result)
 - `templates.rs`: Dynamic template system with Handlebars
 - Binary: `popup` (operates in 3 modes: MCP server, stdin, file)
 
-**crates/popup-client** - Remote client daemon
-- WebSocket client connecting to Cloudflare relay
-- Spawns popup-gui subprocesses for each popup request
-- Manages popup lifecycle (show, monitor, close)
-- Streams results back to Cloudflare relay
-- Config: `~/.config/popup-client/config.toml`
-
-### Cloudflare Workers Structure
-
-**cloudflare/src/index.ts** - Worker entry point
-- Routes `/authorize`, `/callback`, `/token` → GitHub OAuth flow
-- Routes `/sse` → MCP SSE endpoint (deprecated protocol)
-- Routes `/mcp` → MCP Streamable HTTP endpoint (current protocol)
-- Routes `/connect` → WebSocket upgrade for popup-client daemons
-- Routes `/show-popup` → Internal HTTP POST to PopupSession DO
-- **Auth Model**: GitHub OAuth via `@cloudflare/workers-oauth-provider`
-  - Consent dialog with approval tracking (signed cookies)
-  - User props (login, name, email, accessToken) passed to MCP agent
-  - Pattern from `/Users/inannamalick/dev/cf-ai/demos/remote-mcp-github-oauth`
-
-**cloudflare/src/popup-session.ts** - Durable Object implementation
-- Hibernatable WebSocket server for persistent connections
-- Manages multiple client connections with session metadata
-- Broadcasts popup requests to all connected clients
-- First-response-wins pattern for popup results
-- Timeout handling with automatic cleanup
-- State survives Worker restarts via hibernation API
-
-**cloudflare/src/mcp-server.ts** - MCP agent implementation
-- Extends `McpAgent` from `agents/mcp` package
-- Implements Streamable HTTP protocol (current) and SSE (deprecated)
-- Provides `show_popup` tool to MCP clients
-- Receives user props from OAuth (login, name, email, accessToken)
-- Forwards popup requests to PopupSession DO via internal HTTP
-- Returns popup results or timeout errors
-
-**cloudflare/src/protocol.ts** - TypeScript protocol types
-- Mirrors Rust protocol types from popup-common
-- Ensures wire format compatibility between Rust and TypeScript
-
 ### Protocol Flow
-
-**Remote (Cloudflare relay):**
-1. **OAuth**: User authorizes via GitHub OAuth flow, gets access token
-2. **Client Connect**: popup-client → wss:// → PopupSession DO (hibernatable WebSocket)
-3. **Client Ready**: Sends `ClientMessage::Ready { device_name }`
-4. **MCP Request**: Claude Desktop → Streamable HTTP → MCP Agent DO
-5. **Show Popup**: MCP Agent → internal HTTP → PopupSession DO → `ServerMessage::ShowPopup` → WebSocket broadcast
-6. **Render**: popup-client spawns `popup --stdin`, writes JSON, monitors stdout
-7. **Result**: popup exits with JSON → client sends `ClientMessage::Result` → DO
-8. **Cleanup**: DO resolves promise, broadcasts `ServerMessage::ClosePopup`
 
 **Local (stdio MCP server):**
 1. **MCP Request**: Client → JSON-RPC via stdin
@@ -208,16 +108,12 @@ MCP Client (receives result)
 
 ### Key Design Decisions
 
-- **Hibernatable WebSockets**: Durable Objects persist connections across Worker restarts
-- **First-response-wins**: Multiple clients can connect; first result completes the request
 - **Subprocess isolation**: Each popup runs in separate process, clean lifecycle
-- **Shared protocol types**: popup-common ensures Rust/TypeScript compatibility
 - **JSON-based structure**: Clean, explicit definition with no parsing ambiguities
 - **Type safety**: JSON schema provides clear structure validation
 - **Nested support**: Natural support for conditionals and groups through JSON nesting
 - **Self-spawning architecture**: MCP server spawns itself with --stdin for rendering
 - **Template-driven tools**: Dynamic MCP tool generation from user config files
-- **OAuth integration**: GitHub OAuth for remote access with user context propagation
 
 ### Testing Strategy
 
@@ -226,14 +122,6 @@ MCP Client (receives result)
 - `integration_tests.rs`: Integration tests with example files and state management
 - `conditional_filtering_tests.rs`: Conditional visibility logic
 - `template_tests.rs`: Template system tests
-
-**TypeScript Tests** (`cloudflare/test/`):
-- `durable-object.test.ts`: Durable Object lifecycle, hibernation, broadcast
-- `websocket.test.ts`: WebSocket protocol message handling
-- `integration.test.ts`: End-to-end popup flow
-- `mcp-server.test.ts`: MCP SSE endpoint behavior
-- `auth.test.ts`: Bearer token authentication
-- Uses Miniflare for local Durable Object testing
 
 **Example JSON files** (`examples/`):
 - `simple_confirm.json`: Basic confirmation dialog
@@ -560,61 +448,22 @@ Any element can have a `"when"` field for conditional visibility:
 }
 ```
 
-## Cloudflare Deployment
-
-### Prerequisites
-
-1. **GitHub OAuth App** (for remote MCP access)
-   - Create at: https://github.com/settings/developers
-   - Set Authorization callback URL: `https://your-worker.workers.dev/callback`
-   - Note Client ID and Client Secret
-
-2. **Cloudflare Secrets** (set via wrangler)
-   ```bash
-   cd cloudflare
-   npx wrangler secret put GITHUB_CLIENT_ID
-   npx wrangler secret put GITHUB_CLIENT_SECRET
-   npx wrangler secret put COOKIE_ENCRYPTION_KEY  # Generate with: openssl rand -hex 32
-   ```
-
-3. **Deploy Worker**
-   ```bash
-   npm run deploy
-   ```
-
-### Claude Desktop Configuration
+## Claude Desktop Configuration
 
 Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
 ```json
 {
   "mcpServers": {
-    "popup-remote": {
-      "url": "https://your-worker.workers.dev/mcp",
-      "transport": {
-        "type": "streamableHttp"
-      }
+    "popup": {
+      "command": "popup",
+      "args": ["--mcp-server"]
     }
   }
 }
 ```
 
-On first use, Claude Desktop will redirect to GitHub OAuth consent flow.
-
-### popup-client Configuration
-
-1. Create `~/.config/popup-client/config.toml`:
-   ```toml
-   server_url = "wss://your-worker.workers.dev/connect"
-   device_name = "laptop"
-   ```
-
-2. Start daemon:
-   ```bash
-   popup-client
-   ```
-
-The client maintains persistent WebSocket connection and renders popups when MCP requests arrive.
+Restart Claude Desktop and the `popup` tool will be available.
 
 ## Template System
 

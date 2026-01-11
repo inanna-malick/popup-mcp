@@ -1,4 +1,3 @@
-pub mod protocol;
 pub mod condition;
 mod element_deser;
 
@@ -10,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-pub use condition::{parse_condition, evaluate_condition, ConditionExpr};
+pub use condition::{evaluate_condition, parse_condition, ConditionExpr};
 
 /// Option value for Choice/Multiselect - can be simple string or with description
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -160,7 +159,7 @@ pub enum ElementValue {
 /// Runtime state of the popup (v2 schema)
 #[derive(Default)]
 pub struct PopupState {
-    pub values: HashMap<String, ElementValue>,  // ID -> value
+    pub values: HashMap<String, ElementValue>, // ID -> value
     pub button_clicked: Option<String>,
 }
 
@@ -174,28 +173,59 @@ impl PopupState {
     fn init_elements(&mut self, elements: &[Element]) {
         for element in elements {
             match element {
-                Element::Slider { id, min, max, default, reveals, .. } => {
+                Element::Slider {
+                    id,
+                    min,
+                    max,
+                    default,
+                    reveals,
+                    ..
+                } => {
                     let default_value = default.unwrap_or((min + max) / 2.0);
-                    self.values.insert(id.clone(), ElementValue::Number(default_value));
+                    self.values
+                        .insert(id.clone(), ElementValue::Number(default_value));
                     self.init_elements(reveals);
                 }
-                Element::Checkbox { id, default, reveals, .. } => {
-                    self.values.insert(id.clone(), ElementValue::Boolean(*default));
+                Element::Checkbox {
+                    id,
+                    default,
+                    reveals,
+                    ..
+                } => {
+                    self.values
+                        .insert(id.clone(), ElementValue::Boolean(*default));
                     self.init_elements(reveals);
                 }
                 Element::Textbox { id, .. } => {
-                    self.values.insert(id.clone(), ElementValue::Text(String::new()));
+                    self.values
+                        .insert(id.clone(), ElementValue::Text(String::new()));
                 }
-                Element::Multiselect { id, options, option_children, reveals, .. } => {
-                    self.values.insert(id.clone(), ElementValue::MultiChoice(vec![false; options.len()]));  // options.len() still works with Vec<OptionValue>
-                    // Recurse into option-as-key children
+                Element::Multiselect {
+                    id,
+                    options,
+                    option_children,
+                    reveals,
+                    ..
+                } => {
+                    self.values.insert(
+                        id.clone(),
+                        ElementValue::MultiChoice(vec![false; options.len()]),
+                    ); // options.len() still works with Vec<OptionValue>
+                       // Recurse into option-as-key children
                     for children in option_children.values() {
                         self.init_elements(children);
                     }
                     self.init_elements(reveals);
                 }
-                Element::Choice { id,  default, option_children, reveals, .. } => {
-                    self.values.insert(id.clone(), ElementValue::Choice(*default));
+                Element::Choice {
+                    id,
+                    default,
+                    option_children,
+                    reveals,
+                    ..
+                } => {
+                    self.values
+                        .insert(id.clone(), ElementValue::Choice(*default));
                     for children in option_children.values() {
                         self.init_elements(children);
                     }
@@ -300,13 +330,14 @@ impl PopupState {
                     Element::Group { id: Some(id), .. } if id == target_id => return Some(element),
 
                     // Recurse into nested structures
-                    Element::Group { elements: nested, .. } => {
+                    Element::Group {
+                        elements: nested, ..
+                    } => {
                         if let Some(e) = find_element_by_id(nested, target_id) {
                             return Some(e);
                         }
                     }
-                    Element::Checkbox { reveals, .. }
-                    | Element::Slider { reveals, .. } => {
+                    Element::Checkbox { reveals, .. } | Element::Slider { reveals, .. } => {
                         if let Some(e) = find_element_by_id(reveals, target_id) {
                             return Some(e);
                         }
@@ -314,8 +345,16 @@ impl PopupState {
                     Element::Textbox { .. } => {
                         // Textbox has no reveals, nothing to search
                     }
-                    Element::Multiselect { reveals, option_children, .. }
-                    | Element::Choice { reveals, option_children, .. } => {
+                    Element::Multiselect {
+                        reveals,
+                        option_children,
+                        ..
+                    }
+                    | Element::Choice {
+                        reveals,
+                        option_children,
+                        ..
+                    } => {
                         if let Some(e) = find_element_by_id(reveals, target_id) {
                             return Some(e);
                         }
@@ -331,45 +370,56 @@ impl PopupState {
             None
         }
 
-        self.values.iter().map(|(id, val)| {
-            let json_val = match val {
-                ElementValue::Number(n) => json!(*n),
-                ElementValue::Boolean(b) => json!(*b),
-                ElementValue::Text(s) => json!(s),
-                ElementValue::MultiChoice(selections) => {
-                    // Convert to array of selected option texts for selected() function
-                    if let Some(Element::Multiselect { options, .. }) = find_element_by_id(elements, id) {
-                        let selected_texts: Vec<&str> = selections.iter()
-                            .enumerate()
-                            .filter_map(|(i, &selected)| {
-                                if selected {
-                                    options.get(i).map(|opt| opt.value())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-                        json!(selected_texts)
-                    } else {
-                        // Fallback: array of booleans
-                        json!(selections)
-                    }
-                }
-                ElementValue::Choice(idx) => {
-                    // Convert index to option text for selected() function
-                    if let Some(Element::Choice { options, .. }) = find_element_by_id(elements, id) {
-                        match idx {
-                            Some(i) => options.get(*i).map(|opt| json!(opt.value())).unwrap_or(json!(null)),
-                            None => json!(null),
+        self.values
+            .iter()
+            .map(|(id, val)| {
+                let json_val = match val {
+                    ElementValue::Number(n) => json!(*n),
+                    ElementValue::Boolean(b) => json!(*b),
+                    ElementValue::Text(s) => json!(s),
+                    ElementValue::MultiChoice(selections) => {
+                        // Convert to array of selected option texts for selected() function
+                        if let Some(Element::Multiselect { options, .. }) =
+                            find_element_by_id(elements, id)
+                        {
+                            let selected_texts: Vec<&str> = selections
+                                .iter()
+                                .enumerate()
+                                .filter_map(|(i, &selected)| {
+                                    if selected {
+                                        options.get(i).map(|opt| opt.value())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                            json!(selected_texts)
+                        } else {
+                            // Fallback: array of booleans
+                            json!(selections)
                         }
-                    } else {
-                        // Fallback: numeric index or null
-                        json!(idx)
                     }
-                }
-            };
-            (id.clone(), json_val)
-        }).collect()
+                    ElementValue::Choice(idx) => {
+                        // Convert index to option text for selected() function
+                        if let Some(Element::Choice { options, .. }) =
+                            find_element_by_id(elements, id)
+                        {
+                            match idx {
+                                Some(i) => options
+                                    .get(*i)
+                                    .map(|opt| json!(opt.value()))
+                                    .unwrap_or(json!(null)),
+                                None => json!(null),
+                            }
+                        } else {
+                            // Fallback: numeric index or null
+                            json!(idx)
+                        }
+                    }
+                };
+                (id.clone(), json_val)
+            })
+            .collect()
     }
 }
 
@@ -437,14 +487,15 @@ impl PopupResult {
                     e @ Element::Textbox { id: eid, .. } if eid == id => return Some(e),
                     e @ Element::Multiselect { id: eid, .. } if eid == id => return Some(e),
                     e @ Element::Choice { id: eid, .. } if eid == id => return Some(e),
-                    Element::Group { elements: children, .. } => {
+                    Element::Group {
+                        elements: children, ..
+                    } => {
                         if let Some(e) = find_element_by_id(children, id) {
                             return Some(e);
                         }
                     }
                     // Search in reveals for Slider, Checkbox, Textbox
-                    Element::Slider { reveals, .. }
-                    | Element::Checkbox { reveals, .. } => {
+                    Element::Slider { reveals, .. } | Element::Checkbox { reveals, .. } => {
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
                                 return Some(e);
@@ -455,8 +506,16 @@ impl PopupResult {
                         // Textbox has no reveals or option_children
                     }
                     // Search in both reveals and option_children for Multiselect and Choice
-                    Element::Multiselect { reveals, option_children, .. }
-                    | Element::Choice { reveals, option_children, .. } => {
+                    Element::Multiselect {
+                        reveals,
+                        option_children,
+                        ..
+                    }
+                    | Element::Choice {
+                        reveals,
+                        option_children,
+                        ..
+                    } => {
                         // Search reveals first
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
@@ -501,9 +560,10 @@ impl PopupResult {
                         .collect();
                     json!(selected)
                 }
-                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    options.get(*idx).map(|opt| json!(opt.value())).unwrap_or(json!(null))
-                }
+                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => options
+                    .get(*idx)
+                    .map(|opt| json!(opt.value()))
+                    .unwrap_or(json!(null)),
                 (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {
@@ -545,14 +605,15 @@ impl PopupResult {
                     e @ Element::Textbox { id: eid, .. } if eid == id => return Some(e),
                     e @ Element::Multiselect { id: eid, .. } if eid == id => return Some(e),
                     e @ Element::Choice { id: eid, .. } if eid == id => return Some(e),
-                    Element::Group { elements: children, .. } => {
+                    Element::Group {
+                        elements: children, ..
+                    } => {
                         if let Some(e) = find_element_by_id(children, id) {
                             return Some(e);
                         }
                     }
                     // Search in reveals for Slider, Checkbox, Textbox
-                    Element::Slider { reveals, .. }
-                    | Element::Checkbox { reveals, .. } => {
+                    Element::Slider { reveals, .. } | Element::Checkbox { reveals, .. } => {
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
                                 return Some(e);
@@ -563,8 +624,16 @@ impl PopupResult {
                         // Textbox has no reveals or option_children
                     }
                     // Search in both reveals and option_children for Multiselect and Choice
-                    Element::Multiselect { reveals, option_children, .. }
-                    | Element::Choice { reveals, option_children, .. } => {
+                    Element::Multiselect {
+                        reveals,
+                        option_children,
+                        ..
+                    }
+                    | Element::Choice {
+                        reveals,
+                        option_children,
+                        ..
+                    } => {
                         // Search reveals first
                         if !reveals.is_empty() {
                             if let Some(e) = find_element_by_id(reveals, id) {
@@ -614,9 +683,10 @@ impl PopupResult {
                         .collect();
                     json!(selected)
                 }
-                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => {
-                    options.get(*idx).map(|opt| json!(opt.value())).unwrap_or(json!(null))
-                }
+                (ElementValue::Choice(Some(idx)), Some(Element::Choice { options, .. })) => options
+                    .get(*idx)
+                    .map(|opt| json!(opt.value()))
+                    .unwrap_or(json!(null)),
                 (ElementValue::Choice(None), _) => continue,
                 (ElementValue::Number(n), _) => json!(*n as i32),
                 (ElementValue::MultiChoice(selections), _) => {

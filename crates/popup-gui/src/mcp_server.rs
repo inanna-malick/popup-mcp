@@ -28,7 +28,9 @@ fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
         .ok()
         .filter(|p| p.exists())
         .or_else(|| which::which("popup").ok())
-        .ok_or_else(|| "Could not find popup binary (not in PATH and current_exe failed)".to_string())?;
+        .ok_or_else(|| {
+            "Could not find popup binary (not in PATH and current_exe failed)".to_string()
+        })?;
 
     log::info!("Spawning popup binary with --stdin: {:?}", binary_path);
 
@@ -45,7 +47,9 @@ fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
     log::info!("Subprocess spawned with PID: {:?}", child.id());
 
     // Write JSON to stdin
-    let mut stdin = child.stdin.take()
+    let mut stdin = child
+        .stdin
+        .take()
         .ok_or_else(|| "Failed to get subprocess stdin".to_string())?;
 
     use std::io::Write;
@@ -72,9 +76,8 @@ fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
 
     // Parse the output
     if output.status.success() || !stdout_str.trim().is_empty() {
-        serde_json::from_str::<Value>(&stdout_str).map_err(|e| {
-            format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str)
-        })
+        serde_json::from_str::<Value>(&stdout_str)
+            .map_err(|e| format!("Invalid JSON from popup: {}. Output was: {}", e, stdout_str))
     } else {
         Err(format!(
             "Popup process failed with status: {}. Stderr: {}",
@@ -289,11 +292,10 @@ pub fn run(args: ServerArgs) -> Result<()> {
                             // tool_args IS the popup definition (title, elements, etc.)
                             log::info!("Showing popup with args: {:?}", tool_args);
 
-                            let json_str =
-                                serde_json::to_string(&tool_args).unwrap_or_else(|e| {
-                                    log::error!("Failed to serialize JSON: {}", e);
-                                    "{}".to_string()
-                                });
+                            let json_str = serde_json::to_string(&tool_args).unwrap_or_else(|e| {
+                                log::error!("Failed to serialize JSON: {}", e);
+                                "{}".to_string()
+                            });
 
                             // Spawn popup subprocess and get result
                             match spawn_popup_subprocess(&json_str) {

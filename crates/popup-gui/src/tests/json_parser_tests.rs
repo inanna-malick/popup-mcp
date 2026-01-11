@@ -58,7 +58,12 @@ fn test_all_widget_types() {
 
     // Verify checkbox
     match &popup.elements[2] {
-        Element::Checkbox { checkbox, id, default, .. } => {
+        Element::Checkbox {
+            checkbox,
+            id,
+            default,
+            ..
+        } => {
             assert_eq!(checkbox, "Enable");
             assert_eq!(id, "enable");
             assert_eq!(*default, true);
@@ -85,7 +90,12 @@ fn test_all_widget_types() {
 
     // Verify multiselect
     match &popup.elements[4] {
-        Element::Multiselect { multiselect, id, options, .. } => {
+        Element::Multiselect {
+            multiselect,
+            id,
+            options,
+            ..
+        } => {
             assert_eq!(multiselect, "Features");
             assert_eq!(id, "features");
             assert_eq!(options.len(), 3);
@@ -135,7 +145,9 @@ fn test_simple_when_clause() {
 
     // Verify slider with when clause
     match &popup.elements[1] {
-        Element::Slider { slider, id, when, .. } => {
+        Element::Slider {
+            slider, id, when, ..
+        } => {
             assert_eq!(slider, "Level");
             assert_eq!(id, "level");
             assert_eq!(when.as_deref(), Some("@advanced"));
@@ -188,7 +200,9 @@ fn test_nested_groups() {
     assert_eq!(popup.elements.len(), 1);
 
     match &popup.elements[0] {
-        Element::Group { group, elements, .. } => {
+        Element::Group {
+            group, elements, ..
+        } => {
             assert_eq!(group, "Settings");
             assert_eq!(elements.len(), 2);
         }

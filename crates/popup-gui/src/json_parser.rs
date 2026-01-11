@@ -4,7 +4,14 @@ use serde_json::Value;
 
 /// Element type discriminator keys used for single-element root detection
 const ELEMENT_KEYS: &[&str] = &[
-    "text", "markdown", "slider", "checkbox", "textbox", "choice", "multiselect", "group",
+    "text",
+    "markdown",
+    "slider",
+    "checkbox",
+    "textbox",
+    "choice",
+    "multiselect",
+    "group",
 ];
 
 /// Check if a JSON object looks like a single element (has an element type key)
@@ -405,7 +412,11 @@ mod tests {
         }
 
         match &popup.elements[1] {
-            Element::Multiselect { multiselect, options, .. } => {
+            Element::Multiselect {
+                multiselect,
+                options,
+                ..
+            } => {
                 assert_eq!(multiselect, "Primary growth focus");
                 assert_eq!(options.len(), 4);
                 assert_eq!(
@@ -489,7 +500,10 @@ mod tests {
             }
         }"#;
         let result = parse_popup_json(json);
-        assert!(result.is_ok(), "Double-wrapped json now works due to recursive parsing");
+        assert!(
+            result.is_ok(),
+            "Double-wrapped json now works due to recursive parsing"
+        );
         let popup = result.unwrap();
         assert_eq!(popup.title, Some("Double Wrapped".to_string()));
 
@@ -584,7 +598,9 @@ mod tests {
         assert_eq!(popup.title, None);
         assert_eq!(popup.elements.len(), 1);
         match &popup.elements[0] {
-            Element::Text { text, .. } => assert_eq!(text, "Delete this file? This cannot be undone."),
+            Element::Text { text, .. } => {
+                assert_eq!(text, "Delete this file? This cannot be undone.")
+            }
             _ => panic!("Expected text element"),
         }
     }
@@ -597,7 +613,9 @@ mod tests {
         assert_eq!(popup.title, None);
         assert_eq!(popup.elements.len(), 1);
         match &popup.elements[0] {
-            Element::Slider { slider, min, max, .. } => {
+            Element::Slider {
+                slider, min, max, ..
+            } => {
                 assert_eq!(slider, "Volume");
                 assert_eq!(*min, 0.0);
                 assert_eq!(*max, 100.0);
@@ -622,7 +640,12 @@ mod tests {
         assert_eq!(popup.title, None);
         assert_eq!(popup.elements.len(), 1);
         match &popup.elements[0] {
-            Element::Choice { choice, options, option_children, .. } => {
+            Element::Choice {
+                choice,
+                options,
+                option_children,
+                ..
+            } => {
                 assert_eq!(choice, "Mode");
                 assert_eq!(options.len(), 2);
                 assert!(option_children.contains_key("Advanced"));
@@ -705,7 +728,9 @@ mod tests {
     fn test_validation_of_new_formats() {
         // Single element
         assert!(validate_popup_json(r#"{"text": "Hello"}"#).is_ok());
-        assert!(validate_popup_json(r#"{"slider": "Vol", "id": "vol", "min": 0, "max": 100}"#).is_ok());
+        assert!(
+            validate_popup_json(r#"{"slider": "Vol", "id": "vol", "min": 0, "max": 100}"#).is_ok()
+        );
 
         // Array
         assert!(validate_popup_json(r#"[{"text": "A"}, {"text": "B"}]"#).is_ok());

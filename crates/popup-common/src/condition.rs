@@ -24,16 +24,16 @@ pub enum ConditionExpr {
     },
 
     // Values
-    Ref(String),           // @id reference
-    Number(f64),           // Numeric literal
-    String(String),        // String literal
-    Boolean(bool),         // Boolean literal
+    Ref(String),    // @id reference
+    Number(f64),    // Numeric literal
+    String(String), // String literal
+    Boolean(bool),  // Boolean literal
 
     // Functions
-    Count(Box<ConditionExpr>),                          // count(@field)
-    Selected(Box<ConditionExpr>, Box<ConditionExpr>),  // selected(@field, value)
-    Any(Vec<ConditionExpr>),                            // any(expr1, expr2, ...)
-    All(Vec<ConditionExpr>),                            // all(expr1, expr2, ...)
+    Count(Box<ConditionExpr>),                        // count(@field)
+    Selected(Box<ConditionExpr>, Box<ConditionExpr>), // selected(@field, value)
+    Any(Vec<ConditionExpr>),                          // any(expr1, expr2, ...)
+    All(Vec<ConditionExpr>),                          // all(expr1, expr2, ...)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -51,7 +51,9 @@ pub fn parse_condition(input: &str) -> Result<ConditionExpr> {
     let pairs = ConditionParser::parse(Rule::expr, input)
         .map_err(|e| anyhow!("Failed to parse condition: {}", e))?;
 
-    let pair = pairs.into_iter().next()
+    let pair = pairs
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("Empty condition expression"))?;
 
     build_ast(pair)
@@ -182,7 +184,9 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
         }
 
         Rule::number => {
-            let num = pair.as_str().parse::<f64>()
+            let num = pair
+                .as_str()
+                .parse::<f64>()
                 .map_err(|e| anyhow!("Failed to parse number: {}", e))?;
             Ok(ConditionExpr::Number(num))
         }
@@ -190,7 +194,7 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
         Rule::string => {
             // Strip quotes from string literal
             let s = pair.as_str();
-            let unquoted = &s[1..s.len()-1]; // Remove first and last char (quotes)
+            let unquoted = &s[1..s.len() - 1]; // Remove first and last char (quotes)
             Ok(ConditionExpr::String(unquoted.to_string()))
         }
 
@@ -199,10 +203,7 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
 }
 
 /// Evaluate a condition expression against popup state
-pub fn evaluate_condition(
-    expr: &ConditionExpr,
-    state: &HashMap<String, Value>,
-) -> bool {
+pub fn evaluate_condition(expr: &ConditionExpr, state: &HashMap<String, Value>) -> bool {
     match expr {
         ConditionExpr::Or(exprs) => {
             // Short-circuit: return true if any is truthy
@@ -214,9 +215,7 @@ pub fn evaluate_condition(
             exprs.iter().all(|e| evaluate_condition(e, state))
         }
 
-        ConditionExpr::Not(inner) => {
-            !evaluate_condition(inner, state)
-        }
+        ConditionExpr::Not(inner) => !evaluate_condition(inner, state),
 
         ConditionExpr::Compare { op, left, right } => {
             let left_val = eval_to_value(left, state);
@@ -245,20 +244,18 @@ pub fn evaluate_condition(
         }
 
         ConditionExpr::Selected(field_ref, value_expr) => {
-            if let (ConditionExpr::Ref(id), value_str) = (&**field_ref, eval_to_string(value_expr, state)) {
+            if let (ConditionExpr::Ref(id), value_str) =
+                (&**field_ref, eval_to_string(value_expr, state))
+            {
                 is_selected(state, id, &value_str)
             } else {
                 false
             }
         }
 
-        ConditionExpr::Any(exprs) => {
-            exprs.iter().any(|e| evaluate_condition(e, state))
-        }
+        ConditionExpr::Any(exprs) => exprs.iter().any(|e| evaluate_condition(e, state)),
 
-        ConditionExpr::All(exprs) => {
-            exprs.iter().all(|e| evaluate_condition(e, state))
-        }
+        ConditionExpr::All(exprs) => exprs.iter().all(|e| evaluate_condition(e, state)),
     }
 }
 
@@ -285,12 +282,11 @@ fn eval_to_string(expr: &ConditionExpr, state: &HashMap<String, Value>) -> Strin
     match expr {
         ConditionExpr::String(s) => s.clone(),
         ConditionExpr::Number(n) => n.to_string(),
-        ConditionExpr::Ref(id) => {
-            state.get(id)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()
-        }
+        ConditionExpr::Ref(id) => state
+            .get(id)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         _ => String::new(),
     }
 }
@@ -343,34 +339,56 @@ fn is_truthy(value: &Value) -> bool {
 
 /// Count selections in multiselect or checkbox
 fn count_selections(state: &HashMap<String, Value>, id: &str) -> i64 {
-    state.get(id).map(|v| {
-        match v {
-            Value::Bool(b) => if *b { 1 } else { 0 },
-            Value::Array(arr) => arr.iter().filter(|v| {
-                // Count booleans (true), non-empty strings, and positive numbers
-                v.as_bool().unwrap_or(false)
-                    || v.as_str().map(|s| !s.is_empty()).unwrap_or(false)
-                    || v.as_i64().map(|n| n > 0).unwrap_or(false)
-            }).count() as i64,
-            Value::Number(n) => if n.as_i64().unwrap_or(0) > 0 { 1 } else { 0 },
-            _ => 0,
-        }
-    }).unwrap_or(0)
+    state
+        .get(id)
+        .map(|v| {
+            match v {
+                Value::Bool(b) => {
+                    if *b {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                Value::Array(arr) => arr
+                    .iter()
+                    .filter(|v| {
+                        // Count booleans (true), non-empty strings, and positive numbers
+                        v.as_bool().unwrap_or(false)
+                            || v.as_str().map(|s| !s.is_empty()).unwrap_or(false)
+                            || v.as_i64().map(|n| n > 0).unwrap_or(false)
+                    })
+                    .count() as i64,
+                Value::Number(n) => {
+                    if n.as_i64().unwrap_or(0) > 0 {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                _ => 0,
+            }
+        })
+        .unwrap_or(0)
 }
 
 /// Check if specific value is selected
 fn is_selected(state: &HashMap<String, Value>, id: &str, value: &str) -> bool {
-    state.get(id).map(|v| {
-        match v {
-            Value::Bool(b) => *b && id == value, // Checkbox: match if checked and label matches
-            Value::String(s) => s == value,      // Choice: selected option text
-            Value::Array(arr) => {
-                // Multiselect: check if value is in selected options
-                arr.iter().any(|v| v.as_str().map(|s| s == value).unwrap_or(false))
+    state
+        .get(id)
+        .map(|v| {
+            match v {
+                Value::Bool(b) => *b && id == value, // Checkbox: match if checked and label matches
+                Value::String(s) => s == value,      // Choice: selected option text
+                Value::Array(arr) => {
+                    // Multiselect: check if value is in selected options
+                    arr.iter()
+                        .any(|v| v.as_str().map(|s| s == value).unwrap_or(false))
+                }
+                _ => false,
             }
-            _ => false,
-        }
-    }).unwrap_or(false)
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -405,12 +423,10 @@ mod tests {
     fn test_parse_function_count() {
         let ast = parse_condition("count(@items) >= 3").unwrap();
         match ast {
-            ConditionExpr::Compare { left, .. } => {
-                match left.as_ref() {
-                    ConditionExpr::Count(_) => {},
-                    _ => panic!("Expected count function"),
-                }
-            }
+            ConditionExpr::Compare { left, .. } => match left.as_ref() {
+                ConditionExpr::Count(_) => {}
+                _ => panic!("Expected count function"),
+            },
             _ => panic!("Expected comparison"),
         }
     }
@@ -419,12 +435,10 @@ mod tests {
     fn test_parse_unquoted_string() {
         let ast = parse_condition("selected(@theme, Dark)").unwrap();
         match ast {
-            ConditionExpr::Selected(_, value) => {
-                match value.as_ref() {
-                    ConditionExpr::String(s) => assert_eq!(s, "Dark"),
-                    _ => panic!("Expected string"),
-                }
-            }
+            ConditionExpr::Selected(_, value) => match value.as_ref() {
+                ConditionExpr::String(s) => assert_eq!(s, "Dark"),
+                _ => panic!("Expected string"),
+            },
             _ => panic!("Expected selected function"),
         }
     }
@@ -459,55 +473,118 @@ mod tests {
         // Test slider comparison with all operators (for Phase 5: slider comparisons in when clauses)
         let mut state = HashMap::new();
         // Use float value like sliders produce
-        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(7.5).unwrap()));
+        state.insert(
+            "severity".to_string(),
+            Value::Number(serde_json::Number::from_f64(7.5).unwrap()),
+        );
 
         // Greater than
-        assert!(evaluate_condition(&parse_condition("@severity > 5").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity > 8").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity > 5").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity > 8").unwrap(),
+            &state
+        ));
 
         // Less than
-        assert!(evaluate_condition(&parse_condition("@severity < 10").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity < 7").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity < 10").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity < 7").unwrap(),
+            &state
+        ));
 
         // Greater or equal
-        assert!(evaluate_condition(&parse_condition("@severity >= 7.5").unwrap(), &state));
-        assert!(evaluate_condition(&parse_condition("@severity >= 7").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity >= 8").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity >= 7.5").unwrap(),
+            &state
+        ));
+        assert!(evaluate_condition(
+            &parse_condition("@severity >= 7").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity >= 8").unwrap(),
+            &state
+        ));
 
         // Less or equal
-        assert!(evaluate_condition(&parse_condition("@severity <= 7.5").unwrap(), &state));
-        assert!(evaluate_condition(&parse_condition("@severity <= 8").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity <= 7").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity <= 7.5").unwrap(),
+            &state
+        ));
+        assert!(evaluate_condition(
+            &parse_condition("@severity <= 8").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity <= 7").unwrap(),
+            &state
+        ));
 
         // Equality
-        assert!(evaluate_condition(&parse_condition("@severity == 7.5").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity == 7").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity == 7.5").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity == 7").unwrap(),
+            &state
+        ));
 
         // Not equal
-        assert!(evaluate_condition(&parse_condition("@severity != 8").unwrap(), &state));
-        assert!(!evaluate_condition(&parse_condition("@severity != 7.5").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity != 8").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity != 7.5").unwrap(),
+            &state
+        ));
     }
 
     #[test]
     fn test_slider_with_logical_operators() {
         // Test combining slider comparisons with logical operators
         let mut state = HashMap::new();
-        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(8.0).unwrap()));
+        state.insert(
+            "severity".to_string(),
+            Value::Number(serde_json::Number::from_f64(8.0).unwrap()),
+        );
         state.insert("debug".to_string(), Value::Bool(true));
 
         // Combined conditions (typical use case: show warning when severity high AND debug enabled)
-        assert!(evaluate_condition(&parse_condition("@severity >= 8 && @debug").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity >= 8 && @debug").unwrap(),
+            &state
+        ));
 
         // Turn off debug
         state.insert("debug".to_string(), Value::Bool(false));
-        assert!(!evaluate_condition(&parse_condition("@severity >= 8 && @debug").unwrap(), &state));
+        assert!(!evaluate_condition(
+            &parse_condition("@severity >= 8 && @debug").unwrap(),
+            &state
+        ));
 
         // OR logic
-        assert!(evaluate_condition(&parse_condition("@severity >= 8 || @debug").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@severity >= 8 || @debug").unwrap(),
+            &state
+        ));
 
         // Lower severity
-        state.insert("severity".to_string(), Value::Number(serde_json::Number::from_f64(5.0).unwrap()));
-        assert!(!evaluate_condition(&parse_condition("@severity >= 8 || @debug").unwrap(), &state));
+        state.insert(
+            "severity".to_string(),
+            Value::Number(serde_json::Number::from_f64(5.0).unwrap()),
+        );
+        assert!(!evaluate_condition(
+            &parse_condition("@severity >= 8 || @debug").unwrap(),
+            &state
+        ));
     }
 
     #[test]
@@ -515,17 +592,35 @@ mod tests {
         // Test range conditions like "5 <= severity <= 8"
         // (Since we don't have direct range syntax, this uses AND)
         let mut state = HashMap::new();
-        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(6.0).unwrap()));
+        state.insert(
+            "level".to_string(),
+            Value::Number(serde_json::Number::from_f64(6.0).unwrap()),
+        );
 
         // Value in range [5, 8]
-        assert!(evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
+        assert!(evaluate_condition(
+            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &state
+        ));
 
         // Value at boundary
-        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(5.0).unwrap()));
-        assert!(evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
+        state.insert(
+            "level".to_string(),
+            Value::Number(serde_json::Number::from_f64(5.0).unwrap()),
+        );
+        assert!(evaluate_condition(
+            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &state
+        ));
 
         // Value outside range
-        state.insert("level".to_string(), Value::Number(serde_json::Number::from_f64(4.0).unwrap()));
-        assert!(!evaluate_condition(&parse_condition("@level >= 5 && @level <= 8").unwrap(), &state));
+        state.insert(
+            "level".to_string(),
+            Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
+        );
+        assert!(!evaluate_condition(
+            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &state
+        ));
     }
 }
