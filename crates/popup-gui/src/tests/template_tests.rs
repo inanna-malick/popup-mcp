@@ -169,7 +169,7 @@ fn test_conditional_template() {
             "title": "Settings",
             "elements": [
                 {
-                    "checkbox": "Show Advanced",
+                    "check": "Show Advanced",
                     "id": "show_advanced_checkbox",
                     "default": {{show_advanced}}
                 },

@@ -24,14 +24,14 @@ pub enum ConditionExpr {
     },
 
     // Values
-    Ref(String),    // @id reference
+    Ref(String),    // Field reference (bare identifier)
     Number(f64),    // Numeric literal
     String(String), // String literal
     Boolean(bool),  // Boolean literal
 
     // Functions
-    Count(Box<ConditionExpr>),                        // count(@field)
-    Selected(Box<ConditionExpr>, Box<ConditionExpr>), // selected(@field, value)
+    Count(Box<ConditionExpr>),                        // count(field)
+    Selected(Box<ConditionExpr>, Box<ConditionExpr>), // selected(field, "value")
     Any(Vec<ConditionExpr>),                          // any(expr1, expr2, ...)
     All(Vec<ConditionExpr>),                          // all(expr1, expr2, ...)
 }
@@ -124,8 +124,14 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
             }
         }
 
+        Rule::boolean => {
+            let val = pair.as_str() == "true";
+            Ok(ConditionExpr::Boolean(val))
+        }
+
         Rule::r#ref => {
-            let id = pair.as_str().trim_start_matches('@');
+            // V2: bare identifier is a reference (no @ prefix)
+            let id = pair.as_str();
             Ok(ConditionExpr::Ref(id.to_string()))
         }
 
@@ -178,11 +184,8 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
             }
         }
 
-        Rule::ident => {
-            // Bare identifier = implicit string literal
-            Ok(ConditionExpr::String(pair.as_str().to_string()))
-        }
-
+        // Note: Rule::ident is no longer a top-level value in V2
+        // Bare identifiers are now parsed as Rule::ref (field references)
         Rule::number => {
             let num = pair
                 .as_str()
@@ -397,13 +400,14 @@ mod tests {
 
     #[test]
     fn test_parse_simple_ref() {
-        let ast = parse_condition("@enabled").unwrap();
+        // V2: bare identifier is a reference (no @ prefix)
+        let ast = parse_condition("enabled").unwrap();
         assert_eq!(ast, ConditionExpr::Ref("enabled".to_string()));
     }
 
     #[test]
     fn test_parse_comparison() {
-        let ast = parse_condition("@cpu > 80").unwrap();
+        let ast = parse_condition("cpu > 80").unwrap();
         match ast {
             ConditionExpr::Compare { op, .. } => assert_eq!(op, CompareOp::Greater),
             _ => panic!("Expected comparison"),
@@ -412,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_parse_and() {
-        let ast = parse_condition("@cpu > 80 && @mem > 80").unwrap();
+        let ast = parse_condition("cpu > 80 && mem > 80").unwrap();
         match ast {
             ConditionExpr::And(exprs) => assert_eq!(exprs.len(), 2),
             _ => panic!("Expected AND"),
@@ -421,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_parse_function_count() {
-        let ast = parse_condition("count(@items) >= 3").unwrap();
+        let ast = parse_condition("count(items) >= 3").unwrap();
         match ast {
             ConditionExpr::Compare { left, .. } => match left.as_ref() {
                 ConditionExpr::Count(_) => {}
@@ -432,8 +436,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_unquoted_string() {
-        let ast = parse_condition("selected(@theme, Dark)").unwrap();
+    fn test_parse_quoted_string() {
+        // V2: strings must be quoted in selected()
+        let ast = parse_condition("selected(theme, \"Dark\")").unwrap();
         match ast {
             ConditionExpr::Selected(_, value) => match value.as_ref() {
                 ConditionExpr::String(s) => assert_eq!(s, "Dark"),
@@ -444,15 +449,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_boolean_literal() {
+        let ast = parse_condition("true").unwrap();
+        assert_eq!(ast, ConditionExpr::Boolean(true));
+
+        let ast = parse_condition("false").unwrap();
+        assert_eq!(ast, ConditionExpr::Boolean(false));
+    }
+
+    #[test]
     fn test_evaluate_truthiness() {
         let mut state = HashMap::new();
         state.insert("enabled".to_string(), Value::Bool(true));
         state.insert("disabled".to_string(), Value::Bool(false));
 
-        let ast = parse_condition("@enabled").unwrap();
+        let ast = parse_condition("enabled").unwrap();
         assert!(evaluate_condition(&ast, &state));
 
-        let ast = parse_condition("@disabled").unwrap();
+        let ast = parse_condition("disabled").unwrap();
         assert!(!evaluate_condition(&ast, &state));
     }
 
@@ -461,10 +475,10 @@ mod tests {
         let mut state = HashMap::new();
         state.insert("cpu".to_string(), Value::Number(85.into()));
 
-        let ast = parse_condition("@cpu > 80").unwrap();
+        let ast = parse_condition("cpu > 80").unwrap();
         assert!(evaluate_condition(&ast, &state));
 
-        let ast = parse_condition("@cpu < 80").unwrap();
+        let ast = parse_condition("cpu < 80").unwrap();
         assert!(!evaluate_condition(&ast, &state));
     }
 
@@ -480,69 +494,69 @@ mod tests {
 
         // Greater than
         assert!(evaluate_condition(
-            &parse_condition("@severity > 5").unwrap(),
+            &parse_condition("severity > 5").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity > 8").unwrap(),
+            &parse_condition("severity > 8").unwrap(),
             &state
         ));
 
         // Less than
         assert!(evaluate_condition(
-            &parse_condition("@severity < 10").unwrap(),
+            &parse_condition("severity < 10").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity < 7").unwrap(),
+            &parse_condition("severity < 7").unwrap(),
             &state
         ));
 
         // Greater or equal
         assert!(evaluate_condition(
-            &parse_condition("@severity >= 7.5").unwrap(),
+            &parse_condition("severity >= 7.5").unwrap(),
             &state
         ));
         assert!(evaluate_condition(
-            &parse_condition("@severity >= 7").unwrap(),
+            &parse_condition("severity >= 7").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity >= 8").unwrap(),
+            &parse_condition("severity >= 8").unwrap(),
             &state
         ));
 
         // Less or equal
         assert!(evaluate_condition(
-            &parse_condition("@severity <= 7.5").unwrap(),
+            &parse_condition("severity <= 7.5").unwrap(),
             &state
         ));
         assert!(evaluate_condition(
-            &parse_condition("@severity <= 8").unwrap(),
+            &parse_condition("severity <= 8").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity <= 7").unwrap(),
+            &parse_condition("severity <= 7").unwrap(),
             &state
         ));
 
         // Equality
         assert!(evaluate_condition(
-            &parse_condition("@severity == 7.5").unwrap(),
+            &parse_condition("severity == 7.5").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity == 7").unwrap(),
+            &parse_condition("severity == 7").unwrap(),
             &state
         ));
 
         // Not equal
         assert!(evaluate_condition(
-            &parse_condition("@severity != 8").unwrap(),
+            &parse_condition("severity != 8").unwrap(),
             &state
         ));
         assert!(!evaluate_condition(
-            &parse_condition("@severity != 7.5").unwrap(),
+            &parse_condition("severity != 7.5").unwrap(),
             &state
         ));
     }
@@ -559,20 +573,20 @@ mod tests {
 
         // Combined conditions (typical use case: show warning when severity high AND debug enabled)
         assert!(evaluate_condition(
-            &parse_condition("@severity >= 8 && @debug").unwrap(),
+            &parse_condition("severity >= 8 && debug").unwrap(),
             &state
         ));
 
         // Turn off debug
         state.insert("debug".to_string(), Value::Bool(false));
         assert!(!evaluate_condition(
-            &parse_condition("@severity >= 8 && @debug").unwrap(),
+            &parse_condition("severity >= 8 && debug").unwrap(),
             &state
         ));
 
         // OR logic
         assert!(evaluate_condition(
-            &parse_condition("@severity >= 8 || @debug").unwrap(),
+            &parse_condition("severity >= 8 || debug").unwrap(),
             &state
         ));
 
@@ -582,7 +596,7 @@ mod tests {
             Value::Number(serde_json::Number::from_f64(5.0).unwrap()),
         );
         assert!(!evaluate_condition(
-            &parse_condition("@severity >= 8 || @debug").unwrap(),
+            &parse_condition("severity >= 8 || debug").unwrap(),
             &state
         ));
     }
@@ -599,7 +613,7 @@ mod tests {
 
         // Value in range [5, 8]
         assert!(evaluate_condition(
-            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &parse_condition("level >= 5 && level <= 8").unwrap(),
             &state
         ));
 
@@ -609,7 +623,7 @@ mod tests {
             Value::Number(serde_json::Number::from_f64(5.0).unwrap()),
         );
         assert!(evaluate_condition(
-            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &parse_condition("level >= 5 && level <= 8").unwrap(),
             &state
         ));
 
@@ -619,7 +633,7 @@ mod tests {
             Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
         );
         assert!(!evaluate_condition(
-            &parse_condition("@level >= 5 && @level <= 8").unwrap(),
+            &parse_condition("level >= 5 && level <= 8").unwrap(),
             &state
         ));
     }

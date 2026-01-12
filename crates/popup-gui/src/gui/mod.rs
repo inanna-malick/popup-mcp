@@ -262,10 +262,10 @@ fn render_single_element(
         Element::Text { when, .. } => when,
         Element::Markdown { when, .. } => when,
         Element::Slider { when, .. } => when,
-        Element::Checkbox { when, .. } => when,
-        Element::Textbox { when, .. } => when,
-        Element::Multiselect { when, .. } => when,
-        Element::Choice { when, .. } => when,
+        Element::Check { when, .. } => when,
+        Element::Input { when, .. } => when,
+        Element::Multi { when, .. } => when,
+        Element::Select { when, .. } => when,
         Element::Group { when, .. } => when,
     };
 
@@ -285,36 +285,17 @@ fn render_single_element(
         }
     }
 
-    // Helper to render context markdown (smaller, italicized)
-    let render_context = |ui: &mut egui::Ui, context: &Option<String>| {
-        if let Some(ctx_text) = context {
-            ui.push_id("context", |ui| {
-                let mut cache = CommonMarkCache::default();
-                // Render context in smaller, muted style
-                ui.scope(|ui| {
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                    CommonMarkViewer::new().show(ui, &mut cache, ctx_text);
-                });
-            });
-            ui.add_space(4.0);
-        }
-    };
-
     match element {
-        Element::Text { text, context, .. } => {
+        Element::Text { text, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
-                render_context(ui, context);
                 ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
 
-        Element::Markdown {
-            markdown, context, ..
-        } => {
+        Element::Markdown { markdown, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("markdown_{}", element_path), |ui| {
-                render_context(ui, context);
                 // Create a temporary cache for this render - caching across frames
                 // would require storing in app state, but this works for simple cases
                 let mut cache = CommonMarkCache::default();
@@ -322,16 +303,14 @@ fn render_single_element(
             });
         }
 
-        Element::Multiselect {
-            multiselect,
+        Element::Multi {
+            multi,
             id,
             options,
             option_children,
             reveals,
-            context,
             ..
         } => {
-            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -343,7 +322,7 @@ fn render_single_element(
                 // Clone selections to avoid borrow conflict when rendering conditionals
                 let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id) {
                     ui.label(
-                        RichText::new(multiselect)
+                        RichText::new(multi)
                             .color(ctx.theme.matrix_green)
                             .strong()
                             .size(15.0),
@@ -425,17 +404,15 @@ fn render_single_element(
             });
         }
 
-        Element::Choice {
-            choice,
+        Element::Select {
+            select,
             id,
             options,
             option_children,
             reveals,
-            context,
             ..
         } => {
-            render_context(ui, context);
-            ui.label(RichText::new(choice).color(ctx.theme.text_primary));
+            ui.label(RichText::new(select).color(ctx.theme.text_primary));
 
             // Clone selection state to avoid borrow conflict
             let selected_option = state.get_choice_mut(id).and_then(|s| *s);
@@ -498,21 +475,16 @@ fn render_single_element(
             ui.add_space(6.0);
         }
 
-        Element::Checkbox {
-            checkbox,
-            id,
-            reveals,
-            context,
-            ..
+        Element::Check {
+            check, id, reveals, ..
         } => {
-            render_context(ui, context);
             if let Some(value) = state.get_boolean_mut(id) {
                 let checkbox_text = if *value {
-                    RichText::new(format!("☑ {}", checkbox))
+                    RichText::new(format!("☑ {}", check))
                         .color(ctx.theme.matrix_green)
                         .strong()
                 } else {
-                    RichText::new(format!("☐ {}", checkbox)).color(ctx.theme.text_primary)
+                    RichText::new(format!("☐ {}", check)).color(ctx.theme.text_primary)
                 };
                 let response = ui.selectable_label(false, checkbox_text);
                 if response.clicked() {
@@ -540,11 +512,8 @@ fn render_single_element(
             id,
             min,
             max,
-            reveals,
-            context,
             ..
         } => {
-            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -576,32 +545,16 @@ fn render_single_element(
                         }
                     });
                 }
-
-                // Render reveals if slider has any
-                if !reveals.is_empty() {
-                    ui.indent(format!("slider_reveals_{}", id), |ui| {
-                        render_elements_in_grid(
-                            ui,
-                            reveals,
-                            state,
-                            all_elements,
-                            ctx,
-                            element_path,
-                        );
-                    });
-                }
             });
         }
 
-        Element::Textbox {
-            textbox,
+        Element::Input {
+            input,
             id,
             placeholder,
             rows,
-            context,
             ..
         } => {
-            render_context(ui, context);
             let widget_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(10))
                 .stroke(egui::Stroke::new(
@@ -611,7 +564,7 @@ fn render_single_element(
 
             widget_frame.show(ui, |ui| {
                 ui.label(
-                    RichText::new(textbox)
+                    RichText::new(input)
                         .color(ctx.theme.neon_purple)
                         .strong()
                         .size(15.0),
@@ -632,12 +585,8 @@ fn render_single_element(
         }
 
         Element::Group {
-            group,
-            elements,
-            context,
-            ..
+            group, elements, ..
         } => {
-            render_context(ui, context);
             // Enhanced group with better visual separation
             let group_frame = egui::Frame::group(ui.style())
                 .inner_margin(egui::Margin::same(12))
@@ -699,28 +648,12 @@ fn collect_active_elements(
 
     for element in elements {
         match element {
-            Element::Slider {
-                id, reveals, when, ..
-            } => {
-                if is_visible(when) {
-                    active_ids.push(id.clone());
-                    // Collect from reveals
-                    if !reveals.is_empty() {
-                        active_ids.extend(collect_active_elements(
-                            reveals,
-                            state,
-                            all_elements,
-                            "",
-                        ));
-                    }
-                }
-            }
-            Element::Textbox { id, when, .. } => {
+            Element::Slider { id, when, .. } | Element::Input { id, when, .. } => {
                 if is_visible(when) {
                     active_ids.push(id.clone());
                 }
             }
-            Element::Checkbox {
+            Element::Check {
                 id, reveals, when, ..
             } => {
                 if is_visible(when) {
@@ -736,7 +669,7 @@ fn collect_active_elements(
                     }
                 }
             }
-            Element::Multiselect {
+            Element::Multi {
                 id,
                 options,
                 option_children,
@@ -775,7 +708,7 @@ fn collect_active_elements(
                     }
                 }
             }
-            Element::Choice {
+            Element::Select {
                 id,
                 options,
                 option_children,
@@ -904,16 +837,16 @@ fn calculate_elements_size(
                 *height += 50.0; // Moderately larger slider height for bigger text and spacing
                 *max_width = max_width.max(slider.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
             }
-            Element::Checkbox { checkbox, .. } => {
+            Element::Check { check, .. } => {
                 *height += 35.0; // Moderately larger checkbox height for bigger text
-                *max_width = max_width.max(checkbox.len() as f32 * 12.0 + 90.0);
+                *max_width = max_width.max(check.len() as f32 * 12.0 + 90.0);
                 // Moderately larger character width + checkbox
             }
-            Element::Textbox { rows, .. } => {
+            Element::Input { rows, .. } => {
                 *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
                 *max_width = max_width.max(420.0); // More width for text input with moderately larger font
             }
-            Element::Multiselect { options, .. } => {
+            Element::Multi { options, .. } => {
                 *height += 35.0; // Moderately larger label with proper spacing
                 *height += 40.0; // Moderately larger All/None buttons with spacing
                 if options.len() > 4 {
@@ -931,8 +864,8 @@ fn calculate_elements_size(
                     // Moderately larger character width + more space
                 }
             }
-            Element::Choice {
-                choice, options, ..
+            Element::Select {
+                select, options, ..
             } => {
                 *height += 35.0; // Label height
                 *height += 35.0; // ComboBox height
@@ -941,7 +874,7 @@ fn calculate_elements_size(
                     .map(|opt| opt.value().len())
                     .max()
                     .unwrap_or(0)
-                    .max(choice.len());
+                    .max(select.len());
                 *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
             }
             Element::Group { elements, .. } => {

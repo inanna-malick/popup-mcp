@@ -26,9 +26,9 @@ Tagged enum of widget types using element-as-key deserialization. All interactiv
 **Variants:**
 - `Text { text, id?, when? }` - Static text display (ID optional)
 - `Slider { slider, id, min, max, default?, when?, reveals? }` - Numeric input (f32)
-- `Checkbox { checkbox, id, default?, when?, reveals? }` - Boolean input with optional reveals
-- `Textbox { textbox, id, placeholder?, rows?, when? }` - Text input (single/multi-line)
-- `Multiselect { multiselect, id, options, option_children?, reveals?, when? }` - Multiple choice
+- `Check { checkbox, id, default?, when?, reveals? }` - Boolean input with optional reveals
+- `Input { textbox, id, placeholder?, rows?, when? }` - Text input (single/multi-line)
+- `Multi { multiselect, id, options, option_children?, reveals?, when? }` - Multiple choice
 - `Choice { choice, id, options, default?, option_children?, reveals?, when? }` - Single selection
 - `Group { group, elements, when? }` - Labeled container
 
@@ -36,9 +36,9 @@ Tagged enum of widget types using element-as-key deserialization. All interactiv
 
 **When Clauses (`when?: Option<String>`):**
 - Any element can have conditional visibility via `when` field
-- Expression syntax supports: `@id`, `selected(@id, value)`, `count(@id) > 2`
+- Expression syntax supports: `@id`, `selected(id, value)`, `count(@id) > 2`
 - Logical operators: `&&`, `||`, `!`
-- Example: `"when": "@debug && count(@features) >= 2"`
+- Example: `"when": "debug && count(features) >= 2"`
 
 **Reveals (`reveals?: Option<Vec<Element>>`):**
 - Inline conditionals attached to checkbox/multiselect/choice
@@ -46,14 +46,14 @@ Tagged enum of widget types using element-as-key deserialization. All interactiv
 - Replaces v1 inline `conditional` field
 
 **Option-as-Key Nesting (`option_children?: HashMap<String, Vec<Element>>`):**
-- Choice/Multiselect children use option text as direct JSON key
+- Choice/Multi children use option text as direct JSON key
 - Example: `"Advanced": [{"slider": "Level", "id": "level", "min": 1, "max": 10}]`
 - Replaces v1 OptionValue enum with nested conditionals
 
 **V2 JSON Format:**
 ```json
 {
-  "checkbox": "Enable debug",
+  "check": "Enable debug",
   "id": "enable_debug",
   "default": false,
   "reveals": [
@@ -70,7 +70,7 @@ Tagged enum of widget types using element-as-key deserialization. All interactiv
 **Choice with Option-as-Key Nesting:**
 ```json
 {
-  "choice": "Mode",
+  "select": "Mode",
   "id": "mode",
   "options": ["Simple", "Advanced"],
   "Advanced": [
@@ -112,15 +112,15 @@ pub fn evaluate_condition(ast: &ConditionAst, state: &HashMap<String, Value>) ->
 
 **ConditionAst:**
 - `BooleanRef(id)` - `@id` checks if value is truthy
-- `Selected { id, value }` - `selected(@id, value)` checks if specific option selected
+- `Selected { id, value }` - `selected(id, value)` checks if specific option selected
 - `Count { id, op, value }` - `count(@id) > 2` counts selections
 - `And(left, right)`, `Or(left, right)`, `Not(inner)` - Logical operators
 
 **Examples:**
 - `"@enable_debug"` → Check if checkbox is checked
-- `"selected(@mode, Expert)"` → Check if "Expert" option selected
-- `"count(@features) >= 3"` → Check if 3+ multiselect options selected
-- `"@debug && !@production"` → Logical AND and NOT
+- `"selected(mode, Expert)"` → Check if "Expert" option selected
+- `"count(features) >= 3"` → Check if 3+ multiselect options selected
+- `"debug && !@production"` → Logical AND and NOT
 
 ### PopupResult
 Serialized user interaction result.
@@ -132,7 +132,7 @@ Serialized user interaction result.
 
 **Construction methods:**
 - `from_state(state)` - Basic serialization (indices for multiselect/choice)
-- `from_state_with_context(state, definition)` - Rich format (slider "50/100", option texts)
+- `from_state_with_context(state, definition)` - Rich format (slider integer value, option texts)
 - `from_state_with_active_elements(state, definition, active_labels)` - Filtered by visibility
 
 
@@ -147,7 +147,7 @@ Serialized user interaction result.
       "text": "Configure options"
     },
     {
-      "checkbox": "Enable feature",
+      "check": "Enable feature",
       "id": "enable_feature",
       "default": true
     },
@@ -156,7 +156,7 @@ Serialized user interaction result.
       "id": "level",
       "min": 0,
       "max": 100,
-      "when": "@enable_feature"
+      "when": "enable_feature"
     }
   ]
 }
@@ -168,7 +168,7 @@ Serialized user interaction result.
   "title": "Advanced Config",
   "elements": [
     {
-      "checkbox": "Enable advanced",
+      "check": "Enable advanced",
       "id": "enable_advanced",
       "default": false,
       "reveals": [
@@ -190,19 +190,19 @@ Serialized user interaction result.
   "title": "Mode Selection",
   "elements": [
     {
-      "choice": "Mode",
+      "select": "Mode",
       "id": "mode",
       "options": ["Basic", "Pro", "Enterprise"],
       "Pro": [
         {
-          "textbox": "License key",
+          "input": "License key",
           "id": "license",
           "placeholder": "XXXX-XXXX"
         }
       ],
       "Enterprise": [
         {
-          "textbox": "Organization",
+          "input": "Organization",
           "id": "org",
           "placeholder": "Company name"
         }

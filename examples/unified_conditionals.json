@@ -6,29 +6,33 @@
       "id": "intro"
     },
     {
-      "checkbox": "Enable Debug",
       "id": "debug",
-      "default": false
+      "default": false,
+      "check": "Enable Debug"
     },
     {
       "text": "✓ Pattern 1: Simple existence check - checkbox is checked",
       "id": "debug_msg",
-      "when": "@debug"
+      "when": "debug"
     },
     {
-      "multiselect": "Theme",
       "id": "theme",
-      "options": ["Light", "Dark", "Auto"]
+      "options": [
+        "Light",
+        "Dark",
+        "Auto"
+      ],
+      "multi": "Theme"
     },
     {
       "text": "✓ Pattern 1: Simple existence check - any theme selected",
       "id": "theme_msg",
-      "when": "@theme"
+      "when": "theme"
     },
     {
       "text": "✓ Pattern 2: Specific value check - Dark theme selected",
       "id": "dark_msg",
-      "when": "selected(@theme, Dark)"
+      "when": "selected(theme, 'Dark')"
     },
     {
       "slider": "Contrast",
@@ -36,33 +40,39 @@
       "min": 0,
       "max": 100,
       "default": 75,
-      "when": "selected(@theme, Dark)"
+      "when": "selected(theme, 'Dark')"
     },
     {
-      "multiselect": "Features",
       "id": "features",
-      "options": ["Analytics", "Notifications", "Sync", "Backup", "Themes"]
+      "options": [
+        "Analytics",
+        "Notifications",
+        "Sync",
+        "Backup",
+        "Themes"
+      ],
+      "multi": "Features"
     },
     {
       "text": "✓ Pattern 3: Count check - more than 2 features selected",
       "id": "count_msg",
-      "when": "count(@features) > 2"
+      "when": "count(features) > 2"
     },
     {
       "text": "✓ Pattern 2: Specific value - Analytics feature enabled",
       "id": "analytics_msg",
-      "when": "selected(@features, Analytics)"
+      "when": "selected(features, 'Analytics')"
     },
     {
-      "checkbox": "Track usage",
       "id": "track_usage",
       "default": true,
-      "when": "selected(@features, Analytics)"
+      "when": "selected(features, 'Analytics')",
+      "check": "Track usage"
     },
     {
       "text": "✓ Pattern 3: Exact count - exactly one feature selected",
       "id": "exact_count_msg",
-      "when": "count(@features) == 1"
+      "when": "count(features) == 1"
     }
   ]
 }
