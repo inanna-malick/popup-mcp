@@ -6,35 +6,46 @@
       "id": "intro_text"
     },
     {
-      "textbox": "Name",
       "id": "name",
-      "placeholder": "Your name"
+      "placeholder": "Your name",
+      "input": "Name"
     },
     {
-      "textbox": "Email",
       "id": "email",
-      "placeholder": "your@email.com"
+      "placeholder": "your@email.com",
+      "input": "Email"
     },
     {
-      "multiselect": "Rating",
       "id": "rating",
-      "options": ["Excellent", "Good", "Fair", "Poor"]
+      "options": [
+        "Excellent",
+        "Good",
+        "Fair",
+        "Poor"
+      ],
+      "multi": "Rating"
     },
     {
-      "textbox": "Comments",
       "id": "comments",
       "placeholder": "Tell us what you think...",
-      "rows": 5
+      "rows": 5,
+      "input": "Comments"
     },
     {
-      "multiselect": "Topics",
       "id": "topics",
-      "options": ["UI/UX", "Performance", "Features", "Documentation", "Support"]
+      "options": [
+        "UI/UX",
+        "Performance",
+        "Features",
+        "Documentation",
+        "Support"
+      ],
+      "multi": "Topics"
     },
     {
-      "checkbox": "Subscribe to newsletter",
       "id": "subscribe",
-      "default": false
+      "default": false,
+      "check": "Subscribe to newsletter"
     }
   ]
 }

@@ -63,22 +63,22 @@ Define popups using JSON with a title and array of elements. The V2 schema uses 
       "default": 75
     },
     {
-      "checkbox": "Enable notifications",
+      "check": "Enable notifications",
       "id": "notifications",
       "default": true
     },
     {
-      "textbox": "Username",
+      "input": "Username",
       "id": "username",
       "placeholder": "Enter username"
     },
     {
-      "choice": "Theme",
+      "select": "Theme",
       "id": "theme",
       "options": ["Light", "Dark", "Auto"]
     },
     {
-      "multiselect": "Features",
+      "multi": "Features",
       "id": "features",
       "options": ["A", "B", "C"]
     }
@@ -108,7 +108,7 @@ Any element can have a `when` field for conditional visibility:
 
 ```json
 {
-  "checkbox": "Enable debug mode",
+  "check": "Enable debug mode",
   "id": "debug_mode",
   "default": false
 },
@@ -117,13 +117,13 @@ Any element can have a `when` field for conditional visibility:
   "id": "log_level",
   "min": 0,
   "max": 5,
-  "when": "@debug_mode"
+  "when": "debug_mode"
 }
 ```
 
 **When Clause Syntax:**
 - `@id` - Boolean check (checkbox checked, has selections, etc.)
-- `selected(@id, value)` - Check if specific value selected
+- `selected(id, value)` - Check if specific value selected
 - `count(@id) > 2` - Count-based check with operators: `>`, `<`, `>=`, `<=`, `==`
 - `@id1 && @id2` - Logical AND
 - `@id1 || @id2` - Logical OR
@@ -133,7 +133,7 @@ Any element can have a `when` field for conditional visibility:
 ```json
 {
   "text": "Advanced mode with multiple features",
-  "when": "@advanced && count(@features) > 2"
+  "when": "advanced && count(features) > 2"
 }
 ```
 
@@ -143,7 +143,7 @@ Any element can have a `when` field for conditional visibility:
   "id": "complexity",
   "min": 1,
   "max": 10,
-  "when": "selected(@mode, Expert)"
+  "when": "selected(mode, Expert)"
 }
 ```
 
@@ -153,7 +153,7 @@ Elements that appear when a checkbox is checked or an option is selected:
 
 ```json
 {
-  "checkbox": "Enable advanced mode",
+  "check": "Enable advanced mode",
   "id": "enable_advanced",
   "default": false,
   "reveals": [
@@ -164,7 +164,7 @@ Elements that appear when a checkbox is checked or an option is selected:
       "max": 10
     },
     {
-      "textbox": "Config file",
+      "input": "Config file",
       "id": "config_file",
       "placeholder": "/etc/config"
     }
@@ -178,12 +178,12 @@ Choice and multiselect options can have children using the option text as a JSON
 
 ```json
 {
-  "choice": "Installation type",
+  "select": "Installation type",
   "id": "install_type",
   "options": ["Standard", "Custom"],
   "Custom": [
     {
-      "textbox": "Install path",
+      "input": "Install path",
       "id": "install_path",
       "placeholder": "/opt/app"
     }
@@ -191,23 +191,23 @@ Choice and multiselect options can have children using the option text as a JSON
 }
 ```
 
-Multiselect with per-option children:
+Multi with per-option children:
 
 ```json
 {
-  "multiselect": "Features",
+  "multi": "Features",
   "id": "features",
   "options": ["Basic", "Database", "Authentication"],
   "Database": [
     {
-      "choice": "DB Type",
+      "select": "DB Type",
       "id": "db_type",
       "options": ["PostgreSQL", "MySQL", "MongoDB"]
     }
   ],
   "Authentication": [
     {
-      "choice": "Auth Provider",
+      "select": "Auth Provider",
       "id": "auth_provider",
       "options": ["OAuth", "SAML", "LDAP"]
     }
@@ -224,34 +224,34 @@ Combine all three conditional approaches for deep dialogue trees:
   "title": "Project Setup",
   "elements": [
     {
-      "choice": "Project type",
+      "select": "Project type",
       "id": "project_type",
       "options": ["Simple", "Advanced"],
       "Advanced": [
         {
-          "multiselect": "Features",
+          "multi": "Features",
           "id": "features",
           "options": ["Database", "Authentication", "API"],
           "Database": [
             {
-              "choice": "Database type",
+              "select": "Database type",
               "id": "db_type",
               "options": ["PostgreSQL", "MySQL", "MongoDB"]
             }
           ],
           "Authentication": [
             {
-              "choice": "Auth provider",
+              "select": "Auth provider",
               "id": "auth_provider",
               "options": ["OAuth", "SAML", "LDAP"]
             }
           ]
         },
         {
-          "checkbox": "Enable monitoring",
+          "check": "Enable monitoring",
           "id": "enable_monitoring",
           "default": false,
-          "when": "count(@features) >= 2",
+          "when": "count(features) >= 2",
           "reveals": [
             {
               "slider": "Monitoring interval (seconds)",

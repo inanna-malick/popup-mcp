@@ -2,15 +2,15 @@
   "title": "Advanced Settings",
   "elements": [
     {
-      "checkbox": "Show advanced options",
       "id": "show_advanced",
-      "default": false
+      "default": false,
+      "check": "Show advanced options"
     },
     {
-      "checkbox": "Debug mode",
       "id": "debug_mode",
       "default": false,
-      "when": "@show_advanced"
+      "when": "show_advanced",
+      "check": "Debug mode"
     },
     {
       "slider": "Log level",
@@ -18,13 +18,17 @@
       "min": 0,
       "max": 10,
       "default": 3,
-      "when": "@show_advanced"
+      "when": "show_advanced"
     },
     {
-      "multiselect": "Output",
       "id": "output",
-      "options": ["Console", "File", "Both"],
-      "when": "@show_advanced"
+      "options": [
+        "Console",
+        "File",
+        "Both"
+      ],
+      "when": "show_advanced",
+      "multi": "Output"
     },
     {
       "slider": "Max threads",
@@ -32,18 +36,18 @@
       "min": 1,
       "max": 16,
       "default": 4,
-      "when": "@show_advanced"
+      "when": "show_advanced"
     },
     {
-      "checkbox": "Performance mode",
       "id": "perf_mode",
-      "default": true
+      "default": true,
+      "check": "Performance mode"
     },
     {
-      "checkbox": "GPU acceleration",
       "id": "gpu_accel",
       "default": true,
-      "when": "@perf_mode"
+      "when": "perf_mode",
+      "check": "GPU acceleration"
     },
     {
       "slider": "Cache size",
@@ -51,7 +55,7 @@
       "min": 0,
       "max": 1000,
       "default": 256,
-      "when": "@perf_mode"
+      "when": "perf_mode"
     }
   ]
 }

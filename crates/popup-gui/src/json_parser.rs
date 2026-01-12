@@ -4,14 +4,7 @@ use serde_json::Value;
 
 /// Element type discriminator keys used for single-element root detection
 const ELEMENT_KEYS: &[&str] = &[
-    "text",
-    "markdown",
-    "slider",
-    "checkbox",
-    "textbox",
-    "choice",
-    "multiselect",
-    "group",
+    "text", "markdown", "slider", "check", "input", "select", "multi", "group",
 ];
 
 /// Check if a JSON object looks like a single element (has an element type key)
@@ -25,7 +18,7 @@ fn is_element_object(obj: &serde_json::Map<String, Value>) -> bool {
 /// 1. **Direct format**: `{"title": "...", "elements": [...]}`
 /// 2. **MCP wrapper format**: `{"json": {"title": "...", "elements": [...]}}`
 /// 3. **Single-element root**: `{"text": "Hello"}` → wraps in PopupDefinition
-/// 4. **Array root**: `[{"text": "Hello"}, {"checkbox": "OK"}]` → wraps in PopupDefinition
+/// 4. **Array root**: `[{"text": "Hello"}, {"check": "OK"}]` → wraps in PopupDefinition
 ///
 /// **Recommended for external tools**: Instead of using `serde_json::from_str::<PopupDefinition>()`
 /// directly, external tools should use this function to ensure compatibility with all formats.
@@ -277,8 +270,8 @@ mod tests {
             "title": "Settings",
             "elements": [
                 {"slider": "Volume", "id": "volume", "min": 0, "max": 100, "default": 75},
-                {"checkbox": "Notifications", "id": "notifications", "default": true},
-                {"textbox": "Name", "id": "name", "placeholder": "Enter your name"}
+                {"check": "Notifications", "id": "notifications", "default": true},
+                {"input": "Name", "id": "name", "placeholder": "Enter your name"}
             ]
         }"#;
 
@@ -307,7 +300,7 @@ mod tests {
         let json = r#"{
             "title": "Advanced",
             "elements": [
-                {"checkbox": "Show advanced", "id": "show_advanced", "default": false},
+                {"check": "Show advanced", "id": "show_advanced", "default": false},
                 {"slider": "Debug", "id": "debug", "min": 0, "max": 10, "when": "@show_advanced"}
             ]
         }"#;
@@ -331,7 +324,7 @@ mod tests {
                 "title": "MCP Wrapper Test",
                 "elements": [
                     {"text": "Testing wrapper format", "id": "wrapper_text"},
-                    {"checkbox": "Enable feature", "id": "enable_feature", "default": true}
+                    {"check": "Enable feature", "id": "enable_feature", "default": true}
                 ]
             }
         }"#;
@@ -386,7 +379,7 @@ mod tests {
                         "id": "guidance_text"
                     },
                     {
-                        "multiselect": "Primary growth focus",
+                        "multi": "Primary growth focus",
                         "id": "growth_focus",
                         "options": [
                             "Cognitive Architecture - proactive design, meta-patterns",
@@ -412,12 +405,8 @@ mod tests {
         }
 
         match &popup.elements[1] {
-            Element::Multiselect {
-                multiselect,
-                options,
-                ..
-            } => {
-                assert_eq!(multiselect, "Primary growth focus");
+            Element::Multi { multi, options, .. } => {
+                assert_eq!(multi, "Primary growth focus");
                 assert_eq!(options.len(), 4);
                 assert_eq!(
                     options[0].value(),
@@ -471,7 +460,7 @@ mod tests {
                 "title": "Value Test",
                 "elements": [
                     {"text": "Testing Value parser", "id": "test_text"},
-                    {"checkbox": "Enable", "id": "enable", "default": true}
+                    {"check": "Enable", "id": "enable", "default": true}
                 ]
             }
         }"#;
@@ -568,7 +557,7 @@ mod tests {
         let element = r#"{"text": "Hello"}"#;
         assert_eq!(detect_popup_format(element), "element");
 
-        let array = r#"[{"text": "Hello"}, {"checkbox": "OK", "id": "ok"}]"#;
+        let array = r#"[{"text": "Hello"}, {"check": "OK", "id": "ok"}]"#;
         assert_eq!(detect_popup_format(array), "array");
     }
 
@@ -628,7 +617,7 @@ mod tests {
     fn test_single_element_root_choice_with_option_children() {
         // Complex single element with nested structure
         let json = r#"{
-            "choice": "Mode",
+            "select": "Mode",
             "id": "mode",
             "options": ["Simple", "Advanced"],
             "Advanced": [
@@ -640,13 +629,13 @@ mod tests {
         assert_eq!(popup.title, None);
         assert_eq!(popup.elements.len(), 1);
         match &popup.elements[0] {
-            Element::Choice {
-                choice,
+            Element::Select {
+                select,
                 options,
                 option_children,
                 ..
             } => {
-                assert_eq!(choice, "Mode");
+                assert_eq!(select, "Mode");
                 assert_eq!(options.len(), 2);
                 assert!(option_children.contains_key("Advanced"));
             }
@@ -661,7 +650,7 @@ mod tests {
         let json = r#"[
             {"text": "Configure audio settings"},
             {"slider": "Volume", "id": "volume", "min": 0, "max": 100},
-            {"checkbox": "Mute", "id": "mute"}
+            {"check": "Mute", "id": "mute"}
         ]"#;
         let popup = parse_popup_json(json).unwrap();
 
@@ -677,7 +666,7 @@ mod tests {
             _ => panic!("Expected slider element"),
         }
         match &popup.elements[2] {
-            Element::Checkbox { checkbox, .. } => assert_eq!(checkbox, "Mute"),
+            Element::Check { check, .. } => assert_eq!(check, "Mute"),
             _ => panic!("Expected checkbox element"),
         }
     }
@@ -685,7 +674,7 @@ mod tests {
     #[test]
     fn test_array_root_with_when_clauses() {
         let json = r#"[
-            {"checkbox": "Enable advanced", "id": "enable_advanced"},
+            {"check": "Enable advanced", "id": "enable_advanced"},
             {"slider": "Level", "id": "level", "min": 1, "max": 10, "when": "@enable_advanced"}
         ]"#;
         let popup = parse_popup_json(json).unwrap();

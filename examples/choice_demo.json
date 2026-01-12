@@ -6,24 +6,31 @@
       "id": "intro_text"
     },
     {
-      "choice": "Theme",
       "id": "theme",
-      "options": ["Light", "Dark", "Auto"]
+      "options": [
+        "Light",
+        "Dark",
+        "Auto"
+      ],
+      "select": "Theme"
     },
     {
-      "choice": "Difficulty",
       "id": "difficulty",
-      "options": ["Easy", "Medium", "Hard"],
-      "default": 1
+      "options": [
+        "Easy",
+        "Medium",
+        "Hard"
+      ],
+      "default": "Medium",
+      "select": "Difficulty"
     },
     {
-      "checkbox": "Enable expert mode",
       "id": "expert_mode",
       "default": false,
-      "when": "selected(@difficulty, Hard)"
+      "when": "selected(difficulty, 'Hard')",
+      "check": "Enable expert mode"
     },
     {
-      "choice": "Country",
       "id": "country",
       "options": [
         "USA",
@@ -41,13 +48,14 @@
         "China",
         "South Korea",
         "Other"
-      ]
+      ],
+      "select": "Country"
     },
     {
-      "textbox": "City",
       "id": "city",
       "placeholder": "Enter your city",
-      "when": "@country"
+      "when": "country",
+      "input": "City"
     }
   ]
 }

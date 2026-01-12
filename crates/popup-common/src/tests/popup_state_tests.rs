@@ -11,9 +11,7 @@ fn test_popupstate_init_slider() {
             min: 0.0,
             max: 100.0,
             default: Some(75.0),
-            reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -31,9 +29,7 @@ fn test_popupstate_init_slider_default_midpoint() {
             min: 1.0,
             max: 10.0,
             default: None, // Should default to midpoint
-            reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -45,13 +41,12 @@ fn test_popupstate_init_slider_default_midpoint() {
 fn test_popupstate_init_checkbox() {
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Checkbox {
-            checkbox: "Enable".to_string(),
+        elements: vec![Element::Check {
+            check: "Enable".to_string(),
             id: "enable".to_string(),
             default: true,
             reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -66,8 +61,8 @@ fn test_popupstate_init_checkbox() {
 fn test_popupstate_init_with_reveals() {
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Checkbox {
-            checkbox: "Enable advanced".to_string(),
+        elements: vec![Element::Check {
+            check: "Enable advanced".to_string(),
             id: "enable".to_string(),
             default: false,
             reveals: vec![Element::Slider {
@@ -76,12 +71,9 @@ fn test_popupstate_init_with_reveals() {
                 min: 1.0,
                 max: 10.0,
                 default: None,
-                reveals: vec![],
                 when: None,
-                context: None,
             }],
             when: None,
-            context: None,
         }],
     };
 
@@ -104,16 +96,14 @@ fn test_popupstate_init_with_option_children() {
             min: 0.0,
             max: 100.0,
             default: Some(50.0),
-            reveals: vec![],
             when: None,
-            context: None,
         }],
     );
 
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Choice {
-            choice: "Theme".to_string(),
+        elements: vec![Element::Select {
+            select: "Theme".to_string(),
             id: "theme".to_string(),
             options: vec![
                 OptionValue::Simple("Light".to_string()),
@@ -123,7 +113,6 @@ fn test_popupstate_init_with_option_children() {
             option_children,
             reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -139,8 +128,8 @@ fn test_popupstate_init_with_option_children() {
 fn test_popupstate_init_multiselect() {
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Multiselect {
-            multiselect: "Features".to_string(),
+        elements: vec![Element::Multi {
+            multi: "Features".to_string(),
             id: "features".to_string(),
             options: vec![
                 OptionValue::Simple("A".to_string()),
@@ -150,7 +139,6 @@ fn test_popupstate_init_multiselect() {
             option_children: HashMap::new(),
             reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -165,13 +153,12 @@ fn test_popupstate_init_multiselect() {
 fn test_popupstate_init_textbox() {
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Textbox {
-            textbox: "Name".to_string(),
+        elements: vec![Element::Input {
+            input: "Name".to_string(),
             id: "name".to_string(),
             placeholder: None,
             rows: None,
             when: None,
-            context: None,
         }],
     };
 
@@ -196,21 +183,17 @@ fn test_popupstate_init_group() {
                     min: 0.0,
                     max: 100.0,
                     default: Some(50.0),
-                    reveals: vec![],
                     when: None,
-                    context: None,
                 },
-                Element::Checkbox {
-                    checkbox: "Mute".to_string(),
+                Element::Check {
+                    check: "Mute".to_string(),
                     id: "mute".to_string(),
                     default: false,
                     reveals: vec![],
                     when: None,
-                    context: None,
                 },
             ],
             when: None,
-            context: None,
         }],
     };
 
@@ -253,17 +236,14 @@ fn test_get_mut_methods() {
                 min: 0.0,
                 max: 100.0,
                 default: Some(50.0),
-                reveals: vec![],
                 when: None,
-                context: None,
             },
-            Element::Checkbox {
-                checkbox: "Enabled".to_string(),
+            Element::Check {
+                check: "Enabled".to_string(),
                 id: "enabled".to_string(),
                 default: false,
                 reveals: vec![],
                 when: None,
-                context: None,
             },
         ],
     };
@@ -298,33 +278,29 @@ fn test_nested_reveals_and_option_children() {
             min: 1.0,
             max: 10.0,
             default: Some(5.0),
-            reveals: vec![],
             when: None,
-            context: None,
         }],
     );
 
     let def = PopupDefinition {
         title: None,
-        elements: vec![Element::Checkbox {
-            checkbox: "Show options".to_string(),
+        elements: vec![Element::Check {
+            check: "Show options".to_string(),
             id: "show_opts".to_string(),
             default: false,
-            reveals: vec![Element::Choice {
-                choice: "Mode".to_string(),
+            reveals: vec![Element::Select {
+                select: "Mode".to_string(),
                 id: "mode".to_string(),
                 options: vec![
                     OptionValue::Simple("Basic".to_string()),
                     OptionValue::Simple("Advanced".to_string()),
                 ],
-                default: Some(0),
+                default: Some("Basic".to_string()),
                 option_children,
                 reveals: vec![],
                 when: None,
-                context: None,
             }],
             when: None,
-            context: None,
         }],
     };
 
@@ -358,26 +334,23 @@ fn test_find_element_in_option_children() {
             min: 1.0,
             max: 100.0,
             default: Some(50.0),
-            reveals: vec![],
             when: None,
-            context: None,
         }],
     );
 
     let def = PopupDefinition {
         title: Some("Test".to_string()),
-        elements: vec![Element::Choice {
-            choice: "Plan".to_string(),
+        elements: vec![Element::Select {
+            select: "Plan".to_string(),
             id: "plan".to_string(),
             options: vec![
                 OptionValue::Simple("Basic".to_string()),
                 OptionValue::Simple("Pro".to_string()),
             ],
-            default: Some(1), // Select "Pro"
+            default: Some("Pro".to_string()),
             option_children,
             reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -394,11 +367,8 @@ fn test_find_element_in_option_children() {
 
     match result {
         PopupResult::Completed { values, .. } => {
-            // Should find the element and format it as "75/100"
-            assert_eq!(
-                values.get("feature_level").unwrap().as_str(),
-                Some("75/100")
-            );
+            // Should find the element and return the integer value
+            assert_eq!(values.get("feature_level").unwrap().as_i64(), Some(75));
             assert_eq!(values.get("plan").unwrap().as_str(), Some("Pro"));
         }
         _ => panic!("Expected Completed result"),
@@ -413,8 +383,8 @@ fn test_find_element_in_nested_reveals_and_option_children() {
     let mut option_children = HashMap::new();
     option_children.insert(
         "Advanced".to_string(),
-        vec![Element::Checkbox {
-            checkbox: "Debug mode".to_string(),
+        vec![Element::Check {
+            check: "Debug mode".to_string(),
             id: "debug".to_string(),
             default: false,
             reveals: vec![Element::Slider {
@@ -423,29 +393,25 @@ fn test_find_element_in_nested_reveals_and_option_children() {
                 min: 1.0,
                 max: 10.0,
                 default: Some(5.0),
-                reveals: vec![],
                 when: None,
-                context: None,
             }],
             when: None,
-            context: None,
         }],
     );
 
     let def = PopupDefinition {
         title: Some("Test".to_string()),
-        elements: vec![Element::Choice {
-            choice: "Mode".to_string(),
+        elements: vec![Element::Select {
+            select: "Mode".to_string(),
             id: "mode".to_string(),
             options: vec![
                 OptionValue::Simple("Simple".to_string()),
                 OptionValue::Simple("Advanced".to_string()),
             ],
-            default: Some(1),
+            default: Some("Advanced".to_string()),
             option_children,
             reveals: vec![],
             when: None,
-            context: None,
         }],
     };
 
@@ -462,8 +428,8 @@ fn test_find_element_in_nested_reveals_and_option_children() {
 
     match result {
         PopupResult::Completed { values, .. } => {
-            // Should find the deeply nested element
-            assert_eq!(values.get("debug_level").unwrap().as_str(), Some("8/10"));
+            // Should find the deeply nested element and return integer value
+            assert_eq!(values.get("debug_level").unwrap().as_i64(), Some(8));
         }
         _ => panic!("Expected Completed result"),
     }

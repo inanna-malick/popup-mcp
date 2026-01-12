@@ -5,17 +5,26 @@
       "text": "Design a theoretical lens for analyzing a phenomenon."
     },
     {
-      "choice": "Primary Philosophical Tradition",
       "id": "tradition",
-      "options": ["Phenomenology", "Pragmatism", "Critical Theory", "Poststructuralism", "Complexity Theory"],
+      "options": [
+        "Phenomenology",
+        "Pragmatism",
+        "Critical Theory",
+        "Poststructuralism",
+        "Complexity Theory"
+      ],
       "Phenomenology": [
         {
-          "multiselect": "Key Thinkers",
           "id": "phenom_thinkers",
-          "options": ["Husserl", "Heidegger", "Merleau-Ponty", "Levinas", "van Manen"],
+          "options": [
+            "Husserl",
+            "Heidegger",
+            "Merleau-Ponty",
+            "Levinas",
+            "van Manen"
+          ],
           "Husserl": [
             {
-              "checkbox": "Emphasize transcendental reduction",
               "id": "transcendental_reduction",
               "default": false,
               "reveals": [
@@ -29,26 +38,33 @@
                 {
                   "text": "Focus on essences and eidetic structures"
                 }
-              ]
+              ],
+              "check": "Emphasize transcendental reduction"
             }
           ],
           "Heidegger": [
             {
-              "checkbox": "Apply Dasein analytics",
               "id": "dasein_analytics",
               "default": true,
               "reveals": [
                 {
-                  "multiselect": "Existential structures to foreground",
                   "id": "existential_structures",
-                  "options": ["Being-in-the-world", "Thrownness", "Projection", "Fallenness", "Care", "Being-toward-death"]
+                  "options": [
+                    "Being-in-the-world",
+                    "Thrownness",
+                    "Projection",
+                    "Fallenness",
+                    "Care",
+                    "Being-toward-death"
+                  ],
+                  "multi": "Existential structures to foreground"
                 }
-              ]
+              ],
+              "check": "Apply Dasein analytics"
             }
           ],
           "Merleau-Ponty": [
             {
-              "checkbox": "Emphasize embodiment",
               "id": "emphasize_embodiment",
               "default": true,
               "reveals": [
@@ -62,27 +78,29 @@
                   "max": 10,
                   "default": 7
                 }
-              ]
+              ],
+              "check": "Emphasize embodiment"
             }
-          ]
+          ],
+          "multi": "Key Thinkers"
         },
         {
           "group": "Phenomenological Method",
           "elements": [
             {
-              "checkbox": "Use epoché/bracketing",
               "id": "use_epoche",
-              "default": true
+              "default": true,
+              "check": "Use epoché/bracketing"
             },
             {
-              "checkbox": "Apply phenomenological reduction",
               "id": "phenomenological_reduction",
-              "default": true
+              "default": true,
+              "check": "Apply phenomenological reduction"
             },
             {
-              "checkbox": "Perform imaginative variation",
               "id": "imaginative_variation",
-              "default": false
+              "default": false,
+              "check": "Perform imaginative variation"
             },
             {
               "slider": "Descriptive fidelity priority",
@@ -96,19 +114,24 @@
       ],
       "Pragmatism": [
         {
-          "multiselect": "Key Figures",
           "id": "pragmatist_thinkers",
-          "options": ["Dewey", "James", "Peirce", "Rorty", "West"],
+          "options": [
+            "Dewey",
+            "James",
+            "Peirce",
+            "Rorty",
+            "West"
+          ],
           "Dewey": [
             {
-              "checkbox": "Apply instrumentalist epistemology",
               "id": "instrumentalist_epistemology",
               "default": true,
               "reveals": [
                 {
                   "text": "Truth as warrant for action, knowledge as tool for problem-solving"
                 }
-              ]
+              ],
+              "check": "Apply instrumentalist epistemology"
             },
             {
               "slider": "Emphasis on education/democracy",
@@ -120,24 +143,23 @@
           ],
           "James": [
             {
-              "checkbox": "Emphasize radical empiricism",
               "id": "radical_empiricism",
               "default": false,
               "reveals": [
                 {
                   "text": "Relations between things as real as things themselves"
                 }
-              ]
+              ],
+              "check": "Emphasize radical empiricism"
             },
             {
-              "checkbox": "Use cash value criterion",
               "id": "cash_value_criterion",
-              "default": true
+              "default": true,
+              "check": "Use cash value criterion"
             }
           ],
           "Peirce": [
             {
-              "checkbox": "Apply triadic semiotics",
               "id": "triadic_semiotics",
               "default": false,
               "reveals": [
@@ -145,13 +167,19 @@
                   "text": "Sign-object-interpretant relations"
                 },
                 {
-                  "multiselect": "Sign types to analyze",
                   "id": "sign_types",
-                  "options": ["Icon", "Index", "Symbol"]
+                  "options": [
+                    "Icon",
+                    "Index",
+                    "Symbol"
+                  ],
+                  "multi": "Sign types to analyze"
                 }
-              ]
+              ],
+              "check": "Apply triadic semiotics"
             }
-          ]
+          ],
+          "multi": "Key Figures"
         },
         {
           "slider": "Consequentialism emphasis",
@@ -160,25 +188,41 @@
           "max": 10,
           "default": 7,
           "reveals": [
-            {"text": "Strong consequentialism - evaluate ideas by practical effects", "when": "@consequences >= 8"},
-            {"text": "Moderate consequentialism - balance theory and practice", "when": "@consequences >= 4 && @consequences < 8"},
-            {"text": "Weak consequentialism - more theoretical grounding", "when": "@consequences < 4"}
+            {
+              "text": "Strong consequentialism - evaluate ideas by practical effects",
+              "when": "consequences >= 8"
+            },
+            {
+              "text": "Moderate consequentialism - balance theory and practice",
+              "when": "consequences >= 4 && consequences < 8"
+            },
+            {
+              "text": "Weak consequentialism - more theoretical grounding",
+              "when": "consequences < 4"
+            }
           ]
         }
       ],
       "Critical Theory": [
         {
-          "choice": "Critical Theory Generation",
           "id": "crit_gen",
-          "options": ["Frankfurt School (1st gen)", "Habermas/Honneth (2nd gen)", "Contemporary critical theory"],
+          "options": [
+            "Frankfurt School (1st gen)",
+            "Habermas/Honneth (2nd gen)",
+            "Contemporary critical theory"
+          ],
           "Frankfurt School (1st gen)": [
             {
-              "multiselect": "Theorists",
               "id": "frankfurt_theorists",
-              "options": ["Horkheimer", "Adorno", "Marcuse", "Fromm", "Benjamin"],
+              "options": [
+                "Horkheimer",
+                "Adorno",
+                "Marcuse",
+                "Fromm",
+                "Benjamin"
+              ],
               "Adorno": [
                 {
-                  "checkbox": "Apply negative dialectics",
                   "id": "negative_dialectics",
                   "default": false,
                   "reveals": [
@@ -192,33 +236,39 @@
                       "max": 10,
                       "default": 8
                     }
-                  ]
+                  ],
+                  "check": "Apply negative dialectics"
                 }
               ],
               "Marcuse": [
                 {
-                  "checkbox": "Analyze one-dimensional society",
                   "id": "one_dimensional_society",
                   "default": false,
                   "reveals": [
                     {
                       "text": "Examine false needs and repressive desublimation"
                     }
-                  ]
+                  ],
+                  "check": "Analyze one-dimensional society"
                 }
-              ]
+              ],
+              "multi": "Theorists"
             }
           ],
           "Habermas/Honneth (2nd gen)": [
             {
-              "checkbox": "Use communicative action theory",
               "id": "comm_action",
               "default": false,
               "reveals": [
                 {
-                  "multiselect": "Validity claims to analyze",
                   "id": "validity_claims",
-                  "options": ["Truth", "Rightness", "Sincerity", "Comprehensibility"]
+                  "options": [
+                    "Truth",
+                    "Rightness",
+                    "Sincerity",
+                    "Comprehensibility"
+                  ],
+                  "multi": "Validity claims to analyze"
                 },
                 {
                   "slider": "Ideal speech situation as regulative ideal",
@@ -227,21 +277,27 @@
                   "max": 10,
                   "default": 6
                 }
-              ]
+              ],
+              "check": "Use communicative action theory"
             },
             {
-              "checkbox": "Apply recognition theory (Honneth)",
               "id": "recognition_theory",
               "default": false,
               "reveals": [
                 {
-                  "multiselect": "Forms of recognition",
                   "id": "recognition_forms",
-                  "options": ["Love/care", "Rights/respect", "Solidarity/esteem"]
+                  "options": [
+                    "Love/care",
+                    "Rights/respect",
+                    "Solidarity/esteem"
+                  ],
+                  "multi": "Forms of recognition"
                 }
-              ]
+              ],
+              "check": "Apply recognition theory (Honneth)"
             }
-          ]
+          ],
+          "select": "Critical Theory Generation"
         },
         {
           "group": "Critical Orientation",
@@ -253,33 +309,49 @@
               "max": 10,
               "default": 8,
               "reveals": [
-                {"text": "Strong emancipatory commitment - explicit normative stance", "when": "@emancipation >= 7"}
+                {
+                  "text": "Strong emancipatory commitment - explicit normative stance",
+                  "when": "emancipation >= 7"
+                }
               ]
             },
             {
-              "checkbox": "Ideology critique central",
               "id": "ideology_critique",
-              "default": true
+              "default": true,
+              "check": "Ideology critique central"
             },
             {
-              "multiselect": "Power structures to examine",
               "id": "power_structures",
-              "options": ["Capitalism", "Patriarchy", "Racism", "Colonialism", "Heteronormativity"],
+              "options": [
+                "Capitalism",
+                "Patriarchy",
+                "Racism",
+                "Colonialism",
+                "Heteronormativity"
+              ],
               "reveals": [
-                {"text": "Intersectional analysis recommended", "when": "count(@power_structures) >= 2"}
-              ]
+                {
+                  "text": "Intersectional analysis recommended",
+                  "when": "count(power_structures) >= 2"
+                }
+              ],
+              "multi": "Power structures to examine"
             }
           ]
         }
       ],
       "Poststructuralism": [
         {
-          "multiselect": "Key Theorists",
           "id": "poststruct_thinkers",
-          "options": ["Derrida", "Foucault", "Deleuze & Guattari", "Kristeva", "Butler"],
+          "options": [
+            "Derrida",
+            "Foucault",
+            "Deleuze & Guattari",
+            "Kristeva",
+            "Butler"
+          ],
           "Derrida": [
             {
-              "checkbox": "Apply deconstruction",
               "id": "apply_deconstruction",
               "default": true,
               "reveals": [
@@ -287,18 +359,27 @@
                   "text": "Identify binary oppositions and trace their undoing"
                 },
                 {
-                  "multiselect": "Deconstructive strategies",
                   "id": "deconstructive_strategies",
-                  "options": ["Différance", "Trace", "Supplement", "Iterability"]
+                  "options": [
+                    "Différance",
+                    "Trace",
+                    "Supplement",
+                    "Iterability"
+                  ],
+                  "multi": "Deconstructive strategies"
                 }
-              ]
+              ],
+              "check": "Apply deconstruction"
             }
           ],
           "Foucault": [
             {
-              "choice": "Foucauldian period",
               "id": "foucault_period",
-              "options": ["Archaeological (epistemes)", "Genealogical (power/knowledge)", "Ethical (care of self)"],
+              "options": [
+                "Archaeological (epistemes)",
+                "Genealogical (power/knowledge)",
+                "Ethical (care of self)"
+              ],
               "Archaeological (epistemes)": [
                 {
                   "text": "Analyze discursive formations and historical a priori"
@@ -306,14 +387,14 @@
               ],
               "Genealogical (power/knowledge)": [
                 {
-                  "checkbox": "Analyze disciplinary power",
                   "id": "disciplinary_power",
-                  "default": true
+                  "default": true,
+                  "check": "Analyze disciplinary power"
                 },
                 {
-                  "checkbox": "Examine biopower",
                   "id": "examine_biopower",
-                  "default": false
+                  "default": false,
+                  "check": "Examine biopower"
                 },
                 {
                   "slider": "Power/knowledge entanglement",
@@ -327,42 +408,56 @@
                 {
                   "text": "Explore technologies of self and ethical self-formation"
                 }
-              ]
+              ],
+              "select": "Foucauldian period"
             }
           ],
           "Deleuze & Guattari": [
             {
-              "checkbox": "Use schizoanalysis",
               "id": "use_schizoanalysis",
               "default": false,
               "reveals": [
                 {
-                  "multiselect": "D&G concepts to deploy",
                   "id": "dg_concepts",
-                  "options": ["Rhizome", "Assemblage", "Deterritorialization", "Body without organs", "Becoming"]
+                  "options": [
+                    "Rhizome",
+                    "Assemblage",
+                    "Deterritorialization",
+                    "Body without organs",
+                    "Becoming"
+                  ],
+                  "multi": "D&G concepts to deploy"
                 }
-              ]
+              ],
+              "check": "Use schizoanalysis"
             }
           ],
           "Butler": [
             {
-              "checkbox": "Apply performativity theory",
               "id": "performativity_theory",
               "default": false,
               "reveals": [
                 {
                   "text": "Identity as iterative performance rather than essence"
                 }
-              ]
+              ],
+              "check": "Apply performativity theory"
             }
-          ]
+          ],
+          "multi": "Key Theorists"
         }
       ],
       "Complexity Theory": [
         {
-          "multiselect": "Complexity concepts",
           "id": "complexity_concepts",
-          "options": ["Emergence", "Self-organization", "Edge of chaos", "Attractor states", "Phase transitions", "Nested systems"],
+          "options": [
+            "Emergence",
+            "Self-organization",
+            "Edge of chaos",
+            "Attractor states",
+            "Phase transitions",
+            "Nested systems"
+          ],
           "Emergence": [
             {
               "slider": "Strong vs weak emergence",
@@ -371,16 +466,22 @@
               "max": 10,
               "default": 5,
               "reveals": [
-                {"text": "Strong emergence - irreducible to components", "when": "@emergence_strength >= 7"},
-                {"text": "Weak emergence - reducible in principle", "when": "@emergence_strength < 4"}
+                {
+                  "text": "Strong emergence - irreducible to components",
+                  "when": "emergence_strength >= 7"
+                },
+                {
+                  "text": "Weak emergence - reducible in principle",
+                  "when": "emergence_strength < 4"
+                }
               ]
             }
           ],
           "Self-organization": [
             {
-              "checkbox": "Analyze feedback loops",
               "id": "analyze_feedback_loops",
-              "default": true
+              "default": true,
+              "check": "Analyze feedback loops"
             }
           ],
           "Nested systems": [
@@ -391,32 +492,49 @@
               "max": 8,
               "default": 3
             }
-          ]
+          ],
+          "multi": "Complexity concepts"
         },
         {
-          "checkbox": "Apply nonlinear dynamics",
           "id": "apply_nonlinear_dynamics",
           "default": true,
           "reveals": [
             {
-              "multiselect": "Nonlinear phenomena",
               "id": "nonlinear_phenomena",
-              "options": ["Bifurcations", "Chaos", "Strange attractors", "Sensitive dependence"]
+              "options": [
+                "Bifurcations",
+                "Chaos",
+                "Strange attractors",
+                "Sensitive dependence"
+              ],
+              "multi": "Nonlinear phenomena"
             }
-          ]
+          ],
+          "check": "Apply nonlinear dynamics"
         }
-      ]
+      ],
+      "select": "Primary Philosophical Tradition"
     },
     {
       "group": "Application Domain",
       "elements": [
         {
-          "multiselect": "Applicable to",
           "id": "domains",
-          "options": ["Education", "Healthcare", "Organizations", "Technology", "Environment", "Social movements"],
+          "options": [
+            "Education",
+            "Healthcare",
+            "Organizations",
+            "Technology",
+            "Environment",
+            "Social movements"
+          ],
           "reveals": [
-            {"text": "Consider domain-specific adaptations of framework", "when": "count(@domains) >= 1"}
-          ]
+            {
+              "text": "Consider domain-specific adaptations of framework",
+              "when": "count(domains) >= 1"
+            }
+          ],
+          "multi": "Applicable to"
         }
       ]
     },
@@ -425,19 +543,19 @@
       "elements": [
         {
           "text": "⚠ Phenomenology + Poststructuralism tension: essence vs anti-essentialism",
-          "when": "selected(@tradition, 'Phenomenology') && selected(@poststruct_thinkers, 'Derrida')"
+          "when": "selected(tradition, 'Phenomenology') && selected(poststruct_thinkers, 'Derrida')"
         },
         {
           "text": "⚠ Critical Theory + Pragmatism tension: normative grounding vs anti-foundationalism",
-          "when": "selected(@tradition, 'Critical Theory') && selected(@tradition, 'Pragmatism')"
+          "when": "selected(tradition, 'Critical Theory') && selected(tradition, 'Pragmatism')"
         },
         {
           "text": "✓ Complementary: Complexity + Pragmatism - both emphasize process and consequences",
-          "when": "selected(@tradition, 'Complexity Theory') && @consequences >= 6"
+          "when": "selected(tradition, 'Complexity Theory') && consequences >= 6"
         },
         {
           "text": "⚠ High emancipatory commitment with weak consequentialism - clarify normative basis",
-          "when": "@emancipation >= 7 && @consequences < 4"
+          "when": "emancipation >= 7 && consequences < 4"
         }
       ]
     },
@@ -445,21 +563,21 @@
       "group": "Synthesis Recommendation",
       "elements": [
         {
-          "checkbox": "Integrate multiple traditions",
           "id": "integrate",
           "default": false,
           "reveals": [
             {
-              "textbox": "Integration strategy",
               "id": "integration_strategy",
               "rows": 4,
-              "placeholder": "How will you address epistemological tensions? What is gained through integration?"
+              "placeholder": "How will you address epistemological tensions? What is gained through integration?",
+              "input": "Integration strategy"
             }
-          ]
+          ],
+          "check": "Integrate multiple traditions"
         },
         {
           "text": "Consider creating explicit dialogue between frameworks rather than eclectic borrowing",
-          "when": "@integrate"
+          "when": "integrate"
         }
       ]
     }

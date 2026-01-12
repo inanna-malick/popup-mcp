@@ -53,9 +53,9 @@ fn test_popup_state_initialization() {
         "title": "State Test",
         "elements": [
             {"slider": "Volume", "id": "volume", "min": 0, "max": 100, "default": 75},
-            {"checkbox": "Mute", "id": "mute", "default": false},
-            {"textbox": "Name", "id": "name", "placeholder": "Enter name"},
-            {"multiselect": "Features", "id": "features", "options": ["A", "B", "C"]}
+            {"check": "Mute", "id": "mute", "default": false},
+            {"input": "Name", "id": "name", "placeholder": "Enter name"},
+            {"multi": "Features", "id": "features", "options": ["A", "B", "C"]}
         ]
     }"#;
 
@@ -86,8 +86,8 @@ fn test_popup_result_serialization() {
         "title": "Result Test",
         "elements": [
             {"slider": "Value", "id": "value", "min": 0, "max": 10, "default": 5},
-            {"checkbox": "Enabled", "id": "enabled", "default": true},
-            {"textbox": "Text", "id": "text", "placeholder": "..."}
+            {"check": "Enabled", "id": "enabled", "default": true},
+            {"input": "Text", "id": "text", "placeholder": "..."}
         ]
     }"#;
 
@@ -118,7 +118,7 @@ fn test_when_clause_in_json() {
     let json = r#"{
         "title": "When Clause",
         "elements": [
-            {"checkbox": "Show", "id": "show", "default": true},
+            {"check": "Show", "id": "show", "default": true},
             {"text": "This is shown when Show is checked", "id": "shown_text", "when": "@show"},
             {"slider": "Value", "id": "value", "min": 0, "max": 100, "when": "@show"}
         ]
@@ -147,7 +147,7 @@ fn test_group_in_json() {
                 "elements": [
                     {"slider": "Volume", "id": "volume", "min": 0, "max": 100},
                     {"slider": "Bass", "id": "bass", "min": -10, "max": 10, "default": 0},
-                    {"checkbox": "Surround", "id": "surround", "default": false}
+                    {"check": "Surround", "id": "surround", "default": false}
                 ]
             }
         ]

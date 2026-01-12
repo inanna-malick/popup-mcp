@@ -1,5 +1,5 @@
 // PEG grammar for popup condition expressions
-// Based on proposal.md specification
+// V2: Bare identifiers are references, strings must be quoted
 
 WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
 
@@ -18,19 +18,22 @@ comp = { value ~ (op ~ value)? }
 // Comparison operators
 op = { ">=" | "<=" | "==" | "!=" | ">" | "<" }
 
-// Values (ordered by specificity)
+// Values (ordered by precedence - boolean before ref to catch true/false)
 value = {
     "(" ~ expr ~ ")"  // Parenthesized expression
   | "!" ~ value       // Negation
-  | ref               // Field reference
-  | func              // Function call
+  | boolean           // Boolean literals (before ref to match first)
+  | func              // Function call (before ref - needs parens)
+  | ref               // Field reference (bare identifier)
   | number            // Numeric literal
-  | string            // Explicit string literal
-  | ident             // Bare identifier (implicit string)
+  | string            // String literal (must be quoted)
 }
 
-// Field reference (@identifier)
-ref = @{ "@" ~ ident }
+// Boolean literals
+boolean = { "true" | "false" }
+
+// Field reference (bare identifier - no @ prefix in V2)
+ref = @{ ident }
 
 // Function call
 func = { ident ~ "(" ~ args? ~ ")" }

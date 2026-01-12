@@ -6,32 +6,45 @@
       "id": "intro_text"
     },
     {
-      "choice": "When did the slowdown begin?",
       "id": "slowdown_timing",
-      "options": ["After deployment (2 hours ago)", "Gradual over several days", "Intermittent/random pattern"],
+      "options": [
+        "After deployment (2 hours ago)",
+        "Gradual over several days",
+        "Intermittent/random pattern"
+      ],
       "After deployment (2 hours ago)": [
         {
           "text": "Focusing on deployment changes. What was modified?",
           "id": "deployment_focus"
         },
         {
-          "multiselect": "Select all changes in this deployment:",
           "id": "deployment_changes",
-          "options": ["New API endpoints", "Database migrations", "Configuration changes"],
+          "options": [
+            "New API endpoints",
+            "Database migrations",
+            "Configuration changes"
+          ],
           "New API endpoints": [
             {
-              "choice": "Which endpoints are affected?",
               "id": "endpoint_scope",
-              "options": ["Only the new endpoints", "All endpoints equally"],
+              "options": [
+                "Only the new endpoints",
+                "All endpoints equally"
+              ],
               "Only the new endpoints": [
                 {
                   "text": "Issue isolated to new code. Check for:",
                   "id": "new_endpoint_issues_header"
                 },
                 {
-                  "multiselect": "Common new endpoint issues:",
                   "id": "new_endpoint_issues",
-                  "options": ["Missing database indexes", "N+1 query patterns", "Unoptimized ORM queries", "Missing caching layer"]
+                  "options": [
+                    "Missing database indexes",
+                    "N+1 query patterns",
+                    "Unoptimized ORM queries",
+                    "Missing caching layer"
+                  ],
+                  "multi": "Common new endpoint issues:"
                 }
               ],
               "All endpoints equally": [
@@ -39,14 +52,18 @@
                   "text": "System-wide impact suggests infrastructure or shared resource issue.",
                   "id": "systemwide_impact"
                 }
-              ]
+              ],
+              "select": "Which endpoints are affected?"
             }
           ],
           "Database migrations": [
             {
-              "choice": "What type of database changes?",
               "id": "migration_type",
-              "options": ["Schema modifications", "Large data migration", "Index changes"],
+              "options": [
+                "Schema modifications",
+                "Large data migration",
+                "Index changes"
+              ],
               "Schema modifications": [
                 {
                   "text": "Schema changes can lock tables. Check active locks with SHOW PROCESSLIST.",
@@ -61,9 +78,11 @@
               ],
               "Index changes": [
                 {
-                  "choice": "Were indexes added or removed?",
                   "id": "index_change_type",
-                  "options": ["Removed indexes", "Added indexes"],
+                  "options": [
+                    "Removed indexes",
+                    "Added indexes"
+                  ],
                   "Removed indexes": [
                     {
                       "text": "CRITICAL: Removed indexes causing full table scans. Restore immediately.",
@@ -75,16 +94,20 @@
                       "text": "New indexes might be rebuilding. Check index build progress.",
                       "id": "index_rebuild"
                     }
-                  ]
+                  ],
+                  "select": "Were indexes added or removed?"
                 }
-              ]
+              ],
+              "select": "What type of database changes?"
             }
           ],
           "Configuration changes": [
             {
-              "choice": "Which configuration area?",
               "id": "config_area",
-              "options": ["Connection pool settings", "Cache settings"],
+              "options": [
+                "Connection pool settings",
+                "Cache settings"
+              ],
               "Connection pool settings": [
                 {
                   "text": "Pool size changes can cause connection starvation. Check active connection count.",
@@ -96,27 +119,36 @@
                   "text": "Cache misconfiguration can cause stampedes. Monitor cache hit rates.",
                   "id": "cache_stampede"
                 }
-              ]
+              ],
+              "select": "Which configuration area?"
             }
-          ]
+          ],
+          "multi": "Select all changes in this deployment:"
         },
         {
           "text": "WARNING: Multiple simultaneous changes detected. This complicates root cause analysis.",
           "id": "multiple_changes_warning",
-          "when": "count(@deployment_changes) >= 2"
+          "when": "count(deployment_changes) >= 2"
         },
         {
-          "choice": "How should we proceed?",
           "id": "multiple_changes_strategy",
-          "options": ["Rollback everything", "Isolate changes with feature flags"],
-          "when": "count(@deployment_changes) >= 2",
+          "options": [
+            "Rollback everything",
+            "Isolate changes with feature flags"
+          ],
+          "when": "count(deployment_changes) >= 2",
           "Isolate changes with feature flags": [
             {
-              "multiselect": "Disable which features first?",
               "id": "features_to_disable",
-              "options": ["New API endpoints", "Database migrations", "Config changes"]
+              "options": [
+                "New API endpoints",
+                "Database migrations",
+                "Config changes"
+              ],
+              "multi": "Disable which features first?"
             }
-          ]
+          ],
+          "select": "How should we proceed?"
         }
       ],
       "Gradual over several days": [
@@ -125,14 +157,19 @@
           "id": "gradual_degradation"
         },
         {
-          "multiselect": "What's been growing?",
           "id": "growth_metrics",
-          "options": ["Traffic volume", "Database size", "Memory consumption"],
+          "options": [
+            "Traffic volume",
+            "Database size",
+            "Memory consumption"
+          ],
           "Traffic volume": [
             {
-              "choice": "Traffic pattern:",
               "id": "traffic_pattern",
-              "options": ["Specific endpoints under load", "Distributed across all endpoints"],
+              "options": [
+                "Specific endpoints under load",
+                "Distributed across all endpoints"
+              ],
               "Specific endpoints under load": [
                 {
                   "text": "Concentrated load on specific endpoints. These might need optimization or rate limiting.",
@@ -144,14 +181,17 @@
                   "text": "Organic growth across the board. Consider horizontal scaling.",
                   "id": "distributed_growth"
                 }
-              ]
+              ],
+              "select": "Traffic pattern:"
             }
           ],
           "Database size": [
             {
-              "choice": "Which tables are growing?",
               "id": "table_growth",
-              "options": ["Audit/log tables", "Core business tables"],
+              "options": [
+                "Audit/log tables",
+                "Core business tables"
+              ],
               "Audit/log tables": [
                 {
                   "text": "Log table growth is common. Implement archival or partitioning.",
@@ -166,16 +206,19 @@
                 {
                   "text": "CORRELATION: Specific endpoints + growing tables = those endpoints likely query these tables inefficiently.",
                   "id": "correlation_endpoints_tables",
-                  "when": "selected(@traffic_pattern, Specific endpoints under load)"
+                  "when": "selected(traffic_pattern, 'Specific endpoints under load')"
                 }
-              ]
+              ],
+              "select": "Which tables are growing?"
             }
           ],
           "Memory consumption": [
             {
-              "choice": "Memory growth pattern:",
               "id": "memory_pattern",
-              "options": ["Steady linear increase", "Sudden jumps"],
+              "options": [
+                "Steady linear increase",
+                "Sudden jumps"
+              ],
               "Steady linear increase": [
                 {
                   "text": "Classic memory leak pattern. Profile heap and identify growing objects.",
@@ -187,20 +230,25 @@
                   "text": "Large allocations or cache bloat. Check for unbounded caches.",
                   "id": "cache_bloat"
                 }
-              ]
+              ],
+              "select": "Memory growth pattern:"
             }
-          ]
+          ],
+          "multi": "What's been growing?"
         },
         {
           "text": "Multiple growing metrics indicate cascade failure pattern.",
           "id": "cascade_failure",
-          "when": "count(@growth_metrics) >= 2"
+          "when": "count(growth_metrics) >= 2"
         },
         {
-          "choice": "What failed first?",
           "id": "cascade_origin",
-          "options": ["Database started slowing down", "Memory pressure triggered issues", "Traffic spike overwhelmed system"],
-          "when": "count(@growth_metrics) >= 2",
+          "options": [
+            "Database started slowing down",
+            "Memory pressure triggered issues",
+            "Traffic spike overwhelmed system"
+          ],
+          "when": "count(growth_metrics) >= 2",
           "Database started slowing down": [
             {
               "text": "DB bottleneck causing connection pooling and memory growth. Focus on query optimization.",
@@ -218,7 +266,8 @@
               "text": "Load exceeded capacity. Implement rate limiting and auto-scaling.",
               "id": "traffic_overload"
             }
-          ]
+          ],
+          "select": "What failed first?"
         }
       ],
       "Intermittent/random pattern": [
@@ -227,14 +276,19 @@
           "id": "intermittent_header"
         },
         {
-          "choice": "Any correlation with:",
           "id": "intermittent_correlation",
-          "options": ["Time of day", "Specific user actions", "No clear pattern"],
+          "options": [
+            "Time of day",
+            "Specific user actions",
+            "No clear pattern"
+          ],
           "Time of day": [
             {
-              "choice": "Which time pattern?",
               "id": "time_pattern",
-              "options": ["Business hours", "Midnight/early morning"],
+              "options": [
+                "Business hours",
+                "Midnight/early morning"
+              ],
               "Business hours": [
                 {
                   "text": "Peak usage pattern. Normal but needs capacity planning.",
@@ -246,7 +300,8 @@
                   "text": "Batch jobs or backups likely interfering. Check cron schedules.",
                   "id": "batch_interference"
                 }
-              ]
+              ],
+              "select": "Which time pattern?"
             }
           ],
           "Specific user actions": [
@@ -261,13 +316,21 @@
               "id": "rare_causes_header"
             },
             {
-              "multiselect": "Less obvious causes:",
               "id": "rare_causes",
-              "options": ["Network packet loss", "DNS resolution delays", "Garbage collection pauses", "Lock contention", "Retry storms"]
+              "options": [
+                "Network packet loss",
+                "DNS resolution delays",
+                "Garbage collection pauses",
+                "Lock contention",
+                "Retry storms"
+              ],
+              "multi": "Less obvious causes:"
             }
-          ]
+          ],
+          "select": "Any correlation with:"
         }
-      ]
+      ],
+      "select": "When did the slowdown begin?"
     }
   ]
 }

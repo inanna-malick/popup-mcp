@@ -6,35 +6,47 @@
       "id": "intro_text"
     },
     {
-      "choice": "When did the slowdown begin?",
       "id": "slowdown_timing",
-      "options": ["After our deployment 2 hours ago", "Gradual degradation over past 5-7 days", "Intermittent - comes and goes", "None of these patterns match our situation"],
+      "options": [
+        "After our deployment 2 hours ago",
+        "Gradual degradation over past 5-7 days",
+        "Intermittent - comes and goes",
+        "None of these patterns match our situation"
+      ],
       "After our deployment 2 hours ago": [
         {
           "text": "Recent change investigation path - focusing on deployment-related issues",
           "id": "deployment_path"
         },
         {
-          "multiselect": "Which deployment changes occurred? (check all that apply)",
           "id": "deployment_changes",
-          "options": ["New API endpoints added", "Database migrations ran", "Updated dependencies/packages", "Config/environment changes"],
+          "options": [
+            "New API endpoints added",
+            "Database migrations ran",
+            "Updated dependencies/packages",
+            "Config/environment changes"
+          ],
           "New API endpoints added": [
             {
-              "checkbox": "Are the NEW endpoints slow, or existing ones?",
               "id": "new_endpoints_affected",
               "reveals": [
                 {
                   "text": "If new endpoints only: Check for missing indexes, N+1 queries, or unoptimized ORM calls in new code",
                   "id": "new_endpoint_advice"
                 }
-              ]
+              ],
+              "check": "Are the NEW endpoints slow, or existing ones?"
             }
           ],
           "Database migrations ran": [
             {
-              "choice": "Migration scope check:",
               "id": "migration_scope",
-              "options": ["Added indexes only", "Schema changes (new columns/tables)", "Large data migrations"]
+              "options": [
+                "Added indexes only",
+                "Schema changes (new columns/tables)",
+                "Large data migrations"
+              ],
+              "select": "Migration scope check:"
             },
             {
               "text": "Check: SHOW PROCESSLIST for locked tables, pg_stat_activity for blocking queries",
@@ -43,49 +55,65 @@
           ],
           "Updated dependencies/packages": [
             {
-              "textbox": "Which critical dependencies changed? (e.g., ORM version, Redis client)",
               "id": "dependency_changes",
-              "placeholder": "List major version changes"
+              "placeholder": "List major version changes",
+              "input": "Which critical dependencies changed? (e.g., ORM version, Redis client)"
             }
           ],
           "Config/environment changes": [
             {
-              "choice": "What type of config changed?",
               "id": "config_type",
-              "options": ["Connection pool settings", "Cache TTL/eviction policies", "Rate limiting/throttling", "Feature flags toggled"]
+              "options": [
+                "Connection pool settings",
+                "Cache TTL/eviction policies",
+                "Rate limiting/throttling",
+                "Feature flags toggled"
+              ],
+              "select": "What type of config changed?"
             }
-          ]
+          ],
+          "multi": "Which deployment changes occurred? (check all that apply)"
         },
         {
           "text": "WARNING: Multiple simultaneous changes make root cause identification difficult",
           "id": "multiple_changes_warning",
-          "when": "count(@deployment_changes) >= 3"
+          "when": "count(deployment_changes) >= 3"
         },
         {
-          "choice": "This looks like a rushed deployment. What's your rollback strategy?",
           "id": "rollback_strategy",
-          "options": ["Full rollback to previous version", "Cherry-pick revert specific changes", "Forward-fix with targeted patches", "Canary rollout to isolate problematic change"],
-          "when": "count(@deployment_changes) >= 3"
+          "options": [
+            "Full rollback to previous version",
+            "Cherry-pick revert specific changes",
+            "Forward-fix with targeted patches",
+            "Canary rollout to isolate problematic change"
+          ],
+          "when": "count(deployment_changes) >= 3",
+          "select": "This looks like a rushed deployment. What's your rollback strategy?"
         },
         {
           "group": "Immediate Actions",
           "id": "immediate_actions",
           "elements": [
             {
-              "checkbox": "Can we rollback immediately?",
               "id": "can_rollback",
               "reveals": [
                 {
-                  "choice": "Rollback feasibility:",
                   "id": "rollback_feasibility",
-                  "options": ["Yes - initiating rollback", "No - database migrations prevent it", "No - critical fixes in this deploy", "Partial - can revert app but not DB"]
+                  "options": [
+                    "Yes - initiating rollback",
+                    "No - database migrations prevent it",
+                    "No - critical fixes in this deploy",
+                    "Partial - can revert app but not DB"
+                  ],
+                  "select": "Rollback feasibility:"
                 }
-              ]
+              ],
+              "check": "Can we rollback immediately?"
             },
             {
-              "checkbox": "Enable detailed APM tracing for slow transactions",
               "id": "enable_apm",
-              "default": true
+              "default": true,
+              "check": "Enable detailed APM tracing for slow transactions"
             }
           ]
         },
@@ -103,13 +131,18 @@
             {
               "text": "Still slow after initial actions. The real problem might be deeper:",
               "id": "deeper_problem",
-              "when": "@current_response_time > 2000"
+              "when": "current_response_time > 2000"
             },
             {
-              "choice": "Pivot investigation to:",
               "id": "pivot_investigation",
-              "options": ["It's not the deployment (coincidental timing)", "Cascade failure (multiple interacting issues)", "External dependency degradation", "Client retry storms amplifying the problem"],
-              "when": "@current_response_time > 2000"
+              "options": [
+                "It's not the deployment (coincidental timing)",
+                "Cascade failure (multiple interacting issues)",
+                "External dependency degradation",
+                "Client retry storms amplifying the problem"
+              ],
+              "when": "current_response_time > 2000",
+              "select": "Pivot investigation to:"
             }
           ]
         }
@@ -120,9 +153,13 @@
           "id": "capacity_path"
         },
         {
-          "multiselect": "Check these metrics for correlation with slowdown timeline:",
           "id": "growth_metrics",
-          "options": ["Traffic volume increased", "Database size growing", "Memory/CPU utilization climbing", "Cache hit rates declining"],
+          "options": [
+            "Traffic volume increased",
+            "Database size growing",
+            "Memory/CPU utilization climbing",
+            "Cache hit rates declining"
+          ],
           "Traffic volume increased": [
             {
               "slider": "Approximate traffic increase %",
@@ -132,68 +169,89 @@
               "default": 50
             },
             {
-              "choice": "Traffic pattern:",
               "id": "traffic_pattern",
-              "options": ["Uniform increase across all endpoints", "Specific endpoint(s) getting hammered", "Bot/scraper traffic spike", "Geographic concentration (single region)"]
+              "options": [
+                "Uniform increase across all endpoints",
+                "Specific endpoint(s) getting hammered",
+                "Bot/scraper traffic spike",
+                "Geographic concentration (single region)"
+              ],
+              "select": "Traffic pattern:"
             }
           ],
           "Database size growing": [
             {
-              "textbox": "Which tables grew most? (check information_schema)",
               "id": "growing_tables",
-              "rows": 2
+              "rows": 2,
+              "input": "Which tables grew most? (check information_schema)"
             },
             {
-              "checkbox": "Missing indexes on growing tables?",
               "id": "missing_indexes",
               "reveals": [
                 {
                   "text": "Run: EXPLAIN ANALYZE on slow queries, check for sequential scans",
                   "id": "explain_analyze"
                 }
-              ]
+              ],
+              "check": "Missing indexes on growing tables?"
             },
             {
               "text": "CROSS-REFERENCE: Since you identified specific endpoints under load, check if THOSE endpoints query these growing tables",
               "id": "cross_reference",
-              "when": "selected(@traffic_pattern, Specific endpoint(s) getting hammered)"
+              "when": "selected(traffic_pattern, 'Specific endpoint(s') getting hammered)"
             },
             {
-              "textbox": "List the specific slow endpoints for correlation:",
               "id": "slow_endpoints",
               "placeholder": "/api/search, /api/user/profile, etc.",
-              "when": "selected(@traffic_pattern, Specific endpoint(s) getting hammered)"
+              "when": "selected(traffic_pattern, 'Specific endpoint(s') getting hammered)",
+              "input": "List the specific slow endpoints for correlation:"
             }
           ],
           "Memory/CPU utilization climbing": [
             {
-              "choice": "Resource exhaustion type:",
               "id": "resource_type",
-              "options": ["Memory pressure (swapping detected)", "CPU throttling (container limits)", "Connection pool exhaustion", "Disk I/O saturation"]
+              "options": [
+                "Memory pressure (swapping detected)",
+                "CPU throttling (container limits)",
+                "Connection pool exhaustion",
+                "Disk I/O saturation"
+              ],
+              "select": "Resource exhaustion type:"
             }
           ],
           "Cache hit rates declining": [
             {
-              "choice": "Cache layer affected:",
               "id": "cache_layer",
-              "options": ["Redis/Memcached hit rate dropped", "CDN cache misses increased", "Application-level cache invalidation", "Database query cache issues"]
+              "options": [
+                "Redis/Memcached hit rate dropped",
+                "CDN cache misses increased",
+                "Application-level cache invalidation",
+                "Database query cache issues"
+              ],
+              "select": "Cache layer affected:"
             },
             {
               "text": "Check for cache stampedes during invalidation",
               "id": "cache_stampede"
             }
-          ]
+          ],
+          "multi": "Check these metrics for correlation with slowdown timeline:"
         },
         {
           "text": "INSIGHT: Multiple symptoms suggest cascade failure, not single root cause",
           "id": "cascade_insight",
-          "when": "count(@growth_metrics) >= 3"
+          "when": "count(growth_metrics) >= 3"
         },
         {
-          "choice": "This looks like domino effect. What likely failed FIRST?",
           "id": "cascade_origin",
-          "options": ["Single slow query locked everything else", "Memory pressure triggered GC storm", "Connection pool exhaustion caused queuing", "Cache invalidation triggered thundering herd"],
-          "when": "count(@growth_metrics) >= 3"
+          "options": [
+            "Single slow query locked everything else",
+            "Memory pressure triggered GC storm",
+            "Connection pool exhaustion caused queuing",
+            "Cache invalidation triggered thundering herd"
+          ],
+          "when": "count(growth_metrics) >= 3",
+          "select": "This looks like domino effect. What likely failed FIRST?"
         },
         {
           "group": "Hypothesis Confidence Tracker",
@@ -223,14 +281,14 @@
             {
               "text": "Focus priority: Run database-specific diagnostics first",
               "id": "db_priority",
-              "when": "@db_likelihood > 70"
+              "when": "db_likelihood > 70"
             },
             {
-              "textbox": "Run these DB queries NOW:",
               "id": "db_queries",
               "placeholder": "SHOW PROCESSLIST; SELECT * FROM pg_stat_activity WHERE state != 'idle';",
               "rows": 3,
-              "when": "@db_likelihood > 70"
+              "when": "db_likelihood > 70",
+              "input": "Run these DB queries NOW:"
             }
           ]
         },
@@ -239,26 +297,26 @@
           "id": "deep_dive",
           "elements": [
             {
-              "checkbox": "Run slow query analysis",
               "id": "slow_query_analysis",
               "reveals": [
                 {
-                  "textbox": "Paste top 3 slow queries from logs:",
                   "id": "slow_queries",
                   "placeholder": "Include execution time and frequency",
-                  "rows": 4
+                  "rows": 4,
+                  "input": "Paste top 3 slow queries from logs:"
                 }
-              ]
+              ],
+              "check": "Run slow query analysis"
             },
             {
-              "checkbox": "Check for lock contention",
               "id": "lock_contention",
               "reveals": [
                 {
                   "text": "Commands: SHOW ENGINE INNODB STATUS\\G (MySQL) or pg_locks join (Postgres)",
                   "id": "lock_commands"
                 }
-              ]
+              ],
+              "check": "Check for lock contention"
             }
           ]
         }
@@ -269,100 +327,125 @@
           "id": "pattern_path"
         },
         {
-          "choice": "Can you identify any pattern?",
           "id": "intermittent_pattern",
-          "options": ["Specific times of day (peak hours)", "After certain operations (bulk imports, reports)", "Random - no clear pattern", "Correlates with external service calls"]
+          "options": [
+            "Specific times of day (peak hours)",
+            "After certain operations (bulk imports, reports)",
+            "Random - no clear pattern",
+            "Correlates with external service calls"
+          ],
+          "select": "Can you identify any pattern?"
         },
         {
-          "multiselect": "During slowdowns, what else do you observe?",
           "id": "slowdown_observations",
-          "options": ["Specific endpoints affected only", "Database connection spikes", "Third-party API timeouts", "Background job queue depth increases"]
+          "options": [
+            "Specific endpoints affected only",
+            "Database connection spikes",
+            "Third-party API timeouts",
+            "Background job queue depth increases"
+          ],
+          "multi": "During slowdowns, what else do you observe?"
         }
       ],
       "None of these patterns match our situation": [
         {
-          "textbox": "Describe what you're observing in detail:",
           "id": "custom_description",
           "placeholder": "Include timing, affected services, error patterns, any unusual behaviors",
-          "rows": 3
+          "rows": 3,
+          "input": "Describe what you're observing in detail:"
         },
         {
           "text": "Based on your description, also investigate these unusual suspects:",
           "id": "unusual_suspects"
         },
         {
-          "multiselect": "Less common causes to check:",
           "id": "uncommon_causes",
-          "options": ["DNS resolution delays (check resolver timeout)", "SSL certificate expiry or validation issues", "IPv4/IPv6 dual-stack failover delays", "Timezone calculation overhead (DST change?)", "Filesystem running out of inodes", "Network MTU/fragmentation issues", "Kernel TCP tuning parameters changed", "Anti-virus/security scanning interference"]
+          "options": [
+            "DNS resolution delays (check resolver timeout)",
+            "SSL certificate expiry or validation issues",
+            "IPv4/IPv6 dual-stack failover delays",
+            "Timezone calculation overhead (DST change?)",
+            "Filesystem running out of inodes",
+            "Network MTU/fragmentation issues",
+            "Kernel TCP tuning parameters changed",
+            "Anti-virus/security scanning interference"
+          ],
+          "multi": "Less common causes to check:"
         },
         {
           "group": "Advanced Diagnostics",
           "id": "advanced_diagnostics",
           "elements": [
             {
-              "checkbox": "Run network diagnosis",
               "id": "network_diagnosis",
               "reveals": [
                 {
                   "text": "Commands: mtr, traceroute, tcpdump, netstat -s",
                   "id": "network_commands"
                 }
-              ]
+              ],
+              "check": "Run network diagnosis"
             },
             {
-              "checkbox": "Check system logs for anomalies",
               "id": "system_logs",
               "reveals": [
                 {
                   "text": "Check: dmesg, /var/log/messages, journalctl -xe",
                   "id": "log_commands"
                 }
-              ]
+              ],
+              "check": "Check system logs for anomalies"
             }
           ]
         }
-      ]
+      ],
+      "select": "When did the slowdown begin?"
     },
     {
       "group": "Team Coordination (if multiple people available)",
       "id": "team_coordination",
       "elements": [
         {
-          "multiselect": "Assign team members to parallel investigation paths:",
           "id": "team_assignments",
-          "options": ["Alice: Database investigation", "Bob: Application profiling", "Carol: Infrastructure monitoring", "Dave: External dependencies"],
+          "options": [
+            "Alice: Database investigation",
+            "Bob: Application profiling",
+            "Carol: Infrastructure monitoring",
+            "Dave: External dependencies"
+          ],
           "Alice: Database investigation": [
             {
-              "textbox": "Alice should run these specific queries:",
               "id": "alice_queries",
               "placeholder": "SHOW PROCESSLIST;\nSELECT * FROM pg_stat_activity;\nEXPLAIN ANALYZE [slow query];",
-              "rows": 3
+              "rows": 3,
+              "input": "Alice should run these specific queries:"
             }
           ],
           "Bob: Application profiling": [
             {
-              "textbox": "Bob should check:",
               "id": "bob_tasks",
               "placeholder": "Thread dumps: jstack [pid]\nHeap analysis: jmap -heap [pid]\nFlamegraphs: perf record -g",
-              "rows": 3
+              "rows": 3,
+              "input": "Bob should check:"
             }
           ],
           "Carol: Infrastructure monitoring": [
             {
-              "textbox": "Carol should examine:",
               "id": "carol_tasks",
               "placeholder": "CloudWatch metrics\nDatadog APM traces\nKubernetes pod health",
-              "rows": 3
+              "rows": 3,
+              "input": "Carol should examine:"
             }
           ],
           "Dave: External dependencies": [
             {
-              "textbox": "Dave should verify:",
               "id": "dave_tasks",
               "placeholder": "Third-party API status pages\nCDN performance\nPayment gateway latency",
-              "rows": 3
+              "rows": 3,
+              "input": "Dave should verify:"
             }
-          ]
+          ],
+          "multi": "Assign team members to parallel investigation paths:"
         }
       ]
     }

@@ -27,14 +27,18 @@
       "default": 78
     },
     {
-      "multiselect": "Network Status",
       "id": "network",
-      "options": ["Connected", "Limited", "Offline"]
+      "options": [
+        "Connected",
+        "Limited",
+        "Offline"
+      ],
+      "multi": "Network Status"
     },
     {
-      "checkbox": "Auto-refresh",
       "id": "autorefresh",
-      "default": true
+      "default": true,
+      "check": "Auto-refresh"
     },
     {
       "slider": "Refresh interval (seconds)",
@@ -42,7 +46,7 @@
       "min": 5,
       "max": 60,
       "default": 30,
-      "when": "@autorefresh"
+      "when": "autorefresh"
     }
   ]
 }

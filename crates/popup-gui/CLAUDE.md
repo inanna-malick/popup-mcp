@@ -56,10 +56,10 @@ The `popup` binary operates in three modes based on CLI flags:
 - Widget-specific rendering:
   - Text: `ui.label()`
   - Slider: `ui.add(Slider::new())`
-  - Checkbox: `ui.checkbox()`
-  - Textbox: `ui.text_edit_singleline()` or `TextEdit::multiline()`
+  - Check: `ui.checkbox()`
+  - Input: `ui.text_edit_singleline()` or `TextEdit::multiline()`
   - Choice: `ComboBox::from_label()`
-  - Multiselect: Vertical list of checkboxes
+  - Multi: Vertical list of checkboxes
   - Group: Collapsing header with nested elements
   - Conditional: Delegates to child elements if condition true
 

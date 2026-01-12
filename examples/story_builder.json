@@ -5,31 +5,56 @@
       "text": "Build an interactive narrative by making choices that unlock new story elements."
     },
     {
-      "choice": "Primary Genre",
       "id": "genre",
-      "options": ["Fantasy", "Sci-Fi", "Mystery/Thriller", "Horror", "Historical Fiction"],
+      "options": [
+        "Fantasy",
+        "Sci-Fi",
+        "Mystery/Thriller",
+        "Horror",
+        "Historical Fiction"
+      ],
       "Fantasy": [
         {
-          "choice": "Fantasy Subgenre",
           "id": "fantasy_type",
-          "options": ["Epic/High Fantasy", "Urban Fantasy", "Dark Fantasy", "Fairy Tale Retelling", "Sword & Sorcery"],
+          "options": [
+            "Epic/High Fantasy",
+            "Urban Fantasy",
+            "Dark Fantasy",
+            "Fairy Tale Retelling",
+            "Sword & Sorcery"
+          ],
           "Epic/High Fantasy": [
             {
               "text": "Classic hero's journey in a fully realized secondary world"
             },
             {
-              "choice": "Magic System",
               "id": "magic_system",
-              "options": ["Hard magic (Sanderson-style rules)", "Soft magic (mysterious/mythic)", "No magic (low fantasy)"],
+              "options": [
+                "Hard magic (Sanderson-style rules)",
+                "Soft magic (mysterious/mythic)",
+                "No magic (low fantasy)"
+              ],
               "Hard magic (Sanderson-style rules)": [
                 {
-                  "multiselect": "Magic costs/limitations",
                   "id": "magic_limits",
-                  "options": ["Physical exhaustion", "Rare components", "Years of training", "Genetic/bloodline", "Environmental restrictions"],
+                  "options": [
+                    "Physical exhaustion",
+                    "Rare components",
+                    "Years of training",
+                    "Genetic/bloodline",
+                    "Environmental restrictions"
+                  ],
                   "reveals": [
-                    {"text": "✓ Well-balanced: Multiple limitations prevent overpowering", "when": "count(@magic_limits) >= 3"},
-                    {"text": "⚠ Few limitations - magic may solve all problems", "when": "count(@magic_limits) <= 1"}
-                  ]
+                    {
+                      "text": "✓ Well-balanced: Multiple limitations prevent overpowering",
+                      "when": "count(magic_limits) >= 3"
+                    },
+                    {
+                      "text": "⚠ Few limitations - magic may solve all problems",
+                      "when": "count(magic_limits) <= 1"
+                    }
+                  ],
+                  "multi": "Magic costs/limitations"
                 },
                 {
                   "slider": "Magic prevalence in world",
@@ -38,32 +63,49 @@
                   "max": 10,
                   "default": 5,
                   "reveals": [
-                    {"text": "Rare magic - elite practitioners, sense of wonder", "when": "@magic_prevalence <= 3"},
-                    {"text": "Common magic - integrated into daily life", "when": "@magic_prevalence >= 7"}
+                    {
+                      "text": "Rare magic - elite practitioners, sense of wonder",
+                      "when": "magic_prevalence <= 3"
+                    },
+                    {
+                      "text": "Common magic - integrated into daily life",
+                      "when": "magic_prevalence >= 7"
+                    }
                   ]
                 }
               ],
               "Soft magic (mysterious/mythic)": [
                 {
-                  "checkbox": "Magic as ancient/fading force",
                   "id": "magic_ancient_fading",
-                  "default": true
+                  "default": true,
+                  "check": "Magic as ancient/fading force"
                 },
                 {
-                  "textbox": "Magic's thematic role",
                   "id": "magic_thematic_role",
                   "rows": 2,
-                  "placeholder": "e.g., represents wonder, danger of hubris, connection to nature..."
+                  "placeholder": "e.g., represents wonder, danger of hubris, connection to nature...",
+                  "input": "Magic's thematic role"
                 }
-              ]
+              ],
+              "select": "Magic System"
             },
             {
-              "multiselect": "World-building elements",
               "id": "worldbuilding",
-              "options": ["Detailed map", "Complex politics/factions", "Unique cultures/races", "Deep history/lore", "Constructed language(s)", "Economic systems"],
+              "options": [
+                "Detailed map",
+                "Complex politics/factions",
+                "Unique cultures/races",
+                "Deep history/lore",
+                "Constructed language(s)",
+                "Economic systems"
+              ],
               "reveals": [
-                {"text": "⚠ Extensive world-building - ensure it serves story, not vice versa", "when": "count(@worldbuilding) >= 4"}
-              ]
+                {
+                  "text": "⚠ Extensive world-building - ensure it serves story, not vice versa",
+                  "when": "count(worldbuilding) >= 4"
+                }
+              ],
+              "multi": "World-building elements"
             }
           ],
           "Urban Fantasy": [
@@ -71,19 +113,23 @@
               "text": "Magic intersects with modern/contemporary setting"
             },
             {
-              "choice": "Urban Fantasy Tone",
               "id": "urban_fantasy_tone",
-              "options": ["Gritty noir", "Romantic", "Comedic", "Action-packed"],
+              "options": [
+                "Gritty noir",
+                "Romantic",
+                "Comedic",
+                "Action-packed"
+              ],
               "Gritty noir": [
                 {
-                  "checkbox": "Morally grey protagonist",
                   "id": "morally_grey_protagonist",
-                  "default": true
+                  "default": true,
+                  "check": "Morally grey protagonist"
                 }
-              ]
+              ],
+              "select": "Urban Fantasy Tone"
             },
             {
-              "checkbox": "Masquerade (magic hidden from mundanes)",
               "id": "masquerade",
               "default": true,
               "reveals": [
@@ -91,11 +137,12 @@
                   "text": "Classic urban fantasy trope - creates tension between worlds"
                 },
                 {
-                  "checkbox": "Masquerade breaking/discovered as plot point",
                   "id": "masquerade_breaking",
-                  "default": false
+                  "default": false,
+                  "check": "Masquerade breaking/discovered as plot point"
                 }
-              ]
+              ],
+              "check": "Masquerade (magic hidden from mundanes)"
             }
           ],
           "Dark Fantasy": [
@@ -109,43 +156,59 @@
               "max": 10,
               "default": 5,
               "reveals": [
-                {"text": "Light darkness - morally complex but hopeful", "when": "@grimdark <= 4"},
-                {"text": "Medium grimdark - ambiguous morality, high stakes", "when": "@grimdark >= 5 && @grimdark <= 7"},
-                {"text": "Full grimdark - nihilistic, graphic, bleak", "when": "@grimdark >= 8"}
+                {
+                  "text": "Light darkness - morally complex but hopeful",
+                  "when": "grimdark <= 4"
+                },
+                {
+                  "text": "Medium grimdark - ambiguous morality, high stakes",
+                  "when": "grimdark >= 5 && grimdark <= 7"
+                },
+                {
+                  "text": "Full grimdark - nihilistic, graphic, bleak",
+                  "when": "grimdark >= 8"
+                }
               ]
             },
             {
-              "checkbox": "Cosmic horror elements",
               "id": "cosmic_horror",
               "default": false,
               "reveals": [
                 {
                   "text": "Lovecraftian entities beyond comprehension"
                 }
-              ]
+              ],
+              "check": "Cosmic horror elements"
             }
-          ]
+          ],
+          "select": "Fantasy Subgenre"
         },
         {
           "group": "Fantasy Character Archetypes",
           "elements": [
             {
-              "multiselect": "Protagonist traits",
               "id": "fantasy_protag",
-              "options": ["Chosen One", "Reluctant hero", "Antihero", "Ensemble cast", "Wise mentor", "Trickster"],
+              "options": [
+                "Chosen One",
+                "Reluctant hero",
+                "Antihero",
+                "Ensemble cast",
+                "Wise mentor",
+                "Trickster"
+              ],
               "Chosen One": [
                 {
-                  "checkbox": "Subvert chosen one trope",
                   "id": "subvert_chosen_one",
                   "default": false,
                   "reveals": [
                     {
-                      "textbox": "Subversion approach",
                       "id": "subversion_approach",
                       "rows": 2,
-                      "placeholder": "e.g., prophecy was wrong, rejects destiny, multiple 'chosen ones'..."
+                      "placeholder": "e.g., prophecy was wrong, rejects destiny, multiple 'chosen ones'...",
+                      "input": "Subversion approach"
                     }
-                  ]
+                  ],
+                  "check": "Subvert chosen one trope"
                 }
               ],
               "Antihero": [
@@ -156,42 +219,67 @@
                   "max": 10,
                   "default": 5,
                   "reveals": [
-                    {"text": "Irredeemable villain protagonist", "when": "@redeemability <= 2"},
-                    {"text": "Redemption arc potential", "when": "@redeemability >= 7"}
+                    {
+                      "text": "Irredeemable villain protagonist",
+                      "when": "redeemability <= 2"
+                    },
+                    {
+                      "text": "Redemption arc potential",
+                      "when": "redeemability >= 7"
+                    }
                   ]
                 }
-              ]
+              ],
+              "multi": "Protagonist traits"
             }
           ]
         }
       ],
       "Sci-Fi": [
         {
-          "choice": "Sci-Fi Subgenre",
           "id": "scifi_type",
-          "options": ["Hard SF", "Space Opera", "Cyberpunk", "Post-Apocalyptic", "Time Travel", "First Contact"],
+          "options": [
+            "Hard SF",
+            "Space Opera",
+            "Cyberpunk",
+            "Post-Apocalyptic",
+            "Time Travel",
+            "First Contact"
+          ],
           "Hard SF": [
             {
               "text": "Emphasis on scientific accuracy and plausibility"
             },
             {
-              "multiselect": "Scientific focus areas",
               "id": "scifi_focus",
-              "options": ["Physics (relativity, FTL)", "Biology/genetics", "AI/computation", "Climate/ecology", "Astronomy", "Engineering"],
+              "options": [
+                "Physics (relativity, FTL)",
+                "Biology/genetics",
+                "AI/computation",
+                "Climate/ecology",
+                "Astronomy",
+                "Engineering"
+              ],
               "AI/computation": [
                 {
-                  "choice": "AI treatment",
                   "id": "ai_treatment",
-                  "options": ["Hard takeoff singularity", "Slow AI alignment", "AI rights/personhood", "AI as tool"],
+                  "options": [
+                    "Hard takeoff singularity",
+                    "Slow AI alignment",
+                    "AI rights/personhood",
+                    "AI as tool"
+                  ],
                   "AI rights/personhood": [
                     {
-                      "checkbox": "Explore consciousness/qualia",
                       "id": "explore_consciousness",
-                      "default": true
+                      "default": true,
+                      "check": "Explore consciousness/qualia"
                     }
-                  ]
+                  ],
+                  "select": "AI treatment"
                 }
-              ]
+              ],
+              "multi": "Scientific focus areas"
             },
             {
               "slider": "Speculative distance (years in future)",
@@ -200,9 +288,18 @@
               "max": 10000,
               "default": 100,
               "reveals": [
-                {"text": "Near-future - extrapolate current tech", "when": "@scifi_years <= 50"},
-                {"text": "Mid-future - significant but grounded changes", "when": "@scifi_years > 50 && @scifi_years <= 500"},
-                {"text": "Far-future - radically transformed civilization", "when": "@scifi_years > 500"}
+                {
+                  "text": "Near-future - extrapolate current tech",
+                  "when": "scifi_years <= 50"
+                },
+                {
+                  "text": "Mid-future - significant but grounded changes",
+                  "when": "scifi_years > 50 && scifi_years <= 500"
+                },
+                {
+                  "text": "Far-future - radically transformed civilization",
+                  "when": "scifi_years > 500"
+                }
               ]
             }
           ],
@@ -211,21 +308,33 @@
               "text": "Epic scale, adventure, romance among the stars"
             },
             {
-              "checkbox": "Galactic empire/federation",
               "id": "galactic_empire",
               "default": true,
               "reveals": [
                 {
-                  "choice": "Empire state",
                   "id": "empire_state",
-                  "options": ["Stable golden age", "Decline/decadence", "Expanding conquest", "Post-collapse"]
+                  "options": [
+                    "Stable golden age",
+                    "Decline/decadence",
+                    "Expanding conquest",
+                    "Post-collapse"
+                  ],
+                  "select": "Empire state"
                 }
-              ]
+              ],
+              "check": "Galactic empire/federation"
             },
             {
-              "multiselect": "Space opera elements",
               "id": "space_opera_elements",
-              "options": ["Alien species/cultures", "Space battles", "Political intrigue", "Ancient alien tech", "Psionics", "Planet-hopping adventure"]
+              "options": [
+                "Alien species/cultures",
+                "Space battles",
+                "Political intrigue",
+                "Ancient alien tech",
+                "Psionics",
+                "Planet-hopping adventure"
+              ],
+              "multi": "Space opera elements"
             }
           ],
           "Cyberpunk": [
@@ -233,9 +342,15 @@
               "text": "High tech, low life - corporate dystopia and transhumanism"
             },
             {
-              "multiselect": "Cyberpunk themes",
               "id": "cyberpunk_themes",
-              "options": ["Body modification/augmentation", "Virtual reality/cyberspace", "Corporate control", "Wealth inequality", "Hacker culture", "AI personhood"],
+              "options": [
+                "Body modification/augmentation",
+                "Virtual reality/cyberspace",
+                "Corporate control",
+                "Wealth inequality",
+                "Hacker culture",
+                "AI personhood"
+              ],
               "Body modification/augmentation": [
                 {
                   "slider": "Transhumanist gradient",
@@ -244,35 +359,49 @@
                   "max": 10,
                   "default": 5,
                   "reveals": [
-                    {"text": "Mild augmentation - cybernetic limbs, neural interfaces", "when": "@transhuman <= 4"},
-                    {"text": "Heavy modification - more machine than human", "when": "@transhuman >= 7"}
+                    {
+                      "text": "Mild augmentation - cybernetic limbs, neural interfaces",
+                      "when": "transhuman <= 4"
+                    },
+                    {
+                      "text": "Heavy modification - more machine than human",
+                      "when": "transhuman >= 7"
+                    }
                   ]
                 }
-              ]
+              ],
+              "multi": "Cyberpunk themes"
             },
             {
-              "checkbox": "Punk rebellion against system",
               "id": "punk_rebellion",
-              "default": true
+              "default": true,
+              "check": "Punk rebellion against system"
             }
           ],
           "Post-Apocalyptic": [
             {
-              "choice": "Apocalypse type",
               "id": "apocalypse_type",
-              "options": ["Nuclear war", "Pandemic", "Climate collapse", "AI uprising", "Asteroid impact", "Supernatural/cosmic"],
+              "options": [
+                "Nuclear war",
+                "Pandemic",
+                "Climate collapse",
+                "AI uprising",
+                "Asteroid impact",
+                "Supernatural/cosmic"
+              ],
               "Pandemic": [
                 {
-                  "checkbox": "Zombies/infected",
                   "id": "zombies_infected",
-                  "default": false
+                  "default": false,
+                  "check": "Zombies/infected"
                 }
               ],
               "AI uprising": [
                 {
                   "text": "Terminator-style machine intelligence threat"
                 }
-              ]
+              ],
+              "select": "Apocalypse type"
             },
             {
               "slider": "Time since collapse (years)",
@@ -281,36 +410,64 @@
               "max": 1000,
               "default": 20,
               "reveals": [
-                {"text": "Immediate aftermath - survival focus, resources available", "when": "@years_post <= 10"},
-                {"text": "Generation later - new societies forming", "when": "@years_post > 10 && @years_post <= 100"},
-                {"text": "Distant future - legends of old world", "when": "@years_post > 100"}
+                {
+                  "text": "Immediate aftermath - survival focus, resources available",
+                  "when": "years_post <= 10"
+                },
+                {
+                  "text": "Generation later - new societies forming",
+                  "when": "years_post > 10 && years_post <= 100"
+                },
+                {
+                  "text": "Distant future - legends of old world",
+                  "when": "years_post > 100"
+                }
               ]
             }
-          ]
+          ],
+          "select": "Sci-Fi Subgenre"
         }
       ],
       "Mystery/Thriller": [
         {
-          "choice": "Mystery Type",
           "id": "mystery_type",
-          "options": ["Detective/Police Procedural", "Cozy Mystery", "Psychological Thriller", "Legal Thriller", "Espionage"],
+          "options": [
+            "Detective/Police Procedural",
+            "Cozy Mystery",
+            "Psychological Thriller",
+            "Legal Thriller",
+            "Espionage"
+          ],
           "Detective/Police Procedural": [
             {
-              "choice": "Detective archetype",
               "id": "detective_archetype",
-              "options": ["Brilliant eccentric (Holmes-style)", "Hard-boiled cop", "Amateur sleuth", "Forensics expert", "PI"],
+              "options": [
+                "Brilliant eccentric (Holmes-style)",
+                "Hard-boiled cop",
+                "Amateur sleuth",
+                "Forensics expert",
+                "PI"
+              ],
               "Brilliant eccentric (Holmes-style)": [
                 {
-                  "checkbox": "Include Watson-style companion",
                   "id": "watson_companion",
-                  "default": true
+                  "default": true,
+                  "check": "Include Watson-style companion"
                 }
-              ]
+              ],
+              "select": "Detective archetype"
             },
             {
-              "multiselect": "Investigation methods",
               "id": "investigation_methods",
-              "options": ["Forensics", "Interviews", "Surveillance", "Undercover work", "Deduction from clues", "Criminal profiling"]
+              "options": [
+                "Forensics",
+                "Interviews",
+                "Surveillance",
+                "Undercover work",
+                "Deduction from clues",
+                "Criminal profiling"
+              ],
+              "multi": "Investigation methods"
             }
           ],
           "Psychological Thriller": [
@@ -318,16 +475,26 @@
               "text": "Emphasis on unreliable perception and mental states"
             },
             {
-              "multiselect": "Psychological elements",
               "id": "psych_elements",
-              "options": ["Unreliable narrator", "Gaslighting", "Paranoia", "Dissociation/amnesia", "Manipulation"],
+              "options": [
+                "Unreliable narrator",
+                "Gaslighting",
+                "Paranoia",
+                "Dissociation/amnesia",
+                "Manipulation"
+              ],
               "Unreliable narrator": [
                 {
-                  "choice": "Unreliability reveal",
                   "id": "unreliability_reveal",
-                  "options": ["Gradual hints", "Sudden twist", "Never fully clarified"]
+                  "options": [
+                    "Gradual hints",
+                    "Sudden twist",
+                    "Never fully clarified"
+                  ],
+                  "select": "Unreliability reveal"
                 }
-              ]
+              ],
+              "multi": "Psychological elements"
             },
             {
               "slider": "Atmosphere tension",
@@ -336,16 +503,19 @@
               "max": 10,
               "default": 8,
               "reveals": [
-                {"text": "⚠ Maximum tension - sustained dread, reader exhaustion risk", "when": "@atmosphere >= 9"}
+                {
+                  "text": "⚠ Maximum tension - sustained dread, reader exhaustion risk",
+                  "when": "atmosphere >= 9"
+                }
               ]
             }
-          ]
+          ],
+          "select": "Mystery Type"
         },
         {
           "group": "Mystery Plot Structure",
           "elements": [
             {
-              "checkbox": "Red herrings",
               "id": "red_herrings",
               "default": true,
               "reveals": [
@@ -356,59 +526,74 @@
                   "max": 10,
                   "default": 3,
                   "reveals": [
-                    {"text": "⚠ Many red herrings - ensure fair play for reader", "when": "@false_leads >= 5"}
+                    {
+                      "text": "⚠ Many red herrings - ensure fair play for reader",
+                      "when": "false_leads >= 5"
+                    }
                   ]
                 }
-              ]
+              ],
+              "check": "Red herrings"
             },
             {
-              "checkbox": "Multiple suspects",
               "id": "multiple_suspects",
-              "default": true
+              "default": true,
+              "check": "Multiple suspects"
             },
             {
-              "checkbox": "Twist ending",
               "id": "twist",
               "default": false,
               "reveals": [
                 {
-                  "textbox": "Twist nature (no spoilers to self)",
                   "id": "twist_nature",
                   "rows": 2,
-                  "placeholder": "unreliable narrator reveal, killer's identity, truth about victim..."
+                  "placeholder": "unreliable narrator reveal, killer's identity, truth about victim...",
+                  "input": "Twist nature (no spoilers to self)"
                 }
-              ]
+              ],
+              "check": "Twist ending"
             }
           ]
         }
       ],
       "Horror": [
         {
-          "choice": "Horror Subgenre",
           "id": "horror_type",
-          "options": ["Psychological", "Supernatural/Ghost", "Monster/Creature", "Slasher", "Cosmic/Lovecraftian", "Body Horror"],
+          "options": [
+            "Psychological",
+            "Supernatural/Ghost",
+            "Monster/Creature",
+            "Slasher",
+            "Cosmic/Lovecraftian",
+            "Body Horror"
+          ],
           "Psychological": [
             {
               "text": "Fear from mind/perception, minimal supernatural"
             },
             {
-              "checkbox": "Ambiguous reality",
               "id": "ambiguous_reality",
-              "default": true
+              "default": true,
+              "check": "Ambiguous reality"
             }
           ],
           "Supernatural/Ghost": [
             {
-              "choice": "Ghost nature",
               "id": "ghost_nature",
-              "options": ["Vengeful spirit", "Tragic/sympathetic", "Demonic possession", "Poltergeist"],
+              "options": [
+                "Vengeful spirit",
+                "Tragic/sympathetic",
+                "Demonic possession",
+                "Poltergeist"
+              ],
               "Vengeful spirit": [
                 {
-                  "checkbox": "Spirit has legitimate grievance",
                   "id": "spirit_grievance",
-                  "default": true
+                  "default": true,
+                  "check": "Spirit has legitimate grievance"
                 }
-              ]
+              ],
+              "select": "Ghost nature"
             }
           ],
           "Cosmic/Lovecraftian": [
@@ -422,13 +607,16 @@
               "max": 10,
               "default": 7,
               "reveals": [
-                {"text": "Total madness - protagonist loses coherence", "when": "@sanity >= 9"}
+                {
+                  "text": "Total madness - protagonist loses coherence",
+                  "when": "sanity >= 9"
+                }
               ]
             },
             {
-              "checkbox": "Forbidden knowledge as threat",
               "id": "forbidden_knowledge",
-              "default": true
+              "default": true,
+              "check": "Forbidden knowledge as threat"
             }
           ],
           "Body Horror": [
@@ -436,11 +624,12 @@
               "text": "Visceral transformation, mutation, disease"
             },
             {
-              "checkbox": "Transformation involuntary",
               "id": "transformation_involuntary",
-              "default": true
+              "default": true,
+              "check": "Transformation involuntary"
             }
-          ]
+          ],
+          "select": "Horror Subgenre"
         },
         {
           "group": "Horror Craft",
@@ -452,9 +641,18 @@
               "max": 10,
               "default": 4,
               "reveals": [
-                {"text": "Implied/psychological horror - minimal gore", "when": "@gore <= 3"},
-                {"text": "Moderate violence - some explicit moments", "when": "@gore >= 4 && @gore <= 7"},
-                {"text": "Extreme/splatterpunk - graphic throughout", "when": "@gore >= 8"}
+                {
+                  "text": "Implied/psychological horror - minimal gore",
+                  "when": "gore <= 3"
+                },
+                {
+                  "text": "Moderate violence - some explicit moments",
+                  "when": "gore >= 4 && gore <= 7"
+                },
+                {
+                  "text": "Extreme/splatterpunk - graphic throughout",
+                  "when": "gore >= 8"
+                }
               ]
             },
             {
@@ -464,30 +662,39 @@
               "max": 10,
               "default": 7,
               "reveals": [
-                {"text": "Jump scare heavy - adrenaline spikes", "when": "@dread_vs_jump <= 3"},
-                {"text": "Balanced tension and payoff", "when": "@dread_vs_jump >= 4 && @dread_vs_jump <= 7"},
-                {"text": "Slow-burn dread - sustained atmosphere", "when": "@dread_vs_jump >= 8"}
+                {
+                  "text": "Jump scare heavy - adrenaline spikes",
+                  "when": "dread_vs_jump <= 3"
+                },
+                {
+                  "text": "Balanced tension and payoff",
+                  "when": "dread_vs_jump >= 4 && dread_vs_jump <= 7"
+                },
+                {
+                  "text": "Slow-burn dread - sustained atmosphere",
+                  "when": "dread_vs_jump >= 8"
+                }
               ]
             },
             {
-              "checkbox": "Hopeful/ambiguous ending",
               "id": "horror_hope",
               "default": false,
               "reveals": [
                 {
                   "text": "Leave door open for survival/meaning"
                 }
-              ]
+              ],
+              "check": "Hopeful/ambiguous ending"
             }
           ]
         }
       ],
       "Historical Fiction": [
         {
-          "textbox": "Historical period/event",
           "id": "historical_period",
           "rows": 2,
-          "placeholder": "e.g., WWII, Ancient Rome, Victorian England, American Revolution..."
+          "placeholder": "e.g., WWII, Ancient Rome, Victorian England, American Revolution...",
+          "input": "Historical period/event"
         },
         {
           "slider": "Historical accuracy priority",
@@ -496,13 +703,21 @@
           "max": 10,
           "default": 7,
           "reveals": [
-            {"text": "Loose historical inspiration - prioritize story", "when": "@historical_accuracy <= 4"},
-            {"text": "Researched accuracy - plausible within period", "when": "@historical_accuracy >= 5 && @historical_accuracy <= 8"},
-            {"text": "Rigorous accuracy - documentary-level research", "when": "@historical_accuracy >= 9"}
+            {
+              "text": "Loose historical inspiration - prioritize story",
+              "when": "historical_accuracy <= 4"
+            },
+            {
+              "text": "Researched accuracy - plausible within period",
+              "when": "historical_accuracy >= 5 && historical_accuracy <= 8"
+            },
+            {
+              "text": "Rigorous accuracy - documentary-level research",
+              "when": "historical_accuracy >= 9"
+            }
           ]
         },
         {
-          "checkbox": "Fantastical/speculative elements",
           "id": "historical_fantasy",
           "default": false,
           "reveals": [
@@ -510,22 +725,29 @@
               "text": "Alternate history or historical fantasy"
             },
             {
-              "textbox": "Speculative element",
               "id": "speculative_element",
               "rows": 2,
-              "placeholder": "What if the South won? Magic in Victorian London? Time traveler in Renaissance?"
+              "placeholder": "What if the South won? Magic in Victorian London? Time traveler in Renaissance?",
+              "input": "Speculative element"
             }
-          ]
+          ],
+          "check": "Fantastical/speculative elements"
         }
-      ]
+      ],
+      "select": "Primary Genre"
     },
     {
       "group": "Narrative Structure",
       "elements": [
         {
-          "choice": "POV Structure",
           "id": "pov",
-          "options": ["First person single", "First person multiple", "Third person limited", "Third person omniscient", "Second person"],
+          "options": [
+            "First person single",
+            "First person multiple",
+            "Third person limited",
+            "Third person omniscient",
+            "Second person"
+          ],
           "First person multiple": [
             {
               "slider": "Number of POV characters",
@@ -534,7 +756,10 @@
               "max": 10,
               "default": 3,
               "reveals": [
-                {"text": "⚠ Many POVs - ensure distinct voices", "when": "@pov_count >= 5"}
+                {
+                  "text": "⚠ Many POVs - ensure distinct voices",
+                  "when": "pov_count >= 5"
+                }
               ]
             }
           ],
@@ -542,24 +767,39 @@
             {
               "text": "⚠ Experimental - requires strong justification"
             }
-          ]
+          ],
+          "select": "POV Structure"
         },
         {
-          "choice": "Timeline structure",
           "id": "timeline",
-          "options": ["Linear", "Nonlinear/flashbacks", "Dual timeline (past/present)", "Reverse chronology"],
+          "options": [
+            "Linear",
+            "Nonlinear/flashbacks",
+            "Dual timeline (past/present)",
+            "Reverse chronology"
+          ],
           "Dual timeline (past/present)": [
             {
-              "checkbox": "Timelines converge",
               "id": "timelines_converge",
-              "default": true
+              "default": true,
+              "check": "Timelines converge"
             }
-          ]
+          ],
+          "select": "Timeline structure"
         },
         {
-          "multiselect": "Story beats (Save the Cat)",
           "id": "story_beats",
-          "options": ["Opening image", "Catalyst", "Debate", "Break into Two", "Midpoint twist", "All is Lost", "Dark night of soul", "Finale"]
+          "options": [
+            "Opening image",
+            "Catalyst",
+            "Debate",
+            "Break into Two",
+            "Midpoint twist",
+            "All is Lost",
+            "Dark night of soul",
+            "Finale"
+          ],
+          "multi": "Story beats (Save the Cat)"
         }
       ]
     },
@@ -567,18 +807,30 @@
       "group": "Thematic Elements",
       "elements": [
         {
-          "textbox": "Central theme",
           "id": "central_theme",
           "rows": 2,
-          "placeholder": "e.g., redemption, power corrupts, nature vs nurture, loss of innocence..."
+          "placeholder": "e.g., redemption, power corrupts, nature vs nurture, loss of innocence...",
+          "input": "Central theme"
         },
         {
-          "multiselect": "Emotional tones",
           "id": "tones",
-          "options": ["Hope", "Despair", "Wonder", "Dread", "Melancholy", "Joy", "Anger", "Ambiguity"],
+          "options": [
+            "Hope",
+            "Despair",
+            "Wonder",
+            "Dread",
+            "Melancholy",
+            "Joy",
+            "Anger",
+            "Ambiguity"
+          ],
           "reveals": [
-            {"text": "⚠ Contradictory tones - ensure intentional tension", "when": "selected(@tones, 'Hope') && selected(@tones, 'Despair')"}
-          ]
+            {
+              "text": "⚠ Contradictory tones - ensure intentional tension",
+              "when": "selected(tones, 'Hope') && selected(tones, 'Despair')"
+            }
+          ],
+          "multi": "Emotional tones"
         },
         {
           "slider": "Optimism vs pessimism",
@@ -587,9 +839,18 @@
           "max": 10,
           "default": 5,
           "reveals": [
-            {"text": "Nihilistic/bleak worldview", "when": "@optimism <= 2"},
-            {"text": "Balanced - both light and shadow", "when": "@optimism >= 4 && @optimism <= 7"},
-            {"text": "Hopeful/idealistic worldview", "when": "@optimism >= 8"}
+            {
+              "text": "Nihilistic/bleak worldview",
+              "when": "optimism <= 2"
+            },
+            {
+              "text": "Balanced - both light and shadow",
+              "when": "optimism >= 4 && optimism <= 7"
+            },
+            {
+              "text": "Hopeful/idealistic worldview",
+              "when": "optimism >= 8"
+            }
           ]
         }
       ]
@@ -599,35 +860,35 @@
       "elements": [
         {
           "text": "⚠ Genre mismatch: Cozy mystery + high gore",
-          "when": "selected(@mystery_type, 'Cozy Mystery') && @gore >= 6"
+          "when": "selected(mystery_type, 'Cozy Mystery') && gore >= 6"
         },
         {
           "text": "⚠ Hard SF + fantasy magic - ensure internal consistency",
-          "when": "selected(@scifi_type, 'Hard SF') && selected(@fantasy_type, 'Epic/High Fantasy')"
+          "when": "selected(scifi_type, 'Hard SF') && selected(fantasy_type, 'Epic/High Fantasy')"
         },
         {
           "text": "✓ Grimdark + cosmic horror - compatible nihilistic worldviews",
-          "when": "@grimdark >= 7 && selected(@horror_type, 'Cosmic/Lovecraftian')"
+          "when": "grimdark >= 7 && selected(horror_type, 'Cosmic/Lovecraftian')"
         },
         {
           "text": "✓ Urban fantasy + mystery - classic combination",
-          "when": "selected(@fantasy_type, 'Urban Fantasy') && selected(@genre, 'Mystery/Thriller')"
+          "when": "selected(fantasy_type, 'Urban Fantasy') && selected(genre, 'Mystery/Thriller')"
         },
         {
           "text": "⚠ Multiple POVs + unreliable narrator - reader confusion risk",
-          "when": "selected(@pov, 'First person multiple') && selected(@psych_elements, 'Unreliable narrator')"
+          "when": "selected(pov, 'First person multiple') && selected(psych_elements, 'Unreliable narrator')"
         },
         {
           "text": "⚠ Historical accuracy + speculative elements - clarify alternate history",
-          "when": "@historical_accuracy >= 8 && @historical_fantasy"
+          "when": "historical_accuracy >= 8 && historical_fantasy"
         },
         {
           "text": "✓ Hard magic + extensive world-building - Sanderson-style epic fantasy",
-          "when": "selected(@magic_system, 'Hard magic (Sanderson-style rules)') && count(@worldbuilding) >= 4"
+          "when": "selected(magic_system, ''Hard magic (Sanderson-style rules')') && count(worldbuilding) >= 4"
         },
         {
           "text": "⚠ Extreme tension + bleak ending - ensure payoff justifies reader investment",
-          "when": "@dread_vs_jump >= 8 && @optimism <= 3 && !@horror_hope"
+          "when": "dread_vs_jump >= 8 && optimism <= 3 && !horror_hope"
         }
       ]
     },
@@ -635,30 +896,30 @@
       "group": "Writing Approach",
       "elements": [
         {
-          "checkbox": "Outline/plan extensively",
           "id": "outline",
           "default": true,
           "reveals": [
             {
               "text": "Plotter approach - detailed chapter breakdown"
             }
-          ]
+          ],
+          "check": "Outline/plan extensively"
         },
         {
-          "checkbox": "Discovery write/pants",
           "id": "discovery",
           "default": false,
           "reveals": [
             {
               "text": "⚠ Outline + discovery - clarify hybrid approach",
-              "when": "@outline && @discovery"
+              "when": "outline && discovery"
             }
-          ]
+          ],
+          "check": "Discovery write/pants"
         },
         {
-          "textbox": "Target word count",
           "id": "target_word_count",
-          "placeholder": "e.g., 80,000 - novella, 100,000 - standard novel, 150,000+ - epic"
+          "placeholder": "e.g., 80,000 - novella, 100,000 - standard novel, 150,000+ - epic",
+          "input": "Target word count"
         }
       ]
     }

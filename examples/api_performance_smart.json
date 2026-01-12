@@ -6,55 +6,73 @@
       "id": "intro_text"
     },
     {
-      "choice": "When did this start?",
       "id": "timing",
-      "options": ["Sudden - after our deployment 2 hours ago", "Gradual - degrading over days", "Intermittent - no clear pattern"],
+      "options": [
+        "Sudden - after our deployment 2 hours ago",
+        "Gradual - degrading over days",
+        "Intermittent - no clear pattern"
+      ],
       "Sudden - after our deployment 2 hours ago": [
         {
           "text": "Focusing on recent changes. Let's identify what changed:",
           "id": "deployment_focus"
         },
         {
-          "multiselect": "What was deployed? (select all that apply)",
           "id": "deployed_changes",
-          "options": ["New API endpoints", "Database schema changes", "Configuration updates", "Dependency updates"],
+          "options": [
+            "New API endpoints",
+            "Database schema changes",
+            "Configuration updates",
+            "Dependency updates"
+          ],
           "New API endpoints": [
             {
-              "checkbox": "Are ONLY the new endpoints slow?",
               "id": "only_new_slow",
               "reveals": [
                 {
                   "text": "Strong signal: Issue isolated to new code. Check for missing database indexes on queries used by these endpoints.",
                   "id": "isolated_issue"
                 }
-              ]
+              ],
+              "check": "Are ONLY the new endpoints slow?"
             }
           ],
           "Database schema changes": [
             {
-              "choice": "What type of schema change?",
               "id": "schema_change_type",
-              "options": ["Added new indexes", "Modified existing columns", "Added foreign key constraints", "Dropped indexes"]
+              "options": [
+                "Added new indexes",
+                "Modified existing columns",
+                "Added foreign key constraints",
+                "Dropped indexes"
+              ],
+              "select": "What type of schema change?"
             }
           ],
           "Configuration updates": [
             {
-              "textbox": "What specifically changed?",
               "id": "config_details",
-              "placeholder": "e.g., connection pool size, cache TTL"
+              "placeholder": "e.g., connection pool size, cache TTL",
+              "input": "What specifically changed?"
             }
-          ]
+          ],
+          "multi": "What was deployed? (select all that apply)"
         },
         {
           "text": "PATTERN DETECTED: Too many simultaneous changes. This violates deployment best practices.",
           "id": "too_many_changes",
-          "when": "count(@deployed_changes) >= 3"
+          "when": "count(deployed_changes) >= 3"
         },
         {
-          "choice": "Given the high change complexity, what's your immediate strategy?",
           "id": "complex_strategy",
-          "options": ["Rollback everything immediately", "Use feature flags to disable new code paths", "Analyze metrics to isolate the problematic change", "Accept the risk and debug in production"],
-          "when": "count(@deployed_changes) >= 3"
+          "options": [
+            "Rollback everything immediately",
+            "Use feature flags to disable new code paths",
+            "Analyze metrics to isolate the problematic change",
+            "Accept the risk and debug in production"
+          ],
+          "when": "count(deployed_changes) >= 3",
+          "select": "Given the high change complexity, what's your immediate strategy?"
         }
       ],
       "Gradual - degrading over days": [
@@ -63,9 +81,13 @@
           "id": "gradual_pattern"
         },
         {
-          "multiselect": "Which metrics are trending upward?",
           "id": "trending_metrics",
-          "options": ["Request volume", "Database size", "Memory usage", "Active connections"],
+          "options": [
+            "Request volume",
+            "Database size",
+            "Memory usage",
+            "Active connections"
+          ],
           "Request volume": [
             {
               "slider": "Traffic increase percentage",
@@ -75,47 +97,58 @@
               "default": 50
             },
             {
-              "choice": "Traffic distribution:",
               "id": "traffic_distribution",
-              "options": ["Evenly distributed", "Concentrated on specific endpoints", "From specific geographic regions", "Suspicious patterns (possible attack)"]
+              "options": [
+                "Evenly distributed",
+                "Concentrated on specific endpoints",
+                "From specific geographic regions",
+                "Suspicious patterns (possible attack)"
+              ],
+              "select": "Traffic distribution:"
             }
           ],
           "Database size": [
             {
-              "textbox": "Which tables are growing fastest?",
               "id": "growing_tables",
-              "rows": 2
+              "rows": 2,
+              "input": "Which tables are growing fastest?"
             }
           ],
           "Memory usage": [
             {
-              "checkbox": "Are you seeing OOM kills or GC pressure?",
-              "id": "oom_or_gc"
+              "id": "oom_or_gc",
+              "check": "Are you seeing OOM kills or GC pressure?"
             }
-          ]
+          ],
+          "multi": "Which metrics are trending upward?"
         },
         {
           "text": "CORRELATION FOUND: Specific endpoints + database growth suggests those endpoints are creating excessive data or missing pagination.",
           "id": "correlation_found",
-          "when": "selected(@traffic_distribution, Concentrated on specific endpoints) && selected(@trending_metrics, Database size)"
+          "when": "selected(traffic_distribution, 'Concentrated on specific endpoints') && selected(trending_metrics, 'Database size')"
         },
         {
-          "textbox": "Run this query to verify:",
           "id": "verify_query",
           "placeholder": "SELECT table_name, pg_size_pretty(pg_total_relation_size(table_name)) FROM information_schema.tables WHERE table_schema = 'public' ORDER BY pg_total_relation_size(table_name) DESC LIMIT 10;",
           "rows": 3,
-          "when": "selected(@traffic_distribution, Concentrated on specific endpoints) && selected(@trending_metrics, Database size)"
+          "when": "selected(traffic_distribution, 'Concentrated on specific endpoints') && selected(trending_metrics, 'Database size')",
+          "input": "Run this query to verify:"
         },
         {
           "text": "INSIGHT: Multiple growing metrics indicate cascade failure, not single root cause.",
           "id": "cascade_failure",
-          "when": "count(@trending_metrics) >= 3"
+          "when": "count(trending_metrics) >= 3"
         },
         {
-          "choice": "What likely triggered the cascade?",
           "id": "cascade_trigger",
-          "options": ["Slow queries causing connection pooling", "Memory pressure causing swap thrashing", "Cache misses causing database overload", "Retry storms amplifying the load"],
-          "when": "count(@trending_metrics) >= 3"
+          "options": [
+            "Slow queries causing connection pooling",
+            "Memory pressure causing swap thrashing",
+            "Cache misses causing database overload",
+            "Retry storms amplifying the load"
+          ],
+          "when": "count(trending_metrics) >= 3",
+          "select": "What likely triggered the cascade?"
         }
       ],
       "Intermittent - no clear pattern": [
@@ -124,11 +157,17 @@
           "id": "intermittent_intro"
         },
         {
-          "multiselect": "During incidents, what do you observe?",
           "id": "incident_observations",
-          "options": ["Specific time patterns", "After batch jobs run", "During data syncs", "When specific customers are active"]
+          "options": [
+            "Specific time patterns",
+            "After batch jobs run",
+            "During data syncs",
+            "When specific customers are active"
+          ],
+          "multi": "During incidents, what do you observe?"
         }
-      ]
+      ],
+      "select": "When did this start?"
     },
     {
       "group": "Quick Verification",
@@ -151,13 +190,18 @@
         {
           "text": "CRITICAL: Both CPU and memory maxed out. System is in death spiral.",
           "id": "death_spiral",
-          "when": "@cpu_usage > 90 && @memory_usage > 90"
+          "when": "cpu_usage > 90 && memory_usage > 90"
         },
         {
-          "choice": "Emergency action required:",
           "id": "emergency_action",
-          "options": ["Restart application servers immediately", "Increase instance capacity", "Enable emergency rate limiting", "Activate circuit breakers"],
-          "when": "@cpu_usage > 90 && @memory_usage > 90"
+          "options": [
+            "Restart application servers immediately",
+            "Increase instance capacity",
+            "Enable emergency rate limiting",
+            "Activate circuit breakers"
+          ],
+          "when": "cpu_usage > 90 && memory_usage > 90",
+          "select": "Emergency action required:"
         }
       ]
     },
@@ -193,13 +237,19 @@
         {
           "text": "High confidence in database issue. Priority actions:",
           "id": "db_priority",
-          "when": "@db_hypothesis > 80"
+          "when": "db_hypothesis > 80"
         },
         {
-          "multiselect": "Execute these database diagnostics immediately:",
           "id": "db_diagnostics",
-          "options": ["SHOW PROCESSLIST / pg_stat_activity", "Check for table locks", "Identify slow queries from logs", "Analyze query execution plans", "Check index usage statistics"],
-          "when": "@db_hypothesis > 80"
+          "options": [
+            "SHOW PROCESSLIST / pg_stat_activity",
+            "Check for table locks",
+            "Identify slow queries from logs",
+            "Analyze query execution plans",
+            "Check index usage statistics"
+          ],
+          "when": "db_hypothesis > 80",
+          "multi": "Execute these database diagnostics immediately:"
         }
       ]
     },
@@ -221,48 +271,60 @@
         {
           "text": "Still experiencing slowness. This suggests:",
           "id": "still_slow",
-          "when": "@response_time_now > 1000"
+          "when": "response_time_now > 1000"
         },
         {
-          "choice": "Revised hypothesis:",
           "id": "revised_hypothesis",
-          "options": ["We fixed a symptom, not the root cause", "Multiple problems exist simultaneously", "The issue is propagating from upstream", "Client retries are amplifying the problem"],
-          "when": "@response_time_now > 1000"
+          "options": [
+            "We fixed a symptom, not the root cause",
+            "Multiple problems exist simultaneously",
+            "The issue is propagating from upstream",
+            "Client retries are amplifying the problem"
+          ],
+          "when": "response_time_now > 1000",
+          "select": "Revised hypothesis:"
         },
         {
           "text": "RETRY STORM DETECTED: Each timeout triggers more requests, creating a feedback loop.",
           "id": "retry_storm",
-          "when": "selected(@revised_hypothesis, Client retries are amplifying the problem)"
+          "when": "selected(revised_hypothesis, 'Client retries are amplifying the problem')"
         },
         {
-          "checkbox": "Enable backpressure/rate limiting immediately?",
           "id": "enable_backpressure",
           "default": true,
-          "when": "selected(@revised_hypothesis, Client retries are amplifying the problem)"
+          "when": "selected(revised_hypothesis, 'Client retries are amplifying the problem')",
+          "check": "Enable backpressure/rate limiting immediately?"
         },
         {
           "text": "Significant improvement! The intervention is working.",
           "id": "improvement",
-          "when": "@response_time_now <= 500"
+          "when": "response_time_now <= 500"
         },
         {
-          "checkbox": "Document the root cause for post-mortem?",
           "id": "document_postmortem",
           "default": true,
-          "when": "@response_time_now <= 500"
+          "when": "response_time_now <= 500",
+          "check": "Document the root cause for post-mortem?"
         }
       ]
     },
     {
       "text": "Low DB probability + High external service probability = Check third-party dependencies",
       "id": "external_dependency_check",
-      "when": "@db_hypothesis < 30 && @external_hypothesis > 50"
+      "when": "db_hypothesis < 30 && external_hypothesis > 50"
     },
     {
-      "multiselect": "Which external services should we check?",
       "id": "external_services",
-      "options": ["Payment gateway", "Email service", "CDN/Static assets", "Authentication provider", "Analytics/Monitoring", "Search service"],
-      "when": "@db_hypothesis < 30 && @external_hypothesis > 50"
+      "options": [
+        "Payment gateway",
+        "Email service",
+        "CDN/Static assets",
+        "Authentication provider",
+        "Analytics/Monitoring",
+        "Search service"
+      ],
+      "when": "db_hypothesis < 30 && external_hypothesis > 50",
+      "multi": "Which external services should we check?"
     }
   ]
 }

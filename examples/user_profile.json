@@ -2,45 +2,59 @@
   "title": "User Profile",
   "elements": [
     {
-      "textbox": "Username",
       "id": "username",
-      "placeholder": "Enter username"
+      "placeholder": "Enter username",
+      "input": "Username"
     },
     {
-      "textbox": "Full Name",
       "id": "fullname",
-      "placeholder": "John Doe"
+      "placeholder": "John Doe",
+      "input": "Full Name"
     },
     {
-      "textbox": "Email",
       "id": "email",
-      "placeholder": "john@example.com"
+      "placeholder": "john@example.com",
+      "input": "Email"
     },
     {
-      "textbox": "Bio",
       "id": "bio",
       "placeholder": "Tell us about yourself...",
-      "rows": 4
+      "rows": 4,
+      "input": "Bio"
     },
     {
-      "multiselect": "Country",
       "id": "country",
-      "options": ["United States", "Canada", "United Kingdom", "Australia", "Other"]
+      "options": [
+        "United States",
+        "Canada",
+        "United Kingdom",
+        "Australia",
+        "Other"
+      ],
+      "multi": "Country"
     },
     {
-      "multiselect": "Interests",
       "id": "interests",
-      "options": ["Technology", "Sports", "Music", "Art", "Gaming", "Travel", "Food"]
+      "options": [
+        "Technology",
+        "Sports",
+        "Music",
+        "Art",
+        "Gaming",
+        "Travel",
+        "Food"
+      ],
+      "multi": "Interests"
     },
     {
-      "checkbox": "Profile visible to others",
       "id": "visible",
-      "default": true
+      "default": true,
+      "check": "Profile visible to others"
     },
     {
-      "checkbox": "Receive email notifications",
       "id": "notifications",
-      "default": true
+      "default": true,
+      "check": "Receive email notifications"
     }
   ]
 }

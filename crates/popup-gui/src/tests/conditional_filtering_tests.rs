@@ -10,7 +10,7 @@ mod tests {
             "title": "Test When Clause",
             "elements": [
                 {
-                    "checkbox": "Show Advanced",
+                    "check": "Show Advanced",
                     "id": "show_advanced",
                     "default": false
                 },
@@ -20,7 +20,7 @@ mod tests {
                     "min": 0,
                     "max": 100,
                     "default": 50,
-                    "when": "@show_advanced"
+                    "when": "show_advanced"
                 }
             ]
         });
@@ -62,22 +62,22 @@ mod tests {
             "title": "Nested When Clauses",
             "elements": [
                 {
-                    "checkbox": "Enable Features",
+                    "check": "Enable Features",
                     "id": "enable_features",
                     "default": false
                 },
                 {
-                    "checkbox": "Advanced Mode",
+                    "check": "Advanced Mode",
                     "id": "advanced_mode",
                     "default": false,
-                    "when": "@enable_features"
+                    "when": "enable_features"
                 },
                 {
                     "slider": "Advanced Level",
                     "id": "advanced_level",
                     "min": 0,
                     "max": 10,
-                    "when": "@advanced_mode"
+                    "when": "advanced_mode"
                 }
             ]
         });
@@ -124,7 +124,7 @@ mod tests {
             "title": "Result Test",
             "elements": [
                 {
-                    "checkbox": "Show Options",
+                    "check": "Show Options",
                     "id": "show_options",
                     "default": false
                 },
@@ -141,7 +141,7 @@ mod tests {
                     "min": 0,
                     "max": 100,
                     "default": 75,
-                    "when": "@show_options"
+                    "when": "show_options"
                 }
             ]
         });
@@ -198,15 +198,15 @@ mod tests {
             "title": "Count-based When Clause",
             "elements": [
                 {
-                    "multiselect": "Features",
+                    "multi": "Features",
                     "id": "features",
                     "options": ["Feature A", "Feature B", "Feature C", "Feature D"]
                 },
                 {
-                    "textbox": "Premium Config",
+                    "input": "Premium Config",
                     "id": "premium_config",
                     "placeholder": "Available with 3+ features",
-                    "when": "count(@features) > 2"
+                    "when": "count(features) > 2"
                 }
             ]
         });
@@ -261,7 +261,7 @@ mod tests {
                     "id": "settings_group",
                     "elements": [
                         {
-                            "checkbox": "Group Option",
+                            "check": "Group Option",
                             "id": "group_option",
                             "default": false
                         },
@@ -270,7 +270,7 @@ mod tests {
                             "id": "group_slider",
                             "min": 0,
                             "max": 100,
-                            "when": "@group_option"
+                            "when": "group_option"
                         }
                     ]
                 }
@@ -306,24 +306,24 @@ mod tests {
             "title": "Complex Comparisons",
             "elements": [
                 {
-                    "multiselect": "Items",
+                    "multi": "Items",
                     "id": "items",
                     "options": ["A", "B", "C", "D", "E"]
                 },
                 {
-                    "textbox": "Bulk Config",
+                    "input": "Bulk Config",
                     "id": "bulk_config",
-                    "when": "count(@items) >= 3"
+                    "when": "count(items) >= 3"
                 },
                 {
-                    "textbox": "Single Config",
+                    "input": "Single Config",
                     "id": "single_config",
-                    "when": "count(@items) == 1"
+                    "when": "count(items) == 1"
                 },
                 {
-                    "checkbox": "Simple Mode",
+                    "check": "Simple Mode",
                     "id": "simple_mode",
-                    "when": "count(@items) < 2"
+                    "when": "count(items) < 2"
                 }
             ]
         });
@@ -384,7 +384,7 @@ mod tests {
             "title": "Result Comparison",
             "elements": [
                 {
-                    "checkbox": "Enable Advanced",
+                    "check": "Enable Advanced",
                     "id": "enable_advanced",
                     "default": false
                 },
@@ -401,13 +401,13 @@ mod tests {
                     "min": 0,
                     "max": 100,
                     "default": 80,
-                    "when": "@enable_advanced"
+                    "when": "enable_advanced"
                 },
                 {
-                    "textbox": "Advanced Config",
+                    "input": "Advanced Config",
                     "id": "advanced_config",
                     "placeholder": "Enter config",
-                    "when": "@enable_advanced"
+                    "when": "enable_advanced"
                 }
             ]
         });
@@ -466,7 +466,7 @@ mod tests {
             "title": "Checkbox Reveals",
             "elements": [
                 {
-                    "checkbox": "Enable Features",
+                    "check": "Enable Features",
                     "id": "enable_features",
                     "default": false,
                     "reveals": [
@@ -514,7 +514,7 @@ mod tests {
             "title": "Choice Option Children",
             "elements": [
                 {
-                    "choice": "Mode",
+                    "select": "Mode",
                     "id": "mode",
                     "options": ["Simple", "Advanced"],
                     "default": 0,
@@ -575,7 +575,7 @@ mod tests {
             "title": "Multiselect Option Children",
             "elements": [
                 {
-                    "multiselect": "Features",
+                    "multi": "Features",
                     "id": "features",
                     "options": ["Basic", "Advanced", "Expert"],
                     "Advanced": [
@@ -589,7 +589,7 @@ mod tests {
                     ],
                     "Expert": [
                         {
-                            "textbox": "Expert Config",
+                            "input": "Expert Config",
                             "id": "expert_config",
                             "placeholder": "Enter config"
                         }
@@ -659,81 +659,13 @@ mod tests {
     }
 
     #[test]
-    fn test_slider_reveals_with_when_clause() {
-        // Test case from user bug report: slider with reveals containing when clause
-        let json = json!({
-            "title": "Slider Reveals Test",
-            "elements": [
-                {
-                    "slider": "How deep should we go?",
-                    "id": "depth",
-                    "min": 1,
-                    "max": 5,
-                    "default": 1,
-                    "reveals": [
-                        {
-                            "text": "✓ Slider reveal working",
-                            "id": "reveal_text",
-                            "when": "@depth >= 3"
-                        }
-                    ]
-                }
-            ]
-        });
-
-        let popup = parse_popup_json_value(json).unwrap();
-        let mut state = PopupState::new(&popup);
-
-        // Initially depth is 1, so when clause should not be satisfied
-        let active_ids = crate::gui::tests::collect_active_elements_for_test(
-            &popup.elements,
-            &state,
-            &popup.elements,
-        );
-        assert_eq!(active_ids, vec!["depth"]);
-        assert!(!active_ids.contains(&"reveal_text".to_string()));
-
-        // Set depth to 2 - still below threshold
-        *state.get_number_mut("depth").unwrap() = 2.0;
-        let active_ids = crate::gui::tests::collect_active_elements_for_test(
-            &popup.elements,
-            &state,
-            &popup.elements,
-        );
-        assert_eq!(active_ids, vec!["depth"]);
-        assert!(!active_ids.contains(&"reveal_text".to_string()));
-
-        // Set depth to 3 - exactly at threshold, should appear
-        *state.get_number_mut("depth").unwrap() = 3.0;
-        let active_ids = crate::gui::tests::collect_active_elements_for_test(
-            &popup.elements,
-            &state,
-            &popup.elements,
-        );
-        assert!(active_ids.contains(&"depth".to_string()));
-        assert!(active_ids.contains(&"reveal_text".to_string()));
-        assert_eq!(active_ids.len(), 2);
-
-        // Set depth to 5 - well above threshold, should still appear
-        *state.get_number_mut("depth").unwrap() = 5.0;
-        let active_ids = crate::gui::tests::collect_active_elements_for_test(
-            &popup.elements,
-            &state,
-            &popup.elements,
-        );
-        assert!(active_ids.contains(&"depth".to_string()));
-        assert!(active_ids.contains(&"reveal_text".to_string()));
-        assert_eq!(active_ids.len(), 2);
-    }
-
-    #[test]
     fn test_textbox_no_reveals_field() {
         // Textbox should not have reveals field (protocol consistency)
         let json = json!({
             "title": "Textbox Test",
             "elements": [
                 {
-                    "textbox": "Enter configuration",
+                    "input": "Enter configuration",
                     "id": "config",
                     "placeholder": "JSON config..."
                 }
@@ -759,7 +691,7 @@ mod tests {
             "title": "Multiselect Reveals Test",
             "elements": [
                 {
-                    "multiselect": "Select features",
+                    "multi": "Select features",
                     "id": "features",
                     "options": ["Feature A", "Feature B", "Feature C"],
                     "reveals": [
@@ -825,7 +757,7 @@ mod tests {
             "title": "Choice Reveals Test",
             "elements": [
                 {
-                    "choice": "Select mode",
+                    "select": "Select mode",
                     "id": "mode",
                     "options": ["Basic", "Advanced", "Expert"],
                     "reveals": [

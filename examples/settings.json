@@ -6,19 +6,28 @@
       "id": "general_group",
       "elements": [
         {
-          "multiselect": "Language",
           "id": "language",
-          "options": ["English", "Spanish", "French", "German"]
+          "options": [
+            "English",
+            "Spanish",
+            "French",
+            "German"
+          ],
+          "multi": "Language"
         },
         {
-          "multiselect": "Theme",
           "id": "theme",
-          "options": ["Light", "Dark", "Auto"]
+          "options": [
+            "Light",
+            "Dark",
+            "Auto"
+          ],
+          "multi": "Theme"
         },
         {
-          "checkbox": "Show notifications",
           "id": "notifications",
-          "default": true
+          "default": true,
+          "check": "Show notifications"
         }
       ]
     },
@@ -41,9 +50,9 @@
           "default": 5
         },
         {
-          "checkbox": "Enable hardware acceleration",
           "id": "hw_accel",
-          "default": false
+          "default": false,
+          "check": "Enable hardware acceleration"
         }
       ]
     },
@@ -52,14 +61,14 @@
       "id": "privacy_group",
       "elements": [
         {
-          "checkbox": "Send anonymous usage data",
           "id": "usage_data",
-          "default": false
+          "default": false,
+          "check": "Send anonymous usage data"
         },
         {
-          "checkbox": "Save history",
           "id": "save_history",
-          "default": true
+          "default": true,
+          "check": "Save history"
         },
         {
           "slider": "History days",

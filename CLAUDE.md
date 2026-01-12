@@ -136,7 +136,7 @@ MCP Client (receives result)
 - **Required IDs**: All interactive elements must have an `"id"` field for state management
 - **When clauses**: Replace standalone Conditional elements with `"when"` field on any element
 - **Reveals**: Inline conditionals on checkboxes/multiselect/choice using `"reveals"` field
-- **Option-as-key nesting**: Choice/Multiselect children use option text as direct JSON keys
+- **Option-as-key nesting**: Choice/Multi children use option text as direct JSON keys
 
 ### Basic Structure
 ```json
@@ -169,10 +169,10 @@ MCP Client (receives result)
 }
 ```
 
-#### Checkbox
+#### Check
 ```json
 {
-  "checkbox": "Enable feature",
+  "check": "Enable feature",
   "id": "enable_feature",
   "default": true  // Optional, defaults to false
 }
@@ -181,7 +181,7 @@ MCP Client (receives result)
 With reveals (shown when checked):
 ```json
 {
-  "checkbox": "Enable advanced",
+  "check": "Enable advanced",
   "id": "enable_advanced",
   "default": false,
   "reveals": [
@@ -195,10 +195,10 @@ With reveals (shown when checked):
 }
 ```
 
-#### Textbox
+#### Input
 ```json
 {
-  "textbox": "Name",
+  "input": "Name",
   "id": "user_name",
   "placeholder": "Enter your name",  // Optional
   "rows": 5  // Optional, for multiline
@@ -208,7 +208,7 @@ With reveals (shown when checked):
 #### Choice (Single Selection)
 ```json
 {
-  "choice": "Theme",
+  "select": "Theme",
   "id": "theme",
   "options": ["Light", "Dark", "Auto"]
 }
@@ -217,7 +217,7 @@ With reveals (shown when checked):
 With per-option children (option-as-key nesting):
 ```json
 {
-  "choice": "Mode",
+  "select": "Mode",
   "id": "mode",
   "options": ["Simple", "Advanced"],
   "Advanced": [
@@ -231,10 +231,10 @@ With per-option children (option-as-key nesting):
 }
 ```
 
-#### Multiselect
+#### Multi
 ```json
 {
-  "multiselect": "Features",
+  "multi": "Features",
   "id": "features",
   "options": ["Feature A", "Feature B", "Feature C"]
 }
@@ -243,7 +243,7 @@ With per-option children (option-as-key nesting):
 With per-option children (option-as-key nesting):
 ```json
 {
-  "multiselect": "Features",
+  "multi": "Features",
   "id": "features",
   "options": ["Basic", "Advanced", "Expert"],
   "Advanced": [
@@ -256,7 +256,7 @@ With per-option children (option-as-key nesting):
   ],
   "Expert": [
     {
-      "textbox": "Expert Config",
+      "input": "Expert Config",
       "id": "expert_config",
       "placeholder": "Enter configuration"
     }
@@ -284,13 +284,13 @@ Any element can have a `"when"` field for conditional visibility:
   "id": "debug_level",
   "min": 0,
   "max": 10,
-  "when": "@show_advanced"  // Simple boolean check
+  "when": "show_advanced"  // Simple boolean check
 }
 ```
 
 **When Clause Syntax:**
 - `@id` - Boolean check (true if checkbox checked, multiselect has selections, etc.)
-- `selected(@id, value)` - Check if specific value is selected
+- `selected(id, value)` - Check if specific value is selected
 - `count(@id) > 2` - Check selection count with operators: `>`, `<`, `>=`, `<=`, `==`
 - `@id1 && @id2` - Logical AND
 - `@id1 || @id2` - Logical OR
@@ -300,14 +300,14 @@ Any element can have a `"when"` field for conditional visibility:
 ```json
 {
   "text": "Advanced mode active",
-  "when": "@enable_advanced && selected(@mode, Pro)"
+  "when": "enable_advanced && selected(mode, Pro)"
 }
 ```
 
 ```json
 {
   "text": "Many items selected",
-  "when": "count(@features) >= 3"
+  "when": "count(features) >= 3"
 }
 ```
 
@@ -339,12 +339,12 @@ Any element can have a `"when"` field for conditional visibility:
       "default": 75
     },
     {
-      "checkbox": "Notifications",
+      "check": "Notifications",
       "id": "notifications",
       "default": true
     },
     {
-      "choice": "Theme",
+      "select": "Theme",
       "id": "theme",
       "options": ["Light", "Dark", "Auto"]
     }
@@ -358,7 +358,7 @@ Any element can have a `"when"` field for conditional visibility:
   "title": "Advanced Settings",
   "elements": [
     {
-      "checkbox": "Show advanced",
+      "check": "Show advanced",
       "id": "show_advanced",
       "default": false
     },
@@ -367,13 +367,13 @@ Any element can have a `"when"` field for conditional visibility:
       "id": "debug_level",
       "min": 0,
       "max": 10,
-      "when": "@show_advanced"
+      "when": "show_advanced"
     },
     {
-      "textbox": "Log file",
+      "input": "Log file",
       "id": "log_file",
       "placeholder": "/tmp/debug.log",
-      "when": "@show_advanced"
+      "when": "show_advanced"
     }
   ]
 }
@@ -385,7 +385,7 @@ Any element can have a `"when"` field for conditional visibility:
   "title": "Feature Configuration",
   "elements": [
     {
-      "checkbox": "Enable advanced mode",
+      "check": "Enable advanced mode",
       "id": "enable_advanced",
       "default": false,
       "reveals": [
@@ -398,12 +398,12 @@ Any element can have a `"when"` field for conditional visibility:
       ]
     },
     {
-      "choice": "Profile",
+      "select": "Profile",
       "id": "profile",
       "options": ["Basic", "Pro"],
       "Pro": [
         {
-          "textbox": "License Key",
+          "input": "License Key",
           "id": "license_key",
           "placeholder": "XXXX-XXXX-XXXX"
         }
@@ -419,21 +419,21 @@ Any element can have a `"when"` field for conditional visibility:
   "title": "Multi-Conditional Example",
   "elements": [
     {
-      "checkbox": "Debug mode",
+      "check": "Debug mode",
       "id": "debug",
       "default": false
     },
     {
-      "multiselect": "Features",
+      "multi": "Features",
       "id": "features",
       "options": ["Analytics", "Sync", "Backup"]
     },
     {
       "text": "Debug mode active with multiple features",
-      "when": "@debug && count(@features) > 1"
+      "when": "debug && count(features) > 1"
     },
     {
-      "choice": "Mode",
+      "select": "Mode",
       "id": "mode",
       "options": ["Simple", "Advanced", "Expert"]
     },
@@ -442,7 +442,7 @@ Any element can have a `"when"` field for conditional visibility:
       "id": "expert_complexity",
       "min": 1,
       "max": 10,
-      "when": "selected(@mode, Expert)"
+      "when": "selected(mode, Expert)"
     }
   ]
 }

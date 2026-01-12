@@ -6,35 +6,46 @@
       "id": "intro_text"
     },
     {
-      "choice": "When did the slowdown begin?",
       "id": "slowdown_timing",
-      "options": ["After our deployment 2 hours ago", "Gradual degradation over past 5-7 days", "Intermittent - comes and goes"],
+      "options": [
+        "After our deployment 2 hours ago",
+        "Gradual degradation over past 5-7 days",
+        "Intermittent - comes and goes"
+      ],
       "After our deployment 2 hours ago": [
         {
           "text": "Recent change investigation path - focusing on deployment-related issues",
           "id": "deployment_path"
         },
         {
-          "multiselect": "Which deployment changes occurred? (check all that apply)",
           "id": "deployment_changes",
-          "options": ["New API endpoints added", "Database migrations ran", "Updated dependencies/packages", "Config/environment changes"],
+          "options": [
+            "New API endpoints added",
+            "Database migrations ran",
+            "Updated dependencies/packages",
+            "Config/environment changes"
+          ],
           "New API endpoints added": [
             {
-              "checkbox": "Are the NEW endpoints slow, or existing ones?",
               "id": "new_endpoints_slow",
               "reveals": [
                 {
                   "text": "If new endpoints only: Check for missing indexes, N+1 queries, or unoptimized ORM calls in new code",
                   "id": "new_endpoint_advice"
                 }
-              ]
+              ],
+              "check": "Are the NEW endpoints slow, or existing ones?"
             }
           ],
           "Database migrations ran": [
             {
-              "choice": "Migration scope check:",
               "id": "migration_scope",
-              "options": ["Added indexes only", "Schema changes (new columns/tables)", "Large data migrations"]
+              "options": [
+                "Added indexes only",
+                "Schema changes (new columns/tables)",
+                "Large data migrations"
+              ],
+              "select": "Migration scope check:"
             },
             {
               "text": "Check: SHOW PROCESSLIST for locked tables, pg_stat_activity for blocking queries",
@@ -43,38 +54,49 @@
           ],
           "Updated dependencies/packages": [
             {
-              "textbox": "Which critical dependencies changed? (e.g., ORM version, Redis client)",
               "id": "dependency_changes",
-              "placeholder": "List major version changes"
+              "placeholder": "List major version changes",
+              "input": "Which critical dependencies changed? (e.g., ORM version, Redis client)"
             }
           ],
           "Config/environment changes": [
             {
-              "choice": "What type of config changed?",
               "id": "config_type",
-              "options": ["Connection pool settings", "Cache TTL/eviction policies", "Rate limiting/throttling", "Feature flags toggled"]
+              "options": [
+                "Connection pool settings",
+                "Cache TTL/eviction policies",
+                "Rate limiting/throttling",
+                "Feature flags toggled"
+              ],
+              "select": "What type of config changed?"
             }
-          ]
+          ],
+          "multi": "Which deployment changes occurred? (check all that apply)"
         },
         {
           "group": "Immediate Actions",
           "id": "immediate_actions",
           "elements": [
             {
-              "checkbox": "Can we rollback immediately?",
               "id": "can_rollback",
               "reveals": [
                 {
-                  "choice": "Rollback feasibility:",
                   "id": "rollback_feasibility",
-                  "options": ["Yes - initiating rollback", "No - database migrations prevent it", "No - critical fixes in this deploy", "Partial - can revert app but not DB"]
+                  "options": [
+                    "Yes - initiating rollback",
+                    "No - database migrations prevent it",
+                    "No - critical fixes in this deploy",
+                    "Partial - can revert app but not DB"
+                  ],
+                  "select": "Rollback feasibility:"
                 }
-              ]
+              ],
+              "check": "Can we rollback immediately?"
             },
             {
-              "checkbox": "Enable detailed APM tracing for slow transactions",
               "id": "enable_apm",
-              "default": true
+              "default": true,
+              "check": "Enable detailed APM tracing for slow transactions"
             }
           ]
         }
@@ -85,9 +107,13 @@
           "id": "capacity_path"
         },
         {
-          "multiselect": "Check these metrics for correlation with slowdown timeline:",
           "id": "growth_metrics",
-          "options": ["Traffic volume increased", "Database size growing", "Memory/CPU utilization climbing", "Cache hit rates declining"],
+          "options": [
+            "Traffic volume increased",
+            "Database size growing",
+            "Memory/CPU utilization climbing",
+            "Cache hit rates declining"
+          ],
           "Traffic volume increased": [
             {
               "slider": "Approximate traffic increase %",
@@ -97,72 +123,88 @@
               "default": 50
             },
             {
-              "choice": "Traffic pattern:",
               "id": "traffic_pattern",
-              "options": ["Uniform increase across all endpoints", "Specific endpoint(s) getting hammered", "Bot/scraper traffic spike", "Geographic concentration (single region)"]
+              "options": [
+                "Uniform increase across all endpoints",
+                "Specific endpoint(s) getting hammered",
+                "Bot/scraper traffic spike",
+                "Geographic concentration (single region)"
+              ],
+              "select": "Traffic pattern:"
             }
           ],
           "Database size growing": [
             {
-              "textbox": "Which tables grew most? (check information_schema)",
               "id": "growing_tables",
-              "rows": 2
+              "rows": 2,
+              "input": "Which tables grew most? (check information_schema)"
             },
             {
-              "checkbox": "Missing indexes on growing tables?",
               "id": "missing_indexes",
               "reveals": [
                 {
                   "text": "Run: EXPLAIN ANALYZE on slow queries, check for sequential scans",
                   "id": "explain_analyze"
                 }
-              ]
+              ],
+              "check": "Missing indexes on growing tables?"
             }
           ],
           "Memory/CPU utilization climbing": [
             {
-              "choice": "Resource exhaustion type:",
               "id": "resource_type",
-              "options": ["Memory pressure (swapping detected)", "CPU throttling (container limits)", "Connection pool exhaustion", "Disk I/O saturation"]
+              "options": [
+                "Memory pressure (swapping detected)",
+                "CPU throttling (container limits)",
+                "Connection pool exhaustion",
+                "Disk I/O saturation"
+              ],
+              "select": "Resource exhaustion type:"
             }
           ],
           "Cache hit rates declining": [
             {
-              "choice": "Cache layer affected:",
               "id": "cache_layer",
-              "options": ["Redis/Memcached hit rate dropped", "CDN cache misses increased", "Application-level cache invalidation", "Database query cache issues"]
+              "options": [
+                "Redis/Memcached hit rate dropped",
+                "CDN cache misses increased",
+                "Application-level cache invalidation",
+                "Database query cache issues"
+              ],
+              "select": "Cache layer affected:"
             },
             {
               "text": "Check for cache stampedes during invalidation",
               "id": "cache_stampede"
             }
-          ]
+          ],
+          "multi": "Check these metrics for correlation with slowdown timeline:"
         },
         {
           "group": "Deep Dive Diagnostics",
           "id": "deep_dive",
           "elements": [
             {
-              "checkbox": "Run slow query analysis",
               "id": "slow_query_analysis",
               "reveals": [
                 {
-                  "textbox": "Paste top 3 slow queries from logs:",
                   "id": "slow_queries",
                   "placeholder": "Include execution time and frequency",
-                  "rows": 4
+                  "rows": 4,
+                  "input": "Paste top 3 slow queries from logs:"
                 }
-              ]
+              ],
+              "check": "Run slow query analysis"
             },
             {
-              "checkbox": "Check for lock contention",
               "id": "lock_contention",
               "reveals": [
                 {
                   "text": "Commands: SHOW ENGINE INNODB STATUS\\G (MySQL) or pg_locks join (Postgres)",
                   "id": "lock_commands"
                 }
-              ]
+              ],
+              "check": "Check for lock contention"
             }
           ]
         }
@@ -173,16 +215,27 @@
           "id": "pattern_path"
         },
         {
-          "choice": "Can you identify any pattern?",
           "id": "intermittent_pattern",
-          "options": ["Specific times of day (peak hours)", "After certain operations (bulk imports, reports)", "Random - no clear pattern", "Correlates with external service calls"]
+          "options": [
+            "Specific times of day (peak hours)",
+            "After certain operations (bulk imports, reports)",
+            "Random - no clear pattern",
+            "Correlates with external service calls"
+          ],
+          "select": "Can you identify any pattern?"
         },
         {
-          "multiselect": "During slowdowns, what else do you observe?",
           "id": "slowdown_observations",
-          "options": ["Specific endpoints affected only", "Database connection spikes", "Third-party API timeouts", "Background job queue depth increases"]
+          "options": [
+            "Specific endpoints affected only",
+            "Database connection spikes",
+            "Third-party API timeouts",
+            "Background job queue depth increases"
+          ],
+          "multi": "During slowdowns, what else do you observe?"
         }
-      ]
+      ],
+      "select": "When did the slowdown begin?"
     }
   ]
 }

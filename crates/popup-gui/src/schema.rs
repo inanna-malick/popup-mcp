@@ -12,7 +12,7 @@ use serde_json::json;
 pub fn get_popup_tool_schema() -> serde_json::Value {
     json!({
         "name": "popup",
-        "description": "Display native GUI popup with conditional visibility.\n\nElements: text, slider, checkbox, textbox, choice, multiselect, group\nConditionals: when clauses (@id, selected(), count()), reveals, option-as-key nesting\nReturns: {\"status\": \"completed\", \"button\": \"submit\", \"<element_id>\": value, ...} or {\"status\": \"cancelled\"}\n\nCreate rich dialogue trees with cascading conditional branches. Build entire decision flows in a single interaction - when Choice A reveals Options B & C, which themselves unlock Paths D, E, F. Think interactive fiction: the user sees their choices unfold dynamically as they engage, discovering the full conversation tree through their selections. Instead of ping-ponging through multiple rounds ('What type?' → wait → 'What size?' → wait → 'What color?'), present the entire adaptive form that reshapes itself based on each choice. Every checkbox that reveals sliders, every dropdown that unlocks text fields, every multiselect that exposes new option groups - these create a responsive dialogue that guides users through complex decision spaces without round-trip latency.",
+        "description": "Author a dialogue tree that collapses multiple conversation turns into one interaction.\n\nCORE PATTERN: Anticipate likely user responses. For each anticipated answer, encode branch-specific followup questions. Nest 3-5 levels deep.\n\nANTI-PATTERN: Don't build flat forms. If an answer would prompt a followup question, encode that followup as a nested branch NOW.\n\nBRANCHING MECHANICS:\n- option-as-key: {\"select\": \"Lang\", \"id\": \"x\", \"options\": [\"Rust\", \"Go\"], \"Rust\": [{...rust-specific followups...}]}\n- reveals: {\"check\": \"Advanced\", \"id\": \"x\", \"reveals\": [{...shown when checked...}]}\n- when: {\"slider\": \"X\", \"when\": \"advanced && selected(lang, 'Rust')\"}\n\nELEMENTS: text, slider, check, input, select (single-select), multi, group\n\nRETURNS: {\"status\": \"completed\"|\"cancelled\", \"button\": \"submit\"|\"cancel\", \"<id>\": value}\n- select/multi: selected text (\"Rust\", not index)\n- slider: integer value (7)\n- Only visible elements included\n\nNOTE: Widget type names (text, slider, check, input, select, multi, group) are reserved and cannot be used as option values in select/multi.",
         "inputSchema": get_input_schema()
     })
 }
@@ -48,12 +48,8 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this text is shown"
-                                }
                             },
                             "required": ["text"],
                             "additionalProperties": false
@@ -84,15 +80,7 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
-                                },
-                                "reveals": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when slider value differs from default"
-                                },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this input is needed (shown as help text)"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 }
                             },
                             "required": ["slider", "id", "min", "max"],
@@ -102,7 +90,7 @@ pub fn get_input_schema() -> serde_json::Value {
                         {
                             "type": "object",
                             "properties": {
-                                "checkbox": {
+                                "check": {
                                     "type": "string",
                                     "description": "Label for the checkbox"
                                 },
@@ -116,25 +104,21 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
                                     "$ref": "#/properties/elements",
                                     "description": "Child elements shown when checkbox is checked"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this input is needed (shown as help text)"
-                                }
                             },
-                            "required": ["checkbox", "id"],
+                            "required": ["check", "id"],
                             "additionalProperties": false
                         },
                         // Textbox element (V2: textbox is the key, id required)
                         {
                             "type": "object",
                             "properties": {
-                                "textbox": {
+                                "input": {
                                     "type": "string",
                                     "description": "Label for the text input"
                                 },
@@ -153,21 +137,17 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this input is needed (shown as help text)"
-                                }
                             },
-                            "required": ["textbox", "id"],
+                            "required": ["input", "id"],
                             "additionalProperties": false
                         },
                         // Multiselect element (V2: multiselect is the key, id required, option-as-key for children)
                         {
                             "type": "object",
                             "properties": {
-                                "multiselect": {
+                                "multi": {
                                     "type": "string",
                                     "description": "Label for the multiselect"
                                 },
@@ -185,20 +165,16 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
                                     "$ref": "#/properties/elements",
                                     "description": "Child elements shown when any option is selected"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this input is needed (shown as help text)"
-                                }
                             },
-                            "required": ["multiselect", "id", "options"],
+                            "required": ["multi", "id", "options"],
                             "patternProperties": {
-                                "^(?!multiselect|id|options|when|reveals|context).*$": {
+                                "^(?!multi|id|options|when|reveals).*$": {
                                     "$ref": "#/properties/elements",
                                     "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
                                 }
@@ -209,7 +185,7 @@ pub fn get_input_schema() -> serde_json::Value {
                         {
                             "type": "object",
                             "properties": {
-                                "choice": {
+                                "select": {
                                     "type": "string",
                                     "description": "Label for the dropdown"
                                 },
@@ -226,26 +202,21 @@ pub fn get_input_schema() -> serde_json::Value {
                                     "description": "Array of option strings"
                                 },
                                 "default": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "description": "Default selected option index (optional, no selection if omitted)"
+                                    "type": "string",
+                                    "description": "Default selected option value (must match an option, omit for no selection)"
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
                                     "$ref": "#/properties/elements",
                                     "description": "Child elements shown when any option is selected"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this input is needed (shown as help text)"
-                                }
                             },
-                            "required": ["choice", "id", "options"],
+                            "required": ["select", "id", "options"],
                             "patternProperties": {
-                                "^(?!choice|id|options|default|when|reveals|context).*$": {
+                                "^(?!select|id|options|default|when|reveals).*$": {
                                     "$ref": "#/properties/elements",
                                     "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
                                 }
@@ -266,12 +237,8 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "when": {
                                     "type": "string",
-                                    "description": "Condition for visibility. Syntax: @id (truthy check), selected(@id, \"value\"), count(@id) > N, with &&/||/! operators"
+                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
-                                "context": {
-                                    "type": "string",
-                                    "description": "Markdown explaining why this group exists (shown as help text)"
-                                }
                             },
                             "required": ["group", "elements"],
                             "additionalProperties": false
@@ -287,29 +254,33 @@ pub fn get_input_schema() -> serde_json::Value {
                 "title": "Quick confirmation",
                 "elements": [
                     {"text": "Are you sure you want to proceed?", "id": "confirm_text"},
-                    {"checkbox": "Don't ask again", "id": "dont_ask"}
+                    {"check": "Don't ask again", "id": "dont_ask"}
                 ]
             },
             {
-                "title": "Conditional with reveals",
+                "title": "User preferences",
                 "elements": [
-                    {"checkbox": "Enable advanced options", "id": "advanced", "reveals": [
+                    {"select": "Theme", "id": "theme", "options": ["Light", "Dark", "Auto"], "default": "Auto"},
+                    {"slider": "Font size", "id": "font_size", "min": 8, "max": 24, "default": 14}
+                ]
+            },
+            {
+                "title": "Conditional form",
+                "elements": [
+                    {"check": "Enable advanced options", "id": "advanced", "reveals": [
                         {"slider": "Debug level", "id": "debug", "min": 0, "max": 5}
                     ]}
                 ]
             },
             {
-                "title": "When clause with selected()",
+                "title": "Deep nesting (3 levels) - anticipate answers",
                 "elements": [
-                    {"choice": "Mode", "id": "mode", "options": ["Basic", "Pro", "Enterprise"]},
-                    {"textbox": "License key", "id": "license", "when": "selected(@mode, \"Pro\") || selected(@mode, \"Enterprise\")"}
-                ]
-            },
-            {
-                "title": "Option-as-key nesting",
-                "elements": [
-                    {"choice": "Theme", "id": "theme", "options": ["Light", "Dark", "Custom"],
-                     "Custom": [{"slider": "Brightness", "id": "brightness", "min": 0, "max": 100}]}
+                    {"select": "Project", "id": "proj", "options": ["Web", "CLI", "Library"],
+                     "Web": [{"select": "Framework", "id": "fw", "options": ["React", "Vue"],
+                              "React": [{"check": "TypeScript", "id": "ts", "reveals": [
+                                  {"check": "Strict mode", "id": "strict"}
+                              ]}]}],
+                     "CLI": [{"select": "Language", "id": "lang", "options": ["Rust", "Go"]}]}
                 ]
             }
         ]
@@ -320,28 +291,36 @@ pub fn get_input_schema() -> serde_json::Value {
 ///
 /// Useful for documentation or help text
 pub fn get_schema_description() -> &'static str {
-    "Popup JSON structure (V2 element-as-key format):
+    "Author dialogue trees that collapse multiple conversation turns into one interaction.
+
+CORE PATTERN: Anticipate likely user responses. For each anticipated answer,
+encode branch-specific followup questions. Nest 3-5 levels deep.
+
+STRUCTURE:
 {
   \"title\": \"Window title\",
   \"elements\": [
-    {\"text\": \"Display text\", \"id\": \"optional_id\"},
-    {\"slider\": \"Volume\", \"id\": \"volume\", \"min\": 0, \"max\": 100, \"default\": 50},
-    {\"checkbox\": \"Enable\", \"id\": \"enable\", \"default\": true, \"reveals\": [...]},
-    {\"textbox\": \"Name\", \"id\": \"name\", \"placeholder\": \"Enter name\", \"rows\": 3},
-    {\"choice\": \"Color\", \"id\": \"color\", \"options\": [\"Red\", \"Blue\"], \"Blue\": [...]},
-    {\"multiselect\": \"Features\", \"id\": \"features\", \"options\": [\"A\", \"B\"], \"A\": [...]},
-    {\"group\": \"Settings\", \"elements\": [...]},
+    {\"text\": \"Display text\"},
+    {\"slider\": \"Label\", \"id\": \"x\", \"min\": 0, \"max\": 100},
+    {\"check\": \"Label\", \"id\": \"x\", \"reveals\": [...]},
+    {\"input\": \"Label\", \"id\": \"x\", \"placeholder\": \"...\"},
+    {\"select\": \"Label\", \"id\": \"x\", \"options\": [\"A\", \"B\"], \"A\": [...]},
+    {\"multi\": \"Label\", \"id\": \"x\", \"options\": [\"A\", \"B\"], \"A\": [...]},
+    {\"group\": \"Label\", \"elements\": [...]}
   ]
 }
 
-V2 Features:
-- Element-as-key: Widget type is the JSON key (\"slider\": \"Label\", not \"type\": \"slider\")
-- ID-based state: All interactive elements require \"id\" field for state tracking
-- When clauses: Any element can have \"when\": \"@id && count(@other) > 2\" for conditional visibility
-- Reveals: Inline conditionals via \"reveals\": [...] on checkbox/multiselect/choice
-- Option-as-key nesting: Use option text as JSON key for per-option children
+BRANCHING:
+- option-as-key: \"A\": [...] adds children shown when option A selected
+- reveals: [...] adds children shown when parent is active
+- when: \"id && selected(other, 'value')\" for cross-element conditions
 
-Returns: {\"status\": \"completed\", \"button\": \"submit\", \"<element_id>\": value, ...} or {\"status\": \"cancelled\"}"
+RETURNS: {\"status\": \"completed\", \"<id>\": value, ...} or {\"status\": \"cancelled\"}
+- select/multi: selected text (not index)
+- slider: integer value
+- Only visible elements included
+
+NOTE: Widget type names are reserved and cannot be used as option values."
 }
 
 #[cfg(test)]
