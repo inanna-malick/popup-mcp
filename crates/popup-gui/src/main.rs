@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use popup_gui::{mcp_server, parse_popup_json, render_popup};
+use popup_gui::{inject_other_options, mcp_server, parse_popup_json, render_popup};
 use std::fs;
 use std::io::{self, Read};
 
@@ -34,8 +34,11 @@ fn run_stdin_mode() -> Result<()> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
 
-    // Parse JSON and render popup
-    match parse_popup_json(&input).and_then(render_popup) {
+    // Parse JSON, inject "Other" options, and render popup
+    match parse_popup_json(&input)
+        .map(inject_other_options)
+        .and_then(render_popup)
+    {
         Ok(result) => {
             println!("{}", serde_json::to_string_pretty(&result)?);
             std::process::exit(0); // Success - user interaction completed
@@ -52,8 +55,11 @@ fn run_file_mode(path: &str) -> Result<()> {
     // Read JSON from file
     let input = fs::read_to_string(path)?;
 
-    // Parse JSON and render popup
-    match parse_popup_json(&input).and_then(render_popup) {
+    // Parse JSON, inject "Other" options, and render popup
+    match parse_popup_json(&input)
+        .map(inject_other_options)
+        .and_then(render_popup)
+    {
         Ok(result) => {
             println!("{}", serde_json::to_string_pretty(&result)?);
             std::process::exit(0); // Success - user interaction completed

@@ -4,6 +4,7 @@ pub mod mcp_server;
 pub mod schema;
 pub mod templates;
 pub mod theme;
+pub mod transform;
 
 #[cfg(test)]
 mod tests;
@@ -18,3 +19,4 @@ pub use json_parser::{
     parse_popup_json_value, validate_popup_json,
 };
 pub use schema::{get_input_schema, get_popup_tool_schema, get_schema_description};
+pub use transform::inject_other_options;

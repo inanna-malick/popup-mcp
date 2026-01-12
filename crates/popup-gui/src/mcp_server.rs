@@ -1,6 +1,7 @@
 //! MCP server module for popup-mcp - enables AI assistants to create GUI popups
 
 use crate::templates;
+use crate::transform::inject_other_options;
 use anyhow::Result;
 use mcpr::schema::json_rpc::{JSONRPCMessage, JSONRPCResponse};
 use serde::Serialize;
@@ -319,8 +320,11 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                 // Instantiate the template
                                 match templates::instantiate_template(template, &params) {
                                     Ok(popup_def) => {
+                                        // Apply "Other" option injection
+                                        let transformed_def = inject_other_options(popup_def);
+
                                         // Convert popup definition to JSON and run it
-                                        let json_str = serde_json::to_string(&popup_def)
+                                        let json_str = serde_json::to_string(&transformed_def)
                                             .unwrap_or_else(|e| {
                                                 log::error!(
                                                     "Failed to serialize popup definition: {}",

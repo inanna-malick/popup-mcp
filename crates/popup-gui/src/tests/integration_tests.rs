@@ -1,5 +1,6 @@
 use crate::json_parser::parse_popup_json;
-use popup_common::{PopupResult, PopupState};
+use crate::transform::inject_other_options;
+use popup_common::{Element, PopupResult, PopupState};
 use std::fs;
 
 #[test]
@@ -163,4 +164,80 @@ fn test_group_in_json() {
     assert!(state.values.get("volume").is_some());
     assert!(state.values.get("bass").is_some());
     assert!(state.values.get("surround").is_some());
+}
+
+#[test]
+fn test_auto_other_option() {
+    let json = r#"{
+        "title": "Test Auto-Other",
+        "elements": [
+            {"multi": "Features", "id": "features", "options": ["A", "B"]},
+            {"select": "Mode", "id": "mode", "options": ["X", "Y"]}
+        ]
+    }"#;
+
+    let popup = parse_popup_json(json)
+        .map(inject_other_options)
+        .unwrap();
+
+    // Verify Multi has "Other" option
+    match &popup.elements[0] {
+        Element::Multi {
+            options,
+            option_children,
+            ..
+        } => {
+            assert_eq!(options.len(), 3);
+            assert_eq!(options[2].value(), "Other (please specify)");
+            assert!(option_children.contains_key("Other (please specify)"));
+
+            // Verify text input was added
+            let other_children = option_children.get("Other (please specify)").unwrap();
+            assert_eq!(other_children.len(), 1);
+            match &other_children[0] {
+                Element::Input { id, .. } => {
+                    assert_eq!(id, "features_other_text");
+                }
+                _ => panic!("Expected Input element"),
+            }
+        }
+        _ => panic!("Expected Multi"),
+    }
+
+    // Verify Select has "Other" option
+    match &popup.elements[1] {
+        Element::Select {
+            options,
+            option_children,
+            ..
+        } => {
+            assert_eq!(options.len(), 3);
+            assert_eq!(options[2].value(), "Other (please specify)");
+            assert!(option_children.contains_key("Other (please specify)"));
+
+            // Verify text input was added
+            let other_children = option_children.get("Other (please specify)").unwrap();
+            assert_eq!(other_children.len(), 1);
+            match &other_children[0] {
+                Element::Input { id, .. } => {
+                    assert_eq!(id, "mode_other_text");
+                }
+                _ => panic!("Expected Input element"),
+            }
+        }
+        _ => panic!("Expected Select"),
+    }
+
+    // Verify state initialization works with "Other" option
+    let mut state = PopupState::new(&popup);
+
+    // Multi should have 3 options (including "Other")
+    assert_eq!(state.get_multichoice_mut("features").unwrap().len(), 3);
+
+    // Select should be initialized correctly
+    assert!(state.values.get("mode").is_some());
+
+    // Text inputs for "Other" should be initialized
+    assert!(state.values.get("features_other_text").is_some());
+    assert!(state.values.get("mode_other_text").is_some());
 }

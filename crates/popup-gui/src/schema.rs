@@ -12,7 +12,7 @@ use serde_json::json;
 pub fn get_popup_tool_schema() -> serde_json::Value {
     json!({
         "name": "popup",
-        "description": "Author a dialogue tree that collapses multiple conversation turns into one interaction.\n\nCORE PATTERN: Anticipate likely user responses. For each anticipated answer, encode branch-specific followup questions. Nest 3-5 levels deep.\n\nANTI-PATTERN: Don't build flat forms. If an answer would prompt a followup question, encode that followup as a nested branch NOW.\n\nBRANCHING MECHANICS:\n- option-as-key: {\"select\": \"Lang\", \"id\": \"x\", \"options\": [\"Rust\", \"Go\"], \"Rust\": [{...rust-specific followups...}]}\n- reveals: {\"check\": \"Advanced\", \"id\": \"x\", \"reveals\": [{...shown when checked...}]}\n- when: {\"slider\": \"X\", \"when\": \"advanced && selected(lang, 'Rust')\"}\n\nELEMENTS: text, slider, check, input, select (single-select), multi, group\n\nRETURNS: {\"status\": \"completed\"|\"cancelled\", \"button\": \"submit\"|\"cancel\", \"<id>\": value}\n- select/multi: selected text (\"Rust\", not index)\n- slider: integer value (7)\n- Only visible elements included\n\nNOTE: Widget type names (text, slider, check, input, select, multi, group) are reserved and cannot be used as option values in select/multi.",
+        "description": "Author a dialogue tree that collapses multiple conversation turns into one interaction.\n\nCORE PATTERN: Anticipate likely user responses. For each anticipated answer, encode branch-specific followup questions. Nest 3-5 levels deep.\n\nANTI-PATTERN: Don't build flat forms. If an answer would prompt a followup question, encode that followup as a nested branch NOW.\n\nBRANCHING MECHANICS:\n- option-as-key: {\"select\": \"Lang\", \"id\": \"x\", \"options\": [\"Rust\", \"Go\"], \"Rust\": [{...rust-specific followups...}]}\n- reveals: {\"check\": \"Advanced\", \"id\": \"x\", \"reveals\": [{...shown when checked...}]}\n- when: {\"slider\": \"X\", \"when\": \"advanced && selected(lang, 'Rust')\"}\n\nELEMENTS: text, slider, check, input, select (single-select), multi, group\n\nAUTO-INJECTED 'OTHER' OPTION:\nAll 'select' and 'multi' elements automatically receive an 'Other (please specify)' option. When selected, a text input appears for custom values. DO NOT manually add 'Other' options - they are added automatically.\n\nRETURN FORMAT:\n- select/multi: Returns selected option text (\"Rust\", not index)\n- When 'Other' is selected: Returns both \"Other (please specify)\" in the selection AND a separate \"<id>_other_text\" field with the custom text\n- Example: {\"mode\": \"Other (please specify)\", \"mode_other_text\": \"Custom mode\"}\n- slider: integer value (7)\n- Only visible elements included\n\nRETURNS: {\"status\": \"completed\"|\"cancelled\", \"button\": \"submit\"|\"cancel\", \"<id>\": value}\n\nNOTE: Widget type names (text, slider, check, input, select, multi, group) are reserved and cannot be used as option values in select/multi.",
         "inputSchema": get_input_schema()
     })
 }
@@ -149,7 +149,7 @@ pub fn get_input_schema() -> serde_json::Value {
                             "properties": {
                                 "multi": {
                                     "type": "string",
-                                    "description": "Label for the multiselect"
+                                    "description": "Label for the multiselect. NOTE: An 'Other (please specify)' option is automatically added - do not include it manually."
                                 },
                                 "id": {
                                     "type": "string",
@@ -161,7 +161,7 @@ pub fn get_input_schema() -> serde_json::Value {
                                         "type": "string"
                                     },
                                     "minItems": 1,
-                                    "description": "Array of option strings"
+                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes both the selection and a '<id>_other_text' field."
                                 },
                                 "when": {
                                     "type": "string",
@@ -187,7 +187,7 @@ pub fn get_input_schema() -> serde_json::Value {
                             "properties": {
                                 "select": {
                                     "type": "string",
-                                    "description": "Label for the dropdown"
+                                    "description": "Label for the dropdown. NOTE: An 'Other (please specify)' option is automatically added - do not include it manually."
                                 },
                                 "id": {
                                     "type": "string",
@@ -199,7 +199,7 @@ pub fn get_input_schema() -> serde_json::Value {
                                         "type": "string"
                                     },
                                     "minItems": 1,
-                                    "description": "Array of option strings"
+                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes '<id>': 'Other (please specify)' and '<id>_other_text': 'custom value'."
                                 },
                                 "default": {
                                     "type": "string",
