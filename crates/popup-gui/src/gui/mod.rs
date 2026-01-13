@@ -102,6 +102,7 @@ struct PopupApp {
     first_interactive_widget_id: Option<Id>,
     first_widget_focused: bool,
     last_size: Vec2,
+    markdown_cache: CommonMarkCache,
 }
 
 impl PopupApp {
@@ -118,6 +119,7 @@ impl PopupApp {
             first_interactive_widget_id: None,
             first_widget_focused: false,
             last_size: Vec2::ZERO, // Initialize to zero to force resize on first frame
+            markdown_cache: CommonMarkCache::default(),
         }
     }
 
@@ -197,6 +199,7 @@ impl eframe::App for PopupApp {
                             theme: &self.theme,
                             first_widget_id: &mut self.first_interactive_widget_id,
                             widget_focused: self.first_widget_focused,
+                            markdown_cache: &mut self.markdown_cache,
                         };
                         render_elements_in_grid(
                             ui,
@@ -230,7 +233,7 @@ impl eframe::App for PopupApp {
 
         // Clamp size to reasonable limits
         let new_size = Vec2::new(
-            desired_width.clamp(400.0, 700.0),
+            desired_width.clamp(400.0, 800.0),
             desired_height.clamp(200.0, 800.0),
         );
 
@@ -258,6 +261,7 @@ struct RenderContext<'a> {
     theme: &'a Theme,
     first_widget_id: &'a mut Option<Id>,
     widget_focused: bool,
+    markdown_cache: &'a mut CommonMarkCache,
 }
 
 fn render_elements_in_grid(
@@ -268,19 +272,59 @@ fn render_elements_in_grid(
     ctx: &mut RenderContext,
     path_prefix: &str,
 ) {
-    // Render all elements in order with proper vertical layout
+    // Render all elements in order
     ui.vertical(|ui| {
-        for (idx, element) in elements.iter().enumerate() {
+        let mut i = 0;
+        while i < elements.len() {
+            let element = &elements[i];
+
+            // Group consecutive simple checkboxes (those without reveals) to use horizontal space
+            if let Element::Check { reveals, .. } = element {
+                if reveals.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing.x = 24.0;
+                        ui.spacing_mut().item_spacing.y = 8.0;
+
+                        while i < elements.len() {
+                            if let Element::Check { reveals, .. } = &elements[i] {
+                                if !reveals.is_empty() {
+                                    break;
+                                }
+                                let element_path = if path_prefix.is_empty() {
+                                    i.to_string()
+                                } else {
+                                    format!("{}.{}", path_prefix, i)
+                                };
+                                render_single_element(
+                                    ui,
+                                    &elements[i],
+                                    state,
+                                    all_elements,
+                                    ctx,
+                                    &element_path,
+                                );
+                                i += 1;
+                            } else {
+                                break;
+                            }
+                        }
+                    });
+                    ui.add_space(4.0);
+                    continue;
+                }
+            }
+
             let element_path = if path_prefix.is_empty() {
-                idx.to_string()
+                i.to_string()
             } else {
-                format!("{}.{}", path_prefix, idx)
+                format!("{}.{}", path_prefix, i)
             };
 
             render_single_element(ui, element, state, all_elements, ctx, &element_path);
+            i += 1;
 
-            // Force line break after each element
-            ui.end_row();
+            // Add spacing between elements/groups
+            ui.add_space(4.0);
         }
     });
 }
@@ -332,10 +376,7 @@ fn render_single_element(
         Element::Markdown { markdown, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("markdown_{}", element_path), |ui| {
-                // Create a temporary cache for this render - caching across frames
-                // would require storing in app state, but this works for simple cases
-                let mut cache = CommonMarkCache::default();
-                CommonMarkViewer::new().show(ui, &mut cache, markdown);
+                CommonMarkViewer::new().show(ui, ctx.markdown_cache, markdown);
             });
         }
 
@@ -357,55 +398,61 @@ fn render_single_element(
             widget_frame.show(ui, |ui| {
                 // Clone selections to avoid borrow conflict when rendering conditionals
                 let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id) {
-                    ui.label(
-                        RichText::new(multi)
-                            .color(ctx.theme.matrix_green)
-                            .strong()
-                            .size(15.0),
-                    );
                     ui.horizontal(|ui| {
-                        if ui.small_button("All").clicked() {
-                            selections.iter_mut().for_each(|s| *s = true);
-                        }
-                        if ui.small_button("None").clicked() {
-                            selections.iter_mut().for_each(|s| *s = false);
-                        }
+                        let label_width = 140.0;
+                        ui.add_sized(
+                            [label_width, 24.0],
+                            egui::Label::new(
+                                RichText::new(multi)
+                                    .color(ctx.theme.matrix_green)
+                                    .strong()
+                                    .size(15.0),
+                            ),
+                        );
+
+                        ui.horizontal(|ui| {
+                            if ui.button("Select All").clicked() {
+                                selections.iter_mut().for_each(|s| *s = true);
+                            }
+                            if ui.button("Clear All").clicked() {
+                                selections.iter_mut().for_each(|s| *s = false);
+                            }
+                        });
                     });
 
-                    // Use 3-column layout for 6 items
-                    ui.columns(3, |cols| {
-                        for (i, option) in options.iter().enumerate() {
-                            let col = &mut cols[i % 3];
-                            if i < selections.len() {
-                                let checkbox_text = if selections[i] {
-                                    RichText::new(format!("☑ {}", option.value()))
-                                        .color(ctx.theme.matrix_green)
-                                        .strong()
-                                } else {
-                                    RichText::new(format!("☐ {}", option.value()))
-                                        .color(ctx.theme.text_primary)
-                                };
-                                // Show description as tooltip if present
-                                let response = col.selectable_label(false, checkbox_text);
-                                if let Some(desc) = option.description() {
-                                    response.clone().on_hover_text(desc);
+                    ui.add_space(4.0);
+
+                    // Use Grid for better alignment of multi-select options
+                    egui::Grid::new(format!("multi_grid_{}", id))
+                        .num_columns(3)
+                        .spacing([20.0, 8.0])
+                        .show(ui, |ui| {
+                            for (i, option) in options.iter().enumerate() {
+                                if i < selections.len() {
+                                    let mut value = selections[i];
+                                    let response = ui.checkbox(&mut value, option.value());
+                                    selections[i] = value;
+
+                                    if let Some(desc) = option.description() {
+                                        response.clone().on_hover_text(desc);
+                                    }
+
+                                    if ctx.first_widget_id.is_none() && !ctx.widget_focused && i == 0 {
+                                        *ctx.first_widget_id = Some(response.id);
+                                    }
                                 }
-                                if response.clicked() {
-                                    selections[i] = !selections[i];
-                                }
-                                if ctx.first_widget_id.is_none() && !ctx.widget_focused && i == 0 {
-                                    *ctx.first_widget_id = Some(response.id);
+                                if (i + 1) % 3 == 0 {
+                                    ui.end_row();
                                 }
                             }
-                        }
-                    });
+                        });
 
                     selections.clone()
                 } else {
                     vec![]
                 };
 
-                // Render inline conditionals for each checked option (after borrow is dropped)
+                // Render inline conditionals for each checked option
                 for (i, option) in options.iter().enumerate() {
                     if i < selections_snapshot.len() && selections_snapshot[i] {
                         if let Some(children) = option_children.get(option.value()) {
@@ -448,40 +495,50 @@ fn render_single_element(
             reveals,
             ..
         } => {
-            ui.label(RichText::new(select).color(ctx.theme.text_primary));
+            ui.horizontal(|ui| {
+                let label_width = 140.0;
+                ui.add_sized(
+                    [label_width, 24.0],
+                    egui::Label::new(RichText::new(select).color(ctx.theme.text_primary)),
+                );
 
-            // Clone selection state to avoid borrow conflict
-            let selected_option = state.get_choice_mut(id).and_then(|s| *s);
+                if let Some(selected) = state.get_choice_mut(id) {
+                    let selected_text = match *selected {
+                        Some(idx) => options.get(idx).map(|s| s.value()).unwrap_or("(invalid)"),
+                        None => "(none selected)",
+                    };
 
-            if let Some(selected) = state.get_choice_mut(id) {
-                let selected_text = match *selected {
-                    Some(idx) => options.get(idx).map(|s| s.value()).unwrap_or("(invalid)"),
-                    None => "(none selected)",
-                };
-
-                egui::ComboBox::from_id_salt(id)
-                    .selected_text(selected_text)
-                    .show_ui(ui, |ui| {
-                        // Option to clear selection
-                        if ui
-                            .selectable_label(selected.is_none(), "(none selected)")
-                            .clicked()
-                        {
-                            *selected = None;
-                        }
-                        // Show all options with descriptions as tooltips
-                        for (idx, option) in options.iter().enumerate() {
-                            let response =
-                                ui.selectable_label(*selected == Some(idx), option.value());
-                            if let Some(desc) = option.description() {
-                                response.clone().on_hover_text(desc);
+                    let response = egui::ComboBox::from_id_salt(id)
+                        .selected_text(selected_text)
+                        .show_ui(ui, |ui| {
+                            // Option to clear selection
+                            if ui
+                                .selectable_label(selected.is_none(), "(none selected)")
+                                .clicked()
+                            {
+                                *selected = None;
                             }
-                            if response.clicked() {
-                                *selected = Some(idx);
+                            // Show all options with descriptions as tooltips
+                            for (idx, option) in options.iter().enumerate() {
+                                let response =
+                                    ui.selectable_label(*selected == Some(idx), option.value());
+                                if let Some(desc) = option.description() {
+                                    response.clone().on_hover_text(desc);
+                                }
+                                if response.clicked() {
+                                    *selected = Some(idx);
+                                }
                             }
-                        }
-                    });
-            }
+                        });
+
+                    if ctx.first_widget_id.is_none() && !ctx.widget_focused {
+                        *ctx.first_widget_id = Some(response.response.id);
+                    }
+                }
+            });
+
+            // Re-evaluate selected_option for rendering children/reveals
+            let selected_option = state.get_choice(id).flatten();
 
             // Render inline conditional for selected option (after borrow is dropped)
             if let Some(idx) = selected_option {
@@ -507,24 +564,16 @@ fn render_single_element(
                     render_elements_in_grid(ui, reveals, state, all_elements, ctx, element_path);
                 });
             }
-
-            ui.add_space(6.0);
         }
 
         Element::Check {
             check, id, reveals, ..
         } => {
             if let Some(value) = state.get_boolean_mut(id) {
-                let checkbox_text = if *value {
-                    RichText::new(format!("☑ {}", check))
-                        .color(ctx.theme.matrix_green)
-                        .strong()
-                } else {
-                    RichText::new(format!("☐ {}", check)).color(ctx.theme.text_primary)
-                };
-                let response = ui.selectable_label(false, checkbox_text);
-                if response.clicked() {
-                    *value = !*value;
+                let response = ui.checkbox(value, check);
+
+                if ctx.first_widget_id.is_none() && !ctx.widget_focused {
+                    *ctx.first_widget_id = Some(response.id);
                 }
 
                 // Render reveals if checkbox is checked
@@ -550,45 +599,42 @@ fn render_single_element(
             max,
             ..
         } => {
-            let widget_frame = egui::Frame::group(ui.style())
-                .inner_margin(egui::Margin::same(10))
-                .stroke(egui::Stroke::new(
-                    1.0,
-                    ctx.theme.warning_orange.linear_multiply(0.3),
-                ));
-
-            widget_frame.show(ui, |ui| {
-                ui.label(
-                    RichText::new(slider)
-                        .color(ctx.theme.warning_orange)
-                        .strong()
-                        .size(15.0),
+            ui.horizontal(|ui| {
+                ui.set_min_height(24.0);
+                let label_width = 140.0;
+                let label = ui.add_sized(
+                    [label_width, 24.0],
+                    egui::Label::new(
+                        RichText::new(slider)
+                            .color(ctx.theme.warning_orange)
+                            .strong()
+                            .size(15.0),
+                    ),
                 );
+
                 if let Some(value) = state.get_number_mut(id) {
-                    ui.horizontal(|ui| {
-                        let available_width = ui.available_width();
-                        let value_label_width = 70.0; // Reserve space for "X.X/Y.Y" display
-                        let slider_width = (available_width - value_label_width).max(150.0);
+                    let available_width = ui.available_width();
+                    let value_label_width = 80.0;
+                    let slider_width = (available_width - value_label_width - 10.0).max(100.0);
 
-                        let slider = egui::Slider::new(value, *min..=*max)
-                            .show_value(false)
-                            .clamping(egui::SliderClamping::Always)
-                            .min_decimals(1)
-                            .max_decimals(1);
+                    ui.spacing_mut().slider_width = slider_width;
+                    let slider_widget = egui::Slider::new(value, *min..=*max)
+                        .show_value(false)
+                        .clamping(egui::SliderClamping::Always)
+                        .min_decimals(1)
+                        .max_decimals(1);
 
-                        ui.spacing_mut().slider_width = slider_width;
-                        let response = ui.add(slider);
+                    let response = ui.add(slider_widget);
 
-                        ui.label(
-                            RichText::new(format!("{:.1}/{:.1}", *value, *max))
-                                .color(ctx.theme.text_secondary)
-                                .text_style(egui::TextStyle::Small),
-                        );
+                    ui.label(
+                        RichText::new(format!("{:.1}/{:.1}", *value, *max))
+                            .color(ctx.theme.text_secondary)
+                            .text_style(egui::TextStyle::Small),
+                    );
 
-                        if ctx.first_widget_id.is_none() && !ctx.widget_focused {
-                            *ctx.first_widget_id = Some(response.id);
-                        }
-                    });
+                    if ctx.first_widget_id.is_none() && !ctx.widget_focused {
+                        *ctx.first_widget_id = Some(response.id);
+                    }
                 }
             });
         }
@@ -600,22 +646,20 @@ fn render_single_element(
             rows,
             ..
         } => {
-            let widget_frame = egui::Frame::group(ui.style())
-                .inner_margin(egui::Margin::same(10))
-                .stroke(egui::Stroke::new(
-                    1.0,
-                    ctx.theme.neon_purple.linear_multiply(0.3),
-                ));
-
-            widget_frame.show(ui, |ui| {
-                ui.label(
-                    RichText::new(input)
-                        .color(ctx.theme.neon_purple)
-                        .strong()
-                        .size(15.0),
+            ui.horizontal_top(|ui| {
+                let label_width = 140.0;
+                ui.add_sized(
+                    [label_width, 24.0],
+                    egui::Label::new(
+                        RichText::new(input)
+                            .color(ctx.theme.neon_purple)
+                            .strong()
+                            .size(15.0),
+                    ),
                 );
+
                 if let Some(value) = state.get_text_mut(id) {
-                    let height = rows.unwrap_or(1) as f32 * 20.0;
+                    let height = rows.unwrap_or(1) as f32 * 24.0;
                     let text_edit = egui::TextEdit::multiline(value)
                         .desired_width(ui.available_width())
                         .min_size(Vec2::new(ui.available_width(), height));
@@ -634,20 +678,22 @@ fn render_single_element(
         } => {
             // Enhanced group with better visual separation
             let group_frame = egui::Frame::group(ui.style())
-                .inner_margin(egui::Margin::same(12))
+                .inner_margin(egui::Margin::same(8))
                 .stroke(egui::Stroke::new(
                     1.5,
                     ctx.theme.electric_blue.linear_multiply(0.4),
                 ));
 
             group_frame.show(ui, |ui| {
-                ui.label(
-                    RichText::new(group)
-                        .color(ctx.theme.neon_pink)
-                        .strong()
-                        .size(16.0),
-                );
-                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(group)
+                            .color(ctx.theme.neon_pink)
+                            .strong()
+                            .size(16.0),
+                    );
+                });
+                ui.add_space(4.0);
                 render_elements_in_grid(
                     ui,
                     elements,

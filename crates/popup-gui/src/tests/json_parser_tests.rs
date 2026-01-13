@@ -11,7 +11,7 @@ fn test_simple_confirmation() {
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.title, Some("Confirm".to_string()));
+    assert_eq!(popup.title, "Confirm".to_string());
     assert_eq!(popup.elements.len(), 1);
 
     match &popup.elements[0] {
@@ -270,7 +270,7 @@ fn test_empty_elements() {
     }"#;
 
     let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.title, Some("Empty".to_string()));
+    assert_eq!(popup.title, "Empty".to_string());
     assert_eq!(popup.elements.len(), 0);
 }
 
@@ -293,10 +293,8 @@ fn test_missing_required_fields() {
         "elements": []
     }"#;
 
-    // Should succeed because title is now optional
-    let popup = parse_popup_json(json).unwrap();
-    assert_eq!(popup.title, None);
-    assert_eq!(popup.effective_title(), "Dialog");
+    // Should fail because title is mandatory
+    assert!(parse_popup_json(json).is_err());
 
     let json = r#"{
         "title": "No Elements"

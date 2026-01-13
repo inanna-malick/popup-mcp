@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[test]
 fn test_popupstate_init_slider() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Slider {
             slider: "Volume".to_string(),
             id: "vol".to_string(),
@@ -22,7 +22,7 @@ fn test_popupstate_init_slider() {
 #[test]
 fn test_popupstate_init_slider_default_midpoint() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Slider {
             slider: "Level".to_string(),
             id: "level".to_string(),
@@ -40,7 +40,7 @@ fn test_popupstate_init_slider_default_midpoint() {
 #[test]
 fn test_popupstate_init_checkbox() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Check {
             check: "Enable".to_string(),
             id: "enable".to_string(),
@@ -60,7 +60,7 @@ fn test_popupstate_init_checkbox() {
 #[test]
 fn test_popupstate_init_with_reveals() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Check {
             check: "Enable advanced".to_string(),
             id: "enable".to_string(),
@@ -101,7 +101,7 @@ fn test_popupstate_init_with_option_children() {
     );
 
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Select {
             select: "Theme".to_string(),
             id: "theme".to_string(),
@@ -127,7 +127,7 @@ fn test_popupstate_init_with_option_children() {
 #[test]
 fn test_popupstate_init_multiselect() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Multi {
             multi: "Features".to_string(),
             id: "features".to_string(),
@@ -152,7 +152,7 @@ fn test_popupstate_init_multiselect() {
 #[test]
 fn test_popupstate_init_textbox() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Input {
             input: "Name".to_string(),
             id: "name".to_string(),
@@ -172,7 +172,7 @@ fn test_popupstate_init_textbox() {
 #[test]
 fn test_popupstate_init_group() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Group {
             group: "Settings".to_string(),
             id: None,
@@ -228,7 +228,7 @@ fn test_to_value_map() {
 #[test]
 fn test_get_mut_methods() {
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![
             Element::Slider {
                 slider: "Volume".to_string(),
@@ -283,7 +283,7 @@ fn test_nested_reveals_and_option_children() {
     );
 
     let def = PopupDefinition {
-        title: None,
+        title: "Test".to_string(),
         elements: vec![Element::Check {
             check: "Show options".to_string(),
             id: "show_opts".to_string(),
@@ -339,7 +339,7 @@ fn test_find_element_in_option_children() {
     );
 
     let def = PopupDefinition {
-        title: Some("Test".to_string()),
+        title: "Test".to_string(),
         elements: vec![Element::Select {
             select: "Plan".to_string(),
             id: "plan".to_string(),
@@ -400,7 +400,7 @@ fn test_find_element_in_nested_reveals_and_option_children() {
     );
 
     let def = PopupDefinition {
-        title: Some("Test".to_string()),
+        title: "Test".to_string(),
         elements: vec![Element::Select {
             select: "Mode".to_string(),
             id: "mode".to_string(),

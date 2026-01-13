@@ -45,14 +45,14 @@ impl OptionValue {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PopupDefinition {
-    pub title: Option<String>,
+    pub title: String,
     pub elements: Vec<Element>,
 }
 
 impl PopupDefinition {
-    /// Get the effective title, falling back to a default if none provided
+    /// Get the effective title
     pub fn effective_title(&self) -> &str {
-        self.title.as_deref().unwrap_or("Dialog")
+        &self.title
     }
 }
 

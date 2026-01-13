@@ -52,14 +52,14 @@ fn test_template_instantiation() {
     params.insert("age".to_string(), json!(30));
 
     let popup = instantiate_template(&template, &params).unwrap();
-    assert_eq!(popup.title, Some("Hello Alice".to_string()));
+    assert_eq!(popup.title, "Hello Alice".to_string());
 
     // Test with default value
     let mut params = HashMap::new();
     params.insert("name".to_string(), json!("Bob"));
 
     let popup = instantiate_template(&template, &params).unwrap();
-    assert_eq!(popup.title, Some("Hello Bob".to_string()));
+    assert_eq!(popup.title, "Hello Bob".to_string());
     // Should use default age of 25
 
     // Test missing required parameter
@@ -202,7 +202,7 @@ fn test_conditional_template() {
     params.insert("items".to_string(), json!(["apple", "banana"]));
 
     let popup = instantiate_template(&template, &params).unwrap();
-    assert_eq!(popup.title, Some("Settings".to_string()));
+    assert_eq!(popup.title, "Settings".to_string());
 
     // Should have checkbox, conditional text, 2 item texts, and buttons
     // Note: Actual element count depends on Handlebars rendering
@@ -210,5 +210,5 @@ fn test_conditional_template() {
     // Test with defaults
     let params = HashMap::new();
     let popup = instantiate_template(&template, &params).unwrap();
-    assert_eq!(popup.title, Some("Settings".to_string()));
+    assert_eq!(popup.title, "Settings".to_string());
 }

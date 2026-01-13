@@ -27,7 +27,7 @@ pub fn get_input_schema() -> serde_json::Value {
         "properties": {
             "title": {
                 "type": "string",
-                "description": "Title of the popup window"
+                "description": "A semantically-meaningful short sentence-length description of the popup's purpose (e.g., 'Configure your profile settings' or 'Confirm deletion of the project')."
             },
             "elements": {
                 "type": "array",
@@ -247,7 +247,7 @@ pub fn get_input_schema() -> serde_json::Value {
                 }
             }
         },
-        "required": ["elements"],
+        "required": ["title", "elements"],
         "additionalProperties": false,
         "examples": [
             {

@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::json_parser::parse_popup_json_value;
-    use popup_common::PopupState;
+    use popup_common::{PopupDefinition, PopupState};
     use serde_json::json;
 
     #[test]
@@ -25,7 +24,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially, checkbox is false, so when clause element should not appear
@@ -82,7 +81,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Nothing enabled
@@ -146,7 +145,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
         state.button_clicked = Some("submit".to_string());
 
@@ -211,7 +210,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // No selections
@@ -277,7 +276,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially only checkbox visible
@@ -328,7 +327,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // No selections - count = 0, should trigger "< 2" condition
@@ -412,7 +411,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
         state.button_clicked = Some("submit".to_string());
 
@@ -482,7 +481,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially checkbox is unchecked, reveals should not appear
@@ -531,7 +530,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially "Simple" is selected (index 0), no children
@@ -598,7 +597,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially nothing is selected
@@ -672,7 +671,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let state = PopupState::new(&popup);
 
         // Only textbox should be active
@@ -704,7 +703,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially no selections, reveals should NOT appear
@@ -770,7 +769,7 @@ mod tests {
             ]
         });
 
-        let popup = parse_popup_json_value(json).unwrap();
+        let popup: PopupDefinition = serde_json::from_value(json).unwrap();
         let mut state = PopupState::new(&popup);
 
         // Initially no selection, reveals should NOT appear

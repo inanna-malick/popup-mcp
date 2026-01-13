@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_inject_other_multi() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Multi {
                 multi: "Features".to_string(),
                 id: "features".to_string(),
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_inject_other_select() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Select {
                 select: "Mode".to_string(),
                 id: "mode".to_string(),
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_idempotent_other_exists_lowercase() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Select {
                 select: "Mode".to_string(),
                 id: "mode".to_string(),
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn test_idempotent_other_exists_with_description() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Select {
                 select: "Mode".to_string(),
                 id: "mode".to_string(),
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_recursive_injection_in_reveals() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Check {
                 check: "Enable advanced".to_string(),
                 id: "advanced".to_string(),
@@ -294,7 +294,7 @@ mod tests {
         );
 
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Select {
                 select: "Mode".to_string(),
                 id: "mode".to_string(),
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn test_recursive_injection_in_groups() {
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Group {
                 group: "Settings".to_string(),
                 id: Some("settings".to_string()),
@@ -387,7 +387,7 @@ mod tests {
         );
 
         let def = PopupDefinition {
-            title: Some("Test".to_string()),
+            title: "Test".to_string(),
             elements: vec![Element::Group {
                 group: "Settings".to_string(),
                 id: Some("settings".to_string()),
