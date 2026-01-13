@@ -530,10 +530,19 @@ fn render_single_element(
                 );
                 if let Some(value) = state.get_number_mut(id) {
                     ui.horizontal(|ui| {
+                        let available_width = ui.available_width();
+                        let value_label_width = 70.0; // Reserve space for "X.X/Y.Y" display
+                        let slider_width = (available_width - value_label_width).max(150.0);
+
                         let slider = egui::Slider::new(value, *min..=*max)
                             .show_value(false)
-                            .clamping(egui::SliderClamping::Always);
+                            .clamping(egui::SliderClamping::Always)
+                            .min_decimals(1)
+                            .max_decimals(1);
+
+                        ui.spacing_mut().slider_width = slider_width;
                         let response = ui.add(slider);
+
                         ui.label(
                             RichText::new(format!("{:.1}/{:.1}", *value, *max))
                                 .color(ctx.theme.text_secondary)
@@ -795,9 +804,6 @@ fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
     max_width = max_width.clamp(400.0, 700.0); // Increased minimum and maximum
     height = height.min(800.0); // Allow taller windows
 
-    // GUI hack: ensure minimum height equals width for better proportions
-    height = height.max(max_width);
-
     (max_width, height)
 }
 
@@ -805,7 +811,7 @@ fn calculate_elements_size(
     elements: &[Element],
     height: &mut f32,
     max_width: &mut f32,
-    _include_conditionals: bool,
+    include_conditionals: bool,
 ) {
     // Count sliders to see if we need grid layout
     let slider_count = elements
@@ -837,16 +843,21 @@ fn calculate_elements_size(
                 *height += 50.0; // Moderately larger slider height for bigger text and spacing
                 *max_width = max_width.max(slider.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
             }
-            Element::Check { check, .. } => {
+            Element::Check { check, reveals, .. } => {
                 *height += 35.0; // Moderately larger checkbox height for bigger text
                 *max_width = max_width.max(check.len() as f32 * 12.0 + 90.0);
                 // Moderately larger character width + checkbox
+
+                // Include reveals in size calculation
+                if include_conditionals && !reveals.is_empty() {
+                    calculate_elements_size(reveals, height, max_width, include_conditionals);
+                }
             }
             Element::Input { rows, .. } => {
                 *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
                 *max_width = max_width.max(420.0); // More width for text input with moderately larger font
             }
-            Element::Multi { options, .. } => {
+            Element::Multi { options, reveals, option_children, .. } => {
                 *height += 35.0; // Moderately larger label with proper spacing
                 *height += 40.0; // Moderately larger All/None buttons with spacing
                 if options.len() > 4 {
@@ -863,9 +874,19 @@ fn calculate_elements_size(
                     *max_width = max_width.max((longest as f32) * 12.0 + 130.0);
                     // Moderately larger character width + more space
                 }
+
+                // Include reveals and option_children in size calculation
+                if include_conditionals {
+                    if !reveals.is_empty() {
+                        calculate_elements_size(reveals, height, max_width, include_conditionals);
+                    }
+                    for children in option_children.values() {
+                        calculate_elements_size(children, height, max_width, include_conditionals);
+                    }
+                }
             }
             Element::Select {
-                select, options, ..
+                select, options, reveals, option_children, ..
             } => {
                 *height += 35.0; // Label height
                 *height += 35.0; // ComboBox height
@@ -876,10 +897,20 @@ fn calculate_elements_size(
                     .unwrap_or(0)
                     .max(select.len());
                 *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
+
+                // Include reveals and option_children in size calculation
+                if include_conditionals {
+                    if !reveals.is_empty() {
+                        calculate_elements_size(reveals, height, max_width, include_conditionals);
+                    }
+                    for children in option_children.values() {
+                        calculate_elements_size(children, height, max_width, include_conditionals);
+                    }
+                }
             }
             Element::Group { elements, .. } => {
                 *height += 40.0; // Moderately larger group header height for bigger text
-                calculate_elements_size(elements, height, max_width, _include_conditionals);
+                calculate_elements_size(elements, height, max_width, include_conditionals);
                 *height += 15.0; // Proper group padding
             }
         }
