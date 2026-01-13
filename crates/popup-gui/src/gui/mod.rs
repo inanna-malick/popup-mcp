@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{CentralPanel, Context, Id, Key, RichText, ScrollArea, TopBottomPanel, Vec2};
+use egui::{CentralPanel, Context, Id, Key, Rect, RichText, ScrollArea, TopBottomPanel, Vec2};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
@@ -57,17 +57,16 @@ fn setup_custom_fonts(ctx: &Context) {
 pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     use std::sync::{Arc, Mutex};
 
-    // Calculate initial window size
-    let (width, height) = calculate_window_size(&definition);
-
     let result = Arc::new(Mutex::new(None));
     let result_clone = result.clone();
 
     let title = definition.effective_title().to_string();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([width, height])
-            .with_resizable(false)
+            // Start with a default size, it will be resized on the first frame
+            .with_inner_size([400.0, 200.0])
+            // Allow the window to be resized by the user
+            .with_resizable(true)
             .with_position(egui::Pos2::new(100.0, 100.0)), // Will center manually if needed
         ..Default::default()
     };
@@ -102,6 +101,7 @@ struct PopupApp {
     result: Arc<Mutex<Option<PopupResult>>>,
     first_interactive_widget_id: Option<Id>,
     first_widget_focused: bool,
+    last_size: Vec2,
 }
 
 impl PopupApp {
@@ -117,6 +117,7 @@ impl PopupApp {
             result,
             first_interactive_widget_id: None,
             first_widget_focused: false,
+            last_size: Vec2::ZERO, // Initialize to zero to force resize on first frame
         }
     }
 
@@ -156,13 +157,14 @@ impl eframe::App for PopupApp {
             return;
         }
 
-        // Bottom panel for Submit button
-        TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
+        // --- Phase 1: Render UI and Measure Size ---
+
+        // Render the bottom panel and get its height
+        let bottom_panel_response = TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(8.0);
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                // Prominent submit button with larger size and visual emphasis
                 let button_text = RichText::new("SUBMIT")
                     .size(18.0)
                     .strong()
@@ -173,13 +175,13 @@ impl eframe::App for PopupApp {
 
                 if ui.add(button).clicked() {
                     self.state.button_clicked = Some("submit".to_string());
-                    self.send_result_and_close(ctx);
                 }
             });
             ui.add_space(8.0);
         });
+        let bottom_panel_height = bottom_panel_response.response.rect.height();
 
-        // Main content in central panel
+        // Render the main content and measure its size
         CentralPanel::default().show(ctx, |ui| {
             // Improved spacing for better readability
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
@@ -189,22 +191,56 @@ impl eframe::App for PopupApp {
             ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    // Try grid layout for the entire form
-                    let mut ctx = RenderContext {
-                        theme: &self.theme,
-                        first_widget_id: &mut self.first_interactive_widget_id,
-                        widget_focused: self.first_widget_focused,
-                    };
-                    render_elements_in_grid(
-                        ui,
-                        &self.definition.elements,
-                        &mut self.state,
-                        &self.definition.elements,
-                        &mut ctx,
-                        "",
-                    );
+                    // Use a scope to measure the content rect
+                    let content_response = ui.scope(|ui| {
+                        let mut render_ctx = RenderContext {
+                            theme: &self.theme,
+                            first_widget_id: &mut self.first_interactive_widget_id,
+                            widget_focused: self.first_widget_focused,
+                        };
+                        render_elements_in_grid(
+                            ui,
+                            &self.definition.elements,
+                            &mut self.state,
+                            &self.definition.elements,
+                            &mut render_ctx,
+                            "",
+                        );
+                    });
+                    // Store the measured rect in temporary memory to access it after the panel is drawn
+                    ctx.memory_mut(|mem| {
+                        mem.data
+                            .insert_temp("content_rect".into(), content_response.response.rect)
+                    });
                 });
         });
+
+        // --- Phase 2: Calculate Desired Size and Resize ---
+
+        // Retrieve the content rect from memory
+        let content_rect = ctx
+            .memory(|mem| mem.data.get_temp::<Rect>("content_rect".into()))
+            .unwrap_or(Rect::ZERO);
+
+        let desired_width = content_rect.width() + ctx.style().spacing.window_margin.sum().x;
+        let desired_height = content_rect.height()
+            + bottom_panel_height
+            + ctx.style().spacing.window_margin.sum().y
+            + 5.0; // Add a small buffer to prevent scrollbar appearing unnecessarily
+
+        // Clamp size to reasonable limits
+        let new_size = Vec2::new(
+            desired_width.clamp(400.0, 700.0),
+            desired_height.clamp(200.0, 800.0),
+        );
+
+        // Resize the window if the desired size has changed
+        if (new_size - self.last_size).length_sq() > 0.01 {
+            self.last_size = new_size;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(new_size));
+        }
+
+        // --- Phase 3: Handle Focus ---
 
         // Request focus on first interactive widget if not already focused
         if !self.first_widget_focused {
@@ -786,134 +822,4 @@ fn collect_active_elements(
     active_ids
 }
 
-fn calculate_window_size(definition: &PopupDefinition) -> (f32, f32) {
-    let mut height: f32 = 60.0; // Title bar with proper padding
-    let mut max_width: f32 = 400.0; // More reasonable default width
 
-    calculate_elements_size(&definition.elements, &mut height, &mut max_width, true);
-
-    // Add space for the Submit button panel (separator + button + padding)
-    height += 70.0; // TopBottomPanel with Submit button and spacing
-
-    // Add base padding for window chrome and margins
-    height += 20.0; // Additional margin
-    max_width += 40.0; // Side margins
-
-    // Reasonable bounds for complex UIs
-    // Allow wider windows for slider grids (need ~420px for 2 columns)
-    max_width = max_width.clamp(400.0, 700.0); // Increased minimum and maximum
-    height = height.min(800.0); // Allow taller windows
-
-    (max_width, height)
-}
-
-fn calculate_elements_size(
-    elements: &[Element],
-    height: &mut f32,
-    max_width: &mut f32,
-    include_conditionals: bool,
-) {
-    // Count sliders to see if we need grid layout
-    let slider_count = elements
-        .iter()
-        .filter(|e| matches!(e, Element::Slider { .. }))
-        .count();
-    let uses_slider_grid = slider_count > 1;
-
-    for element in elements {
-        match element {
-            Element::Text { text, .. } => {
-                *height += 40.0; // Moderately larger text requires more height
-                *max_width = max_width.max(text.len() as f32 * 12.0 + 40.0); // Moderately larger character width
-            }
-            Element::Markdown { markdown, .. } => {
-                // Estimate height based on line count (rough approximation)
-                let line_count = markdown.lines().count().max(1);
-                *height += 25.0 * line_count as f32;
-                // Estimate width based on longest line
-                let longest_line = markdown.lines().map(|l| l.len()).max().unwrap_or(20);
-                *max_width = max_width.max(longest_line as f32 * 10.0 + 40.0);
-            }
-            Element::Slider { slider, .. } => {
-                if uses_slider_grid {
-                    // For grid layout: need width for 2 columns + spacing with larger text
-                    // Each column needs: label + slider + value display
-                    *max_width = max_width.max(550.0); // More space for grid layout with moderately larger text
-                }
-                *height += 50.0; // Moderately larger slider height for bigger text and spacing
-                *max_width = max_width.max(slider.len() as f32 * 12.0 + 220.0); // Moderately larger character width + slider
-            }
-            Element::Check { check, reveals, .. } => {
-                *height += 35.0; // Moderately larger checkbox height for bigger text
-                *max_width = max_width.max(check.len() as f32 * 12.0 + 90.0);
-                // Moderately larger character width + checkbox
-
-                // Include reveals in size calculation
-                if include_conditionals && !reveals.is_empty() {
-                    calculate_elements_size(reveals, height, max_width, include_conditionals);
-                }
-            }
-            Element::Input { rows, .. } => {
-                *height += 35.0 + 30.0 * (*rows).unwrap_or(1) as f32; // Moderately larger textbox height per row
-                *max_width = max_width.max(420.0); // More width for text input with moderately larger font
-            }
-            Element::Multi { options, reveals, option_children, .. } => {
-                *height += 35.0; // Moderately larger label with proper spacing
-                *height += 40.0; // Moderately larger All/None buttons with spacing
-                if options.len() > 4 {
-                    let rows_per_column = options.len().div_ceil(2);
-                    *height += 30.0 * rows_per_column as f32; // Moderately larger checkbox height
-                    *max_width = max_width.max(500.0); // More width for columns with moderately larger text
-                } else {
-                    *height += 30.0 * options.len() as f32; // Moderately larger checkbox height
-                    let longest = options
-                        .iter()
-                        .map(|opt| opt.value().len())
-                        .max()
-                        .unwrap_or(0);
-                    *max_width = max_width.max((longest as f32) * 12.0 + 130.0);
-                    // Moderately larger character width + more space
-                }
-
-                // Include reveals and option_children in size calculation
-                if include_conditionals {
-                    if !reveals.is_empty() {
-                        calculate_elements_size(reveals, height, max_width, include_conditionals);
-                    }
-                    for children in option_children.values() {
-                        calculate_elements_size(children, height, max_width, include_conditionals);
-                    }
-                }
-            }
-            Element::Select {
-                select, options, reveals, option_children, ..
-            } => {
-                *height += 35.0; // Label height
-                *height += 35.0; // ComboBox height
-                let longest = options
-                    .iter()
-                    .map(|opt| opt.value().len())
-                    .max()
-                    .unwrap_or(0)
-                    .max(select.len());
-                *max_width = max_width.max((longest as f32) * 12.0 + 100.0); // Character width + dropdown indicator
-
-                // Include reveals and option_children in size calculation
-                if include_conditionals {
-                    if !reveals.is_empty() {
-                        calculate_elements_size(reveals, height, max_width, include_conditionals);
-                    }
-                    for children in option_children.values() {
-                        calculate_elements_size(children, height, max_width, include_conditionals);
-                    }
-                }
-            }
-            Element::Group { elements, .. } => {
-                *height += 40.0; // Moderately larger group header height for bigger text
-                calculate_elements_size(elements, height, max_width, include_conditionals);
-                *height += 15.0; // Proper group padding
-            }
-        }
-        *height += 5.0; // Proper item spacing
-    }
-}
