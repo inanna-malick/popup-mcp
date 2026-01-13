@@ -272,61 +272,142 @@ fn render_elements_in_grid(
     ctx: &mut RenderContext,
     path_prefix: &str,
 ) {
-    // Render all elements in order
-    ui.vertical(|ui| {
-        let mut i = 0;
-        while i < elements.len() {
-            let element = &elements[i];
+    let state_values = state.to_value_map(all_elements);
 
-            // Group consecutive simple checkboxes (those without reveals) to use horizontal space
-            if let Element::Check { reveals, .. } = element {
-                if reveals.is_empty() {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.spacing_mut().item_spacing.x = 24.0;
-                        ui.spacing_mut().item_spacing.y = 8.0;
+    // 1. Identify visible elements and their original indices
+    let mut visible_indices = Vec::new();
+    for (idx, element) in elements.iter().enumerate() {
+        let when_clause = match element {
+            Element::Text { when, .. } => when,
+            Element::Markdown { when, .. } => when,
+            Element::Slider { when, .. } => when,
+            Element::Check { when, .. } => when,
+            Element::Input { when, .. } => when,
+            Element::Multi { when, .. } => when,
+            Element::Select { when, .. } => when,
+            Element::Group { when, .. } => when,
+        };
 
-                        while i < elements.len() {
-                            if let Element::Check { reveals, .. } = &elements[i] {
-                                if !reveals.is_empty() {
-                                    break;
-                                }
-                                let element_path = if path_prefix.is_empty() {
-                                    i.to_string()
-                                } else {
-                                    format!("{}.{}", path_prefix, i)
-                                };
-                                render_single_element(
-                                    ui,
-                                    &elements[i],
-                                    state,
-                                    all_elements,
-                                    ctx,
-                                    &element_path,
-                                );
-                                i += 1;
-                            } else {
-                                break;
-                            }
-                        }
-                    });
-                    ui.add_space(4.0);
-                    continue;
-                }
+        let is_visible = if let Some(when_expr) = when_clause {
+            match parse_condition(when_expr) {
+                Ok(ast) => evaluate_condition(&ast, &state_values),
+                Err(_) => true, // fail-open
             }
+        } else {
+            true
+        };
 
-            let element_path = if path_prefix.is_empty() {
-                i.to_string()
-            } else {
-                format!("{}.{}", path_prefix, i)
-            };
-
-            render_single_element(ui, element, state, all_elements, ctx, &element_path);
-            i += 1;
-
-            // Add spacing between elements/groups
-            ui.add_space(4.0);
+        if is_visible {
+            visible_indices.push(idx);
         }
-    });
+    }
+
+    if visible_indices.is_empty() {
+        return;
+    }
+
+    // 2. Group consecutive simple checkboxes among visible elements
+    let mut items = Vec::new();
+    let mut i = 0;
+    while i < visible_indices.len() {
+        let idx = visible_indices[i];
+        if let Element::Check { reveals, .. } = &elements[idx] {
+            if reveals.is_empty() {
+                let mut group = vec![idx];
+                let mut next_i = i + 1;
+                while next_i < visible_indices.len() {
+                    let next_idx = visible_indices[next_i];
+                    if let Element::Check { reveals, .. } = &elements[next_idx] {
+                        if reveals.is_empty() {
+                            group.push(next_idx);
+                            next_i += 1;
+                            continue;
+                        }
+                    }
+                    break;
+                }
+                items.push(group);
+                i = next_i;
+                continue;
+            }
+        }
+        items.push(vec![idx]);
+        i += 1;
+    }
+
+    // 3. Render using columns if we have multiple items and enough space
+    let available_width = ui.available_width();
+    let use_columns = items.len() > 1 && available_width > 500.0;
+
+    if use_columns {
+        ui.columns(2, |cols| {
+            for (item_idx, item_indices) in items.into_iter().enumerate() {
+                let col_ui = &mut cols[item_idx % 2];
+                render_item_group(
+                    col_ui,
+                    item_indices,
+                    elements,
+                    state,
+                    all_elements,
+                    ctx,
+                    path_prefix,
+                );
+                col_ui.add_space(4.0);
+            }
+        });
+    } else {
+        ui.vertical(|ui| {
+            for item_indices in items {
+                render_item_group(
+                    ui,
+                    item_indices,
+                    elements,
+                    state,
+                    all_elements,
+                    ctx,
+                    path_prefix,
+                );
+                ui.add_space(4.0);
+            }
+        });
+    }
+}
+
+fn render_item_group(
+    ui: &mut egui::Ui,
+    item_indices: Vec<usize>,
+    elements: &[Element],
+    state: &mut PopupState,
+    all_elements: &[Element],
+    ctx: &mut RenderContext,
+    path_prefix: &str,
+) {
+    let first_idx = item_indices[0];
+    let is_simple_checkbox = matches!(&elements[first_idx], Element::Check { reveals, .. } if reveals.is_empty());
+
+    if is_simple_checkbox {
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 24.0;
+            ui.spacing_mut().item_spacing.y = 8.0;
+            for idx in item_indices {
+                let element_path = if path_prefix.is_empty() {
+                    idx.to_string()
+                } else {
+                    format!("{}.{}", path_prefix, idx)
+                };
+                render_single_element(ui, &elements[idx], state, all_elements, ctx, &element_path);
+            }
+        });
+    } else {
+        for idx in item_indices {
+            let element_path = if path_prefix.is_empty() {
+                idx.to_string()
+            } else {
+                format!("{}.{}", path_prefix, idx)
+            };
+            render_single_element(ui, &elements[idx], state, all_elements, ctx, &element_path);
+        }
+    }
 }
 
 fn render_single_element(
