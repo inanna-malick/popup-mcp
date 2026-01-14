@@ -14,6 +14,8 @@ pub struct Theme {
     pub dark_gray: Color32,
     pub text_primary: Color32,
     pub text_secondary: Color32,
+    pub base2: Color32,
+    pub base3: Color32,
 }
 
 impl Default for Theme {
@@ -39,6 +41,8 @@ impl Theme {
             dark_gray: Color32::from_rgb(25, 25, 30),
             text_primary: Color32::from_rgb(230, 230, 235),
             text_secondary: Color32::from_rgb(160, 160, 170),
+            base2: Color32::WHITE,
+            base3: Color32::WHITE,
         }
     }
 
@@ -55,6 +59,8 @@ impl Theme {
             dark_gray: Color32::from_rgb(249, 250, 251), // Very light gray
             text_primary: Color32::from_rgb(17, 24, 39), // Near-black text
             text_secondary: Color32::from_rgb(75, 85, 99), // Dark gray text
+            base2: Color32::BLACK,
+            base3: Color32::BLACK,
         }
     }
 
@@ -71,6 +77,8 @@ impl Theme {
             dark_gray: Color32::from_rgb(7, 54, 66),    // base02 (background highlights)
             text_primary: Color32::from_rgb(147, 161, 161), // base1 (primary content)
             text_secondary: Color32::from_rgb(101, 123, 131), // base0 (secondary content)
+            base2: Color32::from_rgb(238, 232, 213),    // base2
+            base3: Color32::from_rgb(253, 246, 227),    // base3 (brightest content)
         }
     }
 
@@ -87,6 +95,8 @@ impl Theme {
             dark_gray: Color32::from_rgb(238, 232, 213), // base2 (background highlights)
             text_primary: Color32::from_rgb(88, 110, 117), // base01 (primary content)
             text_secondary: Color32::from_rgb(131, 148, 150), // base00 (secondary content)
+            base2: Color32::from_rgb(7, 54, 66),        // base02
+            base3: Color32::from_rgb(0, 43, 54),        // base03 (darkest content)
         }
     }
 
@@ -94,15 +104,16 @@ impl Theme {
         let mut style = (*ctx.style()).clone();
         let mut visuals = style.visuals.clone();
 
-        // Subtle window border (adapts to theme)
+        // Standard Solarized border (no opacity hacks)
         let is_light_theme = self.deep_black.r() > 128;
-        let border_width = if is_light_theme { 1.0 } else { 2.0 };
-        visuals.window_stroke = Stroke::new(border_width, self.electric_blue.linear_multiply(0.3));
-        visuals.window_shadow.color = Color32::from_black_alpha(20);
+        let border_width = if is_light_theme { 1.0 } else { 1.0 };
+        visuals.window_stroke = Stroke::new(border_width, self.text_secondary); // base0/base00
+        visuals.window_shadow.color = Color32::from_black_alpha(25);
 
-        // Compact spacing for efficiency
-        style.spacing.button_padding = egui::vec2(8.0, 4.0);
-        style.spacing.item_spacing = egui::vec2(6.0, 4.0);
+        // Increased padding and spacing
+        style.spacing.button_padding = egui::vec2(12.0, 6.0);
+        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
+        style.spacing.window_margin = egui::Margin::same(10);
 
         // Background and text colors
         visuals.override_text_color = Some(self.text_primary);
@@ -110,11 +121,11 @@ impl Theme {
         visuals.panel_fill = self.deep_black;
         visuals.faint_bg_color = self.dark_gray;
 
-        // High contrast widget states for visibility
+        // Use base01/base02 for all structural lines
         let border_color = if is_light_theme {
-            Color32::from_gray(180) // Gray borders on light background
+            Color32::from_rgb(147, 161, 161) // base1
         } else {
-            Color32::from_gray(100) // Lighter borders on dark background
+            Color32::from_rgb(88, 110, 117) // base01
         };
 
         visuals.widgets.noninteractive.bg_fill = self.dark_gray;
@@ -123,26 +134,26 @@ impl Theme {
         visuals.widgets.inactive.bg_fill = self.dark_gray;
         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, border_color);
 
-        visuals.widgets.hovered.bg_fill = self.electric_blue.linear_multiply(0.1);
-        visuals.widgets.hovered.bg_stroke = Stroke::new(1.5, self.electric_blue);
-        visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, self.text_primary);
+        visuals.widgets.hovered.bg_fill = self.dark_gray;
+        visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, self.electric_blue);
+        visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, self.base3);
 
-        visuals.widgets.active.bg_fill = self.neon_cyan; // Cyan background for selection
-        visuals.widgets.active.bg_stroke = Stroke::new(2.0, Color32::BLACK); // Black outline
+        visuals.widgets.active.bg_fill = self.dark_gray;
+        visuals.widgets.active.bg_stroke = Stroke::new(1.0, self.neon_cyan);
+        visuals.widgets.active.fg_stroke = Stroke::new(1.0, self.base3);
 
-        // Button styling for visibility
-        visuals.widgets.inactive.weak_bg_fill = if is_light_theme {
-            Color32::from_gray(240)
-        } else {
-            self.electric_blue.linear_multiply(0.2)
-        };
-        visuals.widgets.hovered.weak_bg_fill = self.electric_blue.linear_multiply(0.1);
-        visuals.widgets.active.weak_bg_fill = self.electric_blue.linear_multiply(0.2);
+        // Button styling - solid colors
+        visuals.widgets.inactive.weak_bg_fill = self.dark_gray;
+        visuals.widgets.hovered.weak_bg_fill = if is_light_theme { self.base2 } else { self.text_secondary };
+        visuals.widgets.active.weak_bg_fill = self.electric_blue;
 
-        // Selection and links with high contrast
-        visuals.selection.bg_fill = self.electric_blue.linear_multiply(0.2);
-        visuals.hyperlink_color = self.electric_blue;
-        visuals.extreme_bg_color = self.deep_black;
+        // "Sunken" widgets (inputs, combo boxes)
+        visuals.extreme_bg_color = self.dark_gray;
+
+        // Selection and links
+        visuals.selection.bg_fill = self.electric_blue;
+        visuals.selection.stroke = Stroke::new(1.0, self.base3);
+        visuals.hyperlink_color = self.neon_cyan;
 
         style.visuals = visuals;
         ctx.set_style(style);

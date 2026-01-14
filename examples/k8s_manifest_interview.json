@@ -1,0 +1,111 @@
+{
+  "title": "K8s manifest for trace-ingest service",
+  "elements": [
+    {
+      "text": "Based on our discussion: stateless HTTP service, needs horizontal scaling, talks to your existing Redis cluster."
+    },
+    {
+      "check": "Needs autoscaling (variable load)",
+      "id": "autoscale",
+      "default": true,
+      "reveals": [
+        {
+          "select": "What drives load spikes?",
+          "id": "load_driver",
+          "options": ["Request rate (bursty traffic)", "Processing time (heavy computation)", "Memory pressure (large payloads)"],
+          "Request rate (bursty traffic)": [
+            {"slider": "Peak:baseline ratio", "id": "peak_ratio", "min": 2, "max": 20, "default": 5},
+            {
+              "check": "Spikes are instant (need buffer)",
+              "id": "instant_spike",
+              "reveals": [
+                {"slider": "Warm replica buffer", "id": "buffer", "min": 1, "max": 5, "default": 2}
+              ]
+            }
+          ],
+          "Processing time (heavy computation)": [
+            {
+              "check": "Requests can queue (latency flexible)",
+              "id": "queue_ok",
+              "reveals": [
+                {"check": "Use KEDA with queue depth metric", "id": "keda"}
+              ]
+            },
+            {
+              "slider": "Target CPU% before scaling",
+              "id": "cpu_target",
+              "min": 30,
+              "max": 80,
+              "default": 50,
+              "when": "!queue_ok"
+            }
+          ],
+          "Memory pressure (large payloads)": [
+            {
+              "check": "Memory grows until pod restart",
+              "id": "cumulative_mem",
+              "reveals": [
+                {"slider": "Restart at % of limit", "id": "restart_threshold", "min": 70, "max": 95, "default": 85}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slider": "Fixed replica count",
+      "id": "replicas",
+      "min": 1,
+      "max": 10,
+      "default": 3,
+      "when": "!autoscale"
+    },
+    {
+      "check": "Has downstream connection limits",
+      "id": "conn_limits",
+      "when": "!autoscale",
+      "reveals": [
+        {"input": "Max connections per pod", "id": "max_conn", "placeholder": "e.g., 10"},
+        {
+          "check": "Add PodDisruptionBudget",
+          "id": "pdb",
+          "reveals": [
+            {"slider": "Min available during disruption", "id": "pdb_min", "min": 1, "max": 5, "default": 2}
+          ]
+        }
+      ]
+    },
+    {
+      "select": "Redis integration",
+      "id": "redis",
+      "options": ["Existing cluster (mount creds)", "New sidecar (redis-proxy)", "Skip for now"],
+      "Existing cluster (mount creds)": [
+        {
+          "select": "Auth method",
+          "id": "redis_auth",
+          "options": ["Secret with password", "IAM (ElastiCache)", "mTLS (Istio)"],
+          "mTLS (Istio)": [
+            {"check": "Redis already in mesh", "id": "redis_in_mesh"}
+          ]
+        }
+      ]
+    },
+    {
+      "check": "Enable observability",
+      "id": "observability",
+      "default": true,
+      "reveals": [
+        {
+          "check": "Prometheus metrics",
+          "id": "prometheus",
+          "default": true,
+          "reveals": [
+            {"input": "Metrics port", "id": "metrics_port", "placeholder": "9090"}
+          ]
+        },
+        {"check": "Structured JSON logs", "id": "json_logs", "default": true},
+        {"check": "Trace context propagation", "id": "tracing"}
+      ]
+    }
+  ]
+}

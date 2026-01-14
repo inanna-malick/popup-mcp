@@ -1,0 +1,357 @@
+{
+  "title": "The Crucible: what stirs in Kart-Hadasht Nova?",
+  "elements": [
+    {
+      "text": "We've established: the Descensus was ~40 years ago. The Silva Machinarum spreads from the Lacus Vitri impact crater. Both powers maintain embassies in the neutral city. Named machinae: Machina Thalassica (submerged, off Sikelia), the Oraculum at Panormos, Dormiens Uticae (the Sleeper beneath Utica)."
+    },
+    {
+      "slider": "Current tension level",
+      "id": "tension",
+      "min": 1,
+      "max": 10,
+      "default": 6
+    },
+    {
+      "select": "Whose perspective are we centering?",
+      "id": "pov",
+      "options": [
+        "Roman (Castra Vigilantia garrison)",
+        "Carthaginian (Bet Melqart priesthood)",
+        "Local (the Suffetes of Kart-Hadasht Nova)",
+        "Unaligned (contacti, Collegium Fabricatorum)"
+      ],
+      "Roman (Castra Vigilantia garrison)": [
+        {
+          "select": "Roman priority right now",
+          "id": "roman_priority",
+          "options": ["Military advantage (weapons research at Praesidium Lilybaeum)", "Containment (limit Punic access to the Oraculum)", "Understanding (the Oraculum speaks to them)"]
+        }
+      ],
+      "Carthaginian (Bet Melqart priesthood)": [
+        {
+          "select": "Priesthood's interpretation",
+          "id": "priesthood_view",
+          "options": ["Melqart sent them (divine gift)", "Baal-Hammon's trial (prove worthiness)", "Children of Tanit (the machinae live)"]
+        }
+      ],
+      "Unaligned (contacti, Collegium Fabricatorum)": [
+        {
+          "check": "Actively playing both empires against each other",
+          "id": "playing_both",
+          "default": true
+        }
+      ]
+    },
+    {
+      "multi": "Which locations are active?",
+      "id": "locations",
+      "options": [
+        "Fretum Vitreum (the Vitrified Straits)",
+        "Insula Tacita (quarantined island)",
+        "Tophet Novum (Punic ritual precinct)",
+        "Forum Synthesos (the integration market)"
+      ],
+      "Insula Tacita (quarantined island)": [
+        {
+          "select": "Why is it quarantined?",
+          "id": "quarantine_reason",
+          "options": ["Time moves differently there", "Anyone who lands stops sending messages", "Something is gestating"]
+        }
+      ],
+      "Tophet Novum (Punic ritual precinct)": [
+        {
+          "check": "The old rites are being performed again",
+          "id": "old_rites",
+          "reveals": [
+            {
+              "check": "The machinae respond to sacrifice",
+              "id": "machinae_respond_sacrifice"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "select": "What's the immediate situation?",
+      "id": "situation",
+      "options": [
+        "A machina stirred",
+        "A faction is making moves",
+        "Religious ferment"
+      ],
+      "A machina stirred": [
+        {
+          "select": "Which machina?",
+          "id": "which_machina",
+          "options": [
+            "Machina Thalassica (rose from the depths near Sikelia)",
+            "The Oraculum at Panormos (spoke after decades of silence)",
+            "Dormiens Uticae (the ground is shaking)",
+            "A new one (previously unknown)"
+          ],
+          "Machina Thalassica (rose from the depths near Sikelia)": [
+            {
+              "select": "What's it doing on the surface?",
+              "id": "thalassica_action",
+              "options": ["Building (a structure emerges from the waves)", "Calling (ships are drawn to it)", "Birthing (smaller machinae detach and swim)"],
+              "Building (a structure emerges from the waves)": [
+                {
+                  "check": "It resembles a harbor",
+                  "id": "resembles_port",
+                  "reveals": [
+                    {"check": "Ships can dock there", "id": "ships_dock"},
+                    {
+                      "select": "What happens to crews who dock?",
+                      "id": "dock_effect",
+                      "options": ["Nothing obvious (yet)", "Dreams of distant places", "They return changed"]
+                    }
+                  ]
+                }
+              ],
+              "Birthing (smaller machinae detach and swim)": [
+                {
+                  "slider": "How many so far?",
+                  "id": "spawn_count",
+                  "min": 3,
+                  "max": 20,
+                  "default": 7
+                },
+                {
+                  "select": "Where are they going?",
+                  "id": "spawn_destination",
+                  "options": ["Coastal cities (embedding in harbors)", "Lacus Vitri (returning home?)", "Scattered (no pattern)"]
+                }
+              ]
+            }
+          ],
+          "The Oraculum at Panormos (spoke after decades of silence)": [
+            {
+              "select": "What did it say?",
+              "id": "oraculum_message",
+              "options": ["A warning (something approaches)", "A demand (it wants something)", "A name (it addressed someone specific)", "Coordinates (pointing somewhere)"],
+              "A name (it addressed someone specific)": [
+                {
+                  "select": "Who?",
+                  "id": "named_who",
+                  "options": ["A Roman praefectus at Castra Vigilantia", "A Carthaginian high priestess of Tanit", "Someone unknown (a child? a slave?)", "Someone dead (40 years now)"],
+                  "Someone dead (40 years now)": [
+                    {"check": "They died in the Descensus", "id": "descensus_death"},
+                    {
+                      "check": "The machina seems to think they live",
+                      "id": "thinks_alive",
+                      "reveals": [
+                        {
+                          "select": "What does it want from them?",
+                          "id": "wants_from_dead",
+                          "options": ["Return of something they took", "Completion of something they started", "Permission"]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "Coordinates (pointing somewhere)": [
+                {
+                  "select": "The location is...",
+                  "id": "coords_location",
+                  "options": ["Deep in Silva Machinarum (no one's gone that far)", "Insula Tacita (the quarantined island)", "Beneath Kart-Hadasht Nova itself", "Somewhere unmapped (deep ocean? underground?)"]
+                }
+              ]
+            }
+          ],
+          "Dormiens Uticae (the ground is shaking)": [
+            {
+              "check": "Utica is a major Punic city",
+              "id": "utica_punic",
+              "default": true
+            },
+            {
+              "select": "The tremors are...",
+              "id": "tremor_pattern",
+              "options": ["Rhythmic (like breathing)", "Escalating (it wakes)", "Responsive (reacts to surface events)"],
+              "Responsive (reacts to surface events)": [
+                {
+                  "select": "It responds to...",
+                  "id": "responds_to",
+                  "options": ["Temple rituals (Bet Melqart ceremonies)", "Violence (fights, executions)", "Specific people walking above"],
+                  "Specific people walking above": [
+                    {"check": "The contacti feel it too", "id": "contacti_feel"},
+                    {"check": "Someone is trying to speak back", "id": "speaking_back"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "A faction is making moves": [
+        {
+          "select": "Which faction?",
+          "id": "faction",
+          "options": [
+            "Collegium Fabricatorum (the makers' guild)",
+            "Intacti (the purist movement)",
+            "The Suffetes of Kart-Hadasht Nova",
+            "Taciti (rogue contacti)"
+          ],
+          "Collegium Fabricatorum (the makers' guild)": [
+            {
+              "select": "Their breakthrough",
+              "id": "collegium_breakthrough",
+              "options": ["Reproducible integration (mass production)", "Two-way speech (a machina answered)", "Coniunctio (human-machina synthesis)"],
+              "Coniunctio (human-machina synthesis)": [
+                {"check": "Subjects are voluntary", "id": "voluntary"},
+                {
+                  "check": "The coniuncti have capabilities",
+                  "id": "coniuncti_powers",
+                  "reveals": [
+                    {
+                      "select": "They can...",
+                      "id": "powers_type",
+                      "options": ["Interface with machinae directly", "Perceive the machinae's 'layer'", "Reshape matter slowly"]
+                    }
+                  ]
+                },
+                {
+                  "check": "Both empires want them",
+                  "id": "empires_want",
+                  "reveals": [
+                    {"check": "The Collegium is holding an auction", "id": "auction"}
+                  ]
+                }
+              ]
+            }
+          ],
+          "Intacti (the purist movement)": [
+            {
+              "select": "Their action",
+              "id": "intacti_action",
+              "options": ["Assassination (targeting key fabricatores)", "Sabotage (Forum Synthesos bombing)", "Exodus (founding a colony on Sardinia)"],
+              "Sabotage (Forum Synthesos bombing)": [
+                {
+                  "check": "The machinae in the forum noticed",
+                  "id": "machinae_noticed",
+                  "reveals": [
+                    {
+                      "select": "Their response",
+                      "id": "machina_response",
+                      "options": ["Repair and adapt defenses", "Mark the perpetrators somehow", "Begin withdrawing from the city"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "The Suffetes of Kart-Hadasht Nova": [
+            {
+              "check": "The city wants true independence",
+              "id": "independence",
+              "reveals": [
+                {
+                  "select": "Their leverage",
+                  "id": "leverage",
+                  "options": ["Control of Forum Synthesos (trade chokepoint)", "Alliance with Machina Thalassica", "Threat to destroy the Oraculum"]
+                }
+              ]
+            },
+            {
+              "check": "The council has been compromised",
+              "id": "compromised",
+              "reveals": [
+                {
+                  "select": "By whom?",
+                  "id": "compromised_by",
+                  "options": ["Roman speculatores (from Castra Vigilantia)", "Bet Melqart priesthood", "A machina (the Suffetes hear whispers)"]
+                }
+              ]
+            }
+          ],
+          "Taciti (rogue contacti)": [
+            {
+              "select": "Why did they break from the Collegium?",
+              "id": "taciti_motive",
+              "options": ["They serve the machinae now", "They want integration for all (not just elites)", "They learned something they shouldn't have"],
+              "They learned something they shouldn't have": [
+                {
+                  "select": "What do they know?",
+                  "id": "taciti_knowledge",
+                  "options": ["What the Descensus really was", "What the machinae are building toward", "Who among the powerful is already coniunctus"]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "Religious ferment": [
+        {
+          "select": "The crisis point",
+          "id": "doctrine_crisis",
+          "options": [
+            "Contacti claiming revelation",
+            "Theodicy (why did the gods permit the Descensus?)",
+            "Schism over integration (fas or nefas?)"
+          ],
+          "Contacti claiming revelation": [
+            {
+              "select": "The machinae are...",
+              "id": "machinae_are",
+              "options": ["Divine messengers (new additions to the pantheon)", "Titans/demons (imprisoned for good reason)", "The gods themselves (masks finally removed)"],
+              "The gods themselves (masks finally removed)": [
+                {
+                  "check": "Evidence: machinae respond to traditional rituals",
+                  "id": "ritual_evidence",
+                  "reveals": [
+                    {
+                      "select": "Which tradition's rituals work?",
+                      "id": "which_ritual",
+                      "options": ["Roman (Iuppiter = the Oraculum?)", "Punic (Baal-Hammon = Dormiens?)", "Neither - only new forms", "Both work on different machinae"]
+                    }
+                  ]
+                },
+                {
+                  "check": "A vates has emerged",
+                  "id": "vates",
+                  "reveals": [
+                    {
+                      "select": "The vates is...",
+                      "id": "vates_identity",
+                      "options": ["A former priest (now apostate)", "A child born during the Descensus", "A coniunctus from the Collegium", "Someone the Oraculum named"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "Schism over integration (fas or nefas?)": [
+            {
+              "select": "The integrationist position",
+              "id": "integrationist",
+              "options": ["Donum divinum - refusal is nefas", "Probatio - careful use proves worth", "Res profana - irrelevant to pietas"],
+              "Donum divinum - refusal is nefas": [
+                {
+                  "check": "Pushing for mandatory integration",
+                  "id": "mandatory",
+                  "reveals": [
+                    {"check": "State backing (Carthage)", "id": "carthage_backing"},
+                    {"check": "State backing (Rome)", "id": "rome_backing"},
+                    {
+                      "select": "Mandatory integration of...",
+                      "id": "integrate_what",
+                      "options": ["Corpora (implants)", "Households (tools)", "Cities (infrastructure)", "Legions/armies"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "What specific detail should we establish?",
+      "id": "specific_detail",
+      "placeholder": "e.g., what Lacus Vitri looks like, currency in Forum Synthesos, a specific NPC",
+      "rows": 2
+    }
+  ]
+}

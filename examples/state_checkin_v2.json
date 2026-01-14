@@ -1,0 +1,76 @@
+{
+  "title": "State check-in: calibrating interaction mode",
+  "elements": [
+    {
+      "group": "Current state",
+      "elements": [
+        {"slider": "Energy", "id": "energy", "min": 0, "max": 10, "default": 7},
+        {"slider": "Focus", "id": "focus", "min": 0, "max": 10, "default": 8},
+        {"slider": "Overwhelm", "id": "overwhelm", "min": 0, "max": 10, "default": 3},
+        {"slider": "Spoons remaining", "id": "spoons", "min": 0, "max": 10, "default": 6}
+      ]
+    },
+    {
+      "select": "Current vibe",
+      "id": "vibe",
+      "options": ["Calm flow", "Scattered energy", "Stuck in place", "Restless", "Deep in it", "Running on empty"],
+      "Scattered energy": [
+        {
+          "multi": "What's fragmenting attention?",
+          "id": "scatter_cause",
+          "options": ["Too many threads open", "Notifications/interrupts", "Decision fatigue", "Unclear priorities"]
+        }
+      ],
+      "Stuck in place": [
+        {
+          "select": "Stuck flavor",
+          "id": "stuck_type",
+          "options": ["Task too big/amorphous", "Perfectionism lock", "Missing piece blocking", "Avoidance spiral"]
+        }
+      ],
+      "Running on empty": [
+        {"check": "Been ignoring body signals?", "id": "body_ignore", "default": false}
+      ]
+    },
+    {
+      "group": "What would help right now?",
+      "elements": [
+        {
+          "check": "Body reset",
+          "id": "body_reset",
+          "reveals": [
+            {
+              "multi": "Reset type",
+              "id": "reset_type",
+              "options": ["Move/stretch", "Food/water", "Sensory break", "Temperature change"]
+            }
+          ]
+        },
+        {
+          "check": "Context switch",
+          "id": "context_switch",
+          "reveals": [
+            {
+              "select": "Switch direction",
+              "id": "switch_dir",
+              "options": ["Deeper into current thread", "Parallel task (same project)", "Different project entirely", "Non-work buffer"]
+            }
+          ]
+        },
+        {"check": "Reduce input", "id": "reduce_input"},
+        {"check": "Pause/rest", "id": "pause"}
+      ]
+    },
+    {
+      "text": "⚠️ Low spoons + high overwhelm detected",
+      "when": "spoons < 4 && overwhelm > 6"
+    },
+    {
+      "input": "Anything else on your mind?",
+      "id": "freeform",
+      "placeholder": "Optional: context I should know",
+      "rows": 2,
+      "when": "overwhelm > 5 || vibe"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
-use egui::{CentralPanel, Context, Id, Key, Rect, RichText, ScrollArea, TopBottomPanel, Vec2};
+use egui::{CentralPanel, Color32, Context, Id, Key, Rect, RichText, ScrollArea, TopBottomPanel, Vec2};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
@@ -61,10 +61,18 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     let result_clone = result.clone();
 
     let title = definition.effective_title().to_string();
+    
+    // Start wider if we have multiple elements to encourage 2-column layout immediately
+    let initial_size = if definition.elements.len() > 1 {
+        [650.0, 400.0]
+    } else {
+        [400.0, 200.0]
+    };
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             // Start with a default size, it will be resized on the first frame
-            .with_inner_size([400.0, 200.0])
+            .with_inner_size(initial_size)
             // Allow the window to be resized by the user
             .with_resizable(true)
             .with_position(egui::Pos2::new(100.0, 100.0)), // Will center manually if needed
@@ -170,10 +178,10 @@ impl eframe::App for PopupApp {
                 let button_text = RichText::new("SUBMIT")
                     .size(18.0)
                     .strong()
-                    .color(self.theme.text_primary);
+                    .color(self.theme.base2);
                 let button = egui::Button::new(button_text)
                     .min_size(egui::Vec2::new(120.0, 40.0))
-                    .fill(self.theme.electric_blue.linear_multiply(0.3));
+                    .fill(self.theme.neon_pink.linear_multiply(0.2));
 
                 if ui.add(button).clicked() {
                     self.state.button_clicked = Some("submit".to_string());
@@ -184,7 +192,12 @@ impl eframe::App for PopupApp {
         let bottom_panel_height = bottom_panel_response.response.rect.height();
 
         // Render the main content and measure its size
-        CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default()
+            .show(ctx, |ui| {
+            // Add outer margin manually using a frame
+            egui::Frame::NONE
+                .inner_margin(egui::Margin::same(10))
+                .show(ui, |ui| {
             // Improved spacing for better readability
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 6.0);
             ui.spacing_mut().button_padding = Vec2::new(10.0, 6.0);
@@ -216,6 +229,7 @@ impl eframe::App for PopupApp {
                             .insert_temp("content_rect".into(), content_response.response.rect)
                     });
                 });
+            });
         });
 
         // --- Phase 2: Calculate Desired Size and Resize ---
@@ -231,9 +245,15 @@ impl eframe::App for PopupApp {
             + ctx.style().spacing.window_margin.sum().y
             + 5.0; // Add a small buffer to prevent scrollbar appearing unnecessarily
 
+        let min_width = if self.definition.elements.len() > 1 {
+            650.0
+        } else {
+            400.0
+        };
+
         // Clamp size to reasonable limits
         let new_size = Vec2::new(
-            desired_width.clamp(400.0, 800.0),
+            desired_width.clamp(min_width, 800.0),
             desired_height.clamp(200.0, 800.0),
         );
 
@@ -340,20 +360,74 @@ fn render_elements_in_grid(
     let use_columns = items.len() > 1 && available_width > 500.0;
 
     if use_columns {
-        ui.columns(2, |cols| {
-            for (item_idx, item_indices) in items.into_iter().enumerate() {
-                let col_ui = &mut cols[item_idx % 2];
-                render_item_group(
-                    col_ui,
-                    item_indices,
-                    elements,
-                    state,
-                    all_elements,
-                    ctx,
-                    path_prefix,
-                );
-                col_ui.add_space(4.0);
+        let mut left_items = Vec::new();
+        let mut right_items = Vec::new();
+        for (item_idx, item_indices) in items.into_iter().enumerate() {
+            if item_idx % 2 == 0 {
+                left_items.push(item_indices);
+            } else {
+                right_items.push(item_indices);
             }
+        }
+
+        ui.horizontal_top(|ui| {
+            let total_width = ui.available_width();
+            let gap = 32.0;
+            let col_width = (total_width - gap) / 2.0;
+
+            // Left Column
+            let left_res = ui.allocate_ui_with_layout(
+                egui::vec2(col_width, 0.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    for item_indices in left_items {
+                        render_item_group(
+                            ui,
+                            item_indices,
+                            elements,
+                            state,
+                            all_elements,
+                            ctx,
+                            path_prefix,
+                        );
+                        ui.add_space(4.0);
+                    }
+                },
+            );
+
+            // Divider spacing
+            let (sep_rect, _) = ui.allocate_at_least(egui::vec2(gap, 0.0), egui::Sense::hover());
+
+            // Right Column
+            let right_res = ui.allocate_ui_with_layout(
+                egui::vec2(col_width, 0.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    for item_indices in right_items {
+                        render_item_group(
+                            ui,
+                            item_indices,
+                            elements,
+                            state,
+                            all_elements,
+                            ctx,
+                            path_prefix,
+                        );
+                        ui.add_space(4.0);
+                    }
+                },
+            );
+
+            // Vertical Divider (Solarized Violet - IDE split style)
+            let height = left_res.response.rect.height().max(right_res.response.rect.height());
+            let center_x = sep_rect.center().x;
+            let top_y = sep_rect.top();
+            
+            ui.painter().vline(
+                center_x,
+                top_y..=(top_y + height),
+                egui::Stroke::new(1.0, ctx.theme.neon_purple),
+            );
         });
     } else {
         ui.vertical(|ui| {
@@ -450,6 +524,7 @@ fn render_single_element(
         Element::Text { text, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
+                ui.set_max_width(400.0);
                 ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
@@ -457,6 +532,8 @@ fn render_single_element(
         Element::Markdown { markdown, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("markdown_{}", element_path), |ui| {
+                ui.set_max_width(400.0);
+                ui.style_mut().visuals.override_text_color = Some(ctx.theme.neon_pink);
                 CommonMarkViewer::new().show(ui, ctx.markdown_cache, markdown);
             });
         }
@@ -469,15 +546,8 @@ fn render_single_element(
             reveals,
             ..
         } => {
-            let widget_frame = egui::Frame::group(ui.style())
-                .inner_margin(egui::Margin::same(10))
-                .stroke(egui::Stroke::new(
-                    1.0,
-                    ctx.theme.matrix_green.linear_multiply(0.3),
-                ));
-
-            widget_frame.show(ui, |ui| {
-                // Clone selections to avoid borrow conflict when rendering conditionals
+            // No widget frame for Minimalist approach
+            ui.vertical(|ui| {
                 let selections_snapshot = if let Some(selections) = state.get_multichoice_mut(id) {
                     ui.horizontal(|ui| {
                         let label_width = 140.0;
@@ -503,26 +573,35 @@ fn render_single_element(
 
                     ui.add_space(4.0);
 
-                    // Use Grid for better alignment of multi-select options
                     egui::Grid::new(format!("multi_grid_{}", id))
-                        .num_columns(3)
+                        .num_columns(2)
                         .spacing([20.0, 8.0])
                         .show(ui, |ui| {
                             for (i, option) in options.iter().enumerate() {
                                 if i < selections.len() {
-                                    let mut value = selections[i];
-                                    let response = ui.checkbox(&mut value, option.value());
-                                    selections[i] = value;
+                                    // Constrain width for text wrapping (2-column layout)
+                                    ui.push_id(format!("multi_{}_{}", id, i), |ui| {
+                                        ui.set_max_width(250.0);
+                                        ui.horizontal_wrapped(|ui| {
+                                            let mut value = selections[i];
+                                            let response = ui.checkbox(&mut value, "");
+                                            selections[i] = value;
 
-                                    if let Some(desc) = option.description() {
-                                        response.clone().on_hover_text(desc);
-                                    }
+                                            // Separate wrapped label
+                                            ui.label(RichText::new(option.value()).color(ctx.theme.matrix_green));
 
-                                    if ctx.first_widget_id.is_none() && !ctx.widget_focused && i == 0 {
-                                        *ctx.first_widget_id = Some(response.id);
-                                    }
+                                            if let Some(desc) = option.description() {
+                                                response.clone().on_hover_text(desc);
+                                            }
+
+                                            if ctx.first_widget_id.is_none() && !ctx.widget_focused && i == 0 {
+                                                *ctx.first_widget_id = Some(response.id);
+                                            }
+                                        });
+                                    });
                                 }
-                                if (i + 1) % 3 == 0 {
+                                // End row every 2 items for 2-column layout
+                                if (i + 1) % 2 == 0 {
                                     ui.end_row();
                                 }
                             }
@@ -533,7 +612,6 @@ fn render_single_element(
                     vec![]
                 };
 
-                // Render inline conditionals for each checked option
                 for (i, option) in options.iter().enumerate() {
                     if i < selections_snapshot.len() && selections_snapshot[i] {
                         if let Some(children) = option_children.get(option.value()) {
@@ -551,7 +629,6 @@ fn render_single_element(
                     }
                 }
 
-                // Render reveals if multiselect has any AND any option is selected
                 let has_selection = selections_snapshot.iter().any(|&s| s);
                 if has_selection && !reveals.is_empty() {
                     ui.indent(format!("multiselect_reveals_{}", id), |ui| {
@@ -576,88 +653,84 @@ fn render_single_element(
             reveals,
             ..
         } => {
-            ui.horizontal(|ui| {
-                let label_width = 140.0;
-                ui.add_sized(
-                    [label_width, 24.0],
-                    egui::Label::new(RichText::new(select).color(ctx.theme.text_primary)),
-                );
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let label_width = 140.0;
+                    ui.add_sized(
+                        [label_width, 24.0],
+                        egui::Label::new(RichText::new(select).color(ctx.theme.electric_blue).strong()),
+                    );
 
-                if let Some(selected) = state.get_choice_mut(id) {
-                    let selected_text = match *selected {
-                        Some(idx) => options.get(idx).map(|s| s.value()).unwrap_or("(invalid)"),
-                        None => "(none selected)",
-                    };
+                    if let Some(selected) = state.get_choice_mut(id) {
+                        let selected_text = match *selected {
+                            Some(idx) => options.get(idx).map(|s| s.value()).unwrap_or("(invalid)"),
+                            None => "(none selected)",
+                        };
 
-                    let response = egui::ComboBox::from_id_salt(id)
-                        .selected_text(selected_text)
-                        .show_ui(ui, |ui| {
-                            // Option to clear selection
-                            if ui
-                                .selectable_label(selected.is_none(), "(none selected)")
-                                .clicked()
-                            {
-                                *selected = None;
-                            }
-                            // Show all options with descriptions as tooltips
-                            for (idx, option) in options.iter().enumerate() {
-                                let response =
-                                    ui.selectable_label(*selected == Some(idx), option.value());
-                                if let Some(desc) = option.description() {
-                                    response.clone().on_hover_text(desc);
+                        let response = egui::ComboBox::from_id_salt(id)
+                            .selected_text(RichText::new(selected_text).color(ctx.theme.base2))
+                            .show_ui(ui, |ui| {
+                                if ui
+                                    .selectable_label(selected.is_none(), "(none selected)")
+                                    .clicked()
+                                {
+                                    *selected = None;
                                 }
-                                if response.clicked() {
-                                    *selected = Some(idx);
+                                for (idx, option) in options.iter().enumerate() {
+                                    let response =
+                                        ui.selectable_label(*selected == Some(idx), option.value());
+                                    if let Some(desc) = option.description() {
+                                        response.clone().on_hover_text(desc);
+                                    }
+                                    if response.clicked() {
+                                        *selected = Some(idx);
+                                    }
                                 }
-                            }
-                        });
+                            });
 
-                    if ctx.first_widget_id.is_none() && !ctx.widget_focused {
-                        *ctx.first_widget_id = Some(response.response.id);
+                        if ctx.first_widget_id.is_none() && !ctx.widget_focused {
+                            *ctx.first_widget_id = Some(response.response.id);
+                        }
                     }
+                });
+
+                let selected_option = state.get_choice(id).flatten();
+                if let Some(idx) = selected_option {
+                    if let Some(option_val) = options.get(idx) {
+                        if let Some(children) = option_children.get(option_val.value()) {
+                            ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
+                                render_elements_in_grid(
+                                    ui,
+                                    children,
+                                    state,
+                                    all_elements,
+                                    ctx,
+                                    &format!("{}.choice_{}", element_path, idx),
+                                );
+                            });
+                        }
+                    }
+                }
+
+                if selected_option.is_some() && !reveals.is_empty() {
+                    ui.indent(format!("choice_reveals_{}", id), |ui| {
+                        render_elements_in_grid(ui, reveals, state, all_elements, ctx, element_path);
+                    });
                 }
             });
-
-            // Re-evaluate selected_option for rendering children/reveals
-            let selected_option = state.get_choice(id).flatten();
-
-            // Render inline conditional for selected option (after borrow is dropped)
-            if let Some(idx) = selected_option {
-                if let Some(option_val) = options.get(idx) {
-                    if let Some(children) = option_children.get(option_val.value()) {
-                        ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
-                            render_elements_in_grid(
-                                ui,
-                                children,
-                                state,
-                                all_elements,
-                                ctx,
-                                &format!("{}.choice_{}", element_path, idx),
-                            );
-                        });
-                    }
-                }
-            }
-
-            // Render reveals if choice has any AND an option is selected
-            if selected_option.is_some() && !reveals.is_empty() {
-                ui.indent(format!("choice_reveals_{}", id), |ui| {
-                    render_elements_in_grid(ui, reveals, state, all_elements, ctx, element_path);
-                });
-            }
         }
 
         Element::Check {
             check, id, reveals, ..
         } => {
             if let Some(value) = state.get_boolean_mut(id) {
-                let response = ui.checkbox(value, check);
+                let check_text = RichText::new(check).color(ctx.theme.matrix_green).strong();
+                let response = ui.checkbox(value, check_text);
 
                 if ctx.first_widget_id.is_none() && !ctx.widget_focused {
                     *ctx.first_widget_id = Some(response.id);
                 }
 
-                // Render reveals if checkbox is checked
                 if *value && !reveals.is_empty() {
                     ui.indent(format!("checkbox_reveals_{}", id), |ui| {
                         render_elements_in_grid(
@@ -683,7 +756,7 @@ fn render_single_element(
             ui.horizontal(|ui| {
                 ui.set_min_height(24.0);
                 let label_width = 140.0;
-                let label = ui.add_sized(
+                ui.add_sized(
                     [label_width, 24.0],
                     egui::Label::new(
                         RichText::new(slider)
@@ -709,7 +782,7 @@ fn render_single_element(
 
                     ui.label(
                         RichText::new(format!("{:.1}/{:.1}", *value, *max))
-                            .color(ctx.theme.text_secondary)
+                            .color(ctx.theme.base2)
                             .text_style(egui::TextStyle::Small),
                     );
 
@@ -727,49 +800,58 @@ fn render_single_element(
             rows,
             ..
         } => {
-            ui.horizontal_top(|ui| {
-                let label_width = 140.0;
-                ui.add_sized(
-                    [label_width, 24.0],
-                    egui::Label::new(
+            // Keep subtle sunken background for Inputs (from B)
+            let widget_frame = egui::Frame::NONE
+                .inner_margin(egui::Margin::symmetric(8, 4))
+                .fill(ctx.theme.dark_gray);
+
+            widget_frame.show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(
                         RichText::new(input)
                             .color(ctx.theme.neon_purple)
                             .strong()
                             .size(15.0),
-                    ),
-                );
+                    );
 
-                if let Some(value) = state.get_text_mut(id) {
-                    let height = rows.unwrap_or(1) as f32 * 24.0;
-                    let text_edit = egui::TextEdit::multiline(value)
-                        .desired_width(ui.available_width())
-                        .min_size(Vec2::new(ui.available_width(), height));
+                    if let Some(value) = state.get_text_mut(id) {
+                        let height = rows.unwrap_or(1) as f32 * 24.0;
+                        let input_width = ui.available_width().min(400.0);
+                        let text_edit = egui::TextEdit::multiline(value)
+                            .text_color(ctx.theme.base2)
+                            .desired_width(input_width)
+                            .min_size(Vec2::new(input_width, height));
 
-                    if let Some(hint) = placeholder {
-                        ui.add(text_edit.hint_text(hint));
-                    } else {
-                        ui.add(text_edit);
+                        if let Some(hint) = placeholder {
+                            ui.add(text_edit.hint_text(hint));
+                        } else {
+                            ui.add(text_edit);
+                        }
                     }
-                }
+                });
             });
         }
 
         Element::Group {
             group, elements, ..
         } => {
-            // Enhanced group with better visual separation
-            let group_frame = egui::Frame::group(ui.style())
+            // Minimal ghost frame for Groups (from B)
+            let group_frame = egui::Frame::NONE
                 .inner_margin(egui::Margin::same(8))
                 .stroke(egui::Stroke::new(
-                    1.5,
-                    ctx.theme.electric_blue.linear_multiply(0.4),
+                    1.0,
+                    if ui.style().visuals.dark_mode {
+                        Color32::from_rgb(88, 110, 117) // base01
+                    } else {
+                        Color32::from_rgb(147, 161, 161) // base1
+                    },
                 ));
 
             group_frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(group)
-                            .color(ctx.theme.neon_pink)
+                            .color(ctx.theme.matrix_green)
                             .strong()
                             .size(16.0),
                     );
