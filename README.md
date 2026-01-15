@@ -17,7 +17,7 @@ cargo install --path crates/popup-gui
 
 ```bash
 # Add MCP server
-claude mcp add popup --scope user -- popup --mcp-server
+claude mcp add popup --scope user -- popup
 
 # Restart Claude Desktop
 ```

@@ -456,12 +456,13 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
 {
   "mcpServers": {
     "popup": {
-      "command": "popup",
-      "args": ["--mcp-server"]
+      "command": "popup"
     }
   }
 }
 ```
+
+Note: MCP server mode is the default when no arguments are provided.
 
 Restart Claude Desktop and the `popup` tool will be available.
 
