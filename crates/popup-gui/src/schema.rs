@@ -96,7 +96,7 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "id": {
                                     "type": "string",
-                                    "description": "Element ID for state tracking (required)"
+                                    "description": "Element ID for state tracking (Optional: Auto-generated from label if omitted)"
                                 },
                                 "default": {
                                     "type": "boolean",
@@ -107,11 +107,14 @@ pub fn get_input_schema() -> serde_json::Value {
                                     "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when checkbox is checked"
+                                    "oneOf": [
+                                        { "$ref": "#/properties/elements" },
+                                        { "$ref": "#/properties/elements/items" }
+                                    ],
+                                    "description": "Child elements shown when checkbox is checked. Can be an array or a single element object."
                                 },
                             },
-                            "required": ["check", "id"],
+                            "required": ["check"],
                             "additionalProperties": false
                         },
                         // Textbox element (V2: textbox is the key, id required)
@@ -153,30 +156,43 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "id": {
                                     "type": "string",
-                                    "description": "Element ID for state tracking (required)"
+                                    "description": "Element ID for state tracking (Optional: Auto-generated from label if omitted)"
                                 },
                                 "options": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "minItems": 1,
-                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes both the selection and a '<id>_other_text' field."
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "items": { "type": "string" },
+                                            "minItems": 1
+                                        },
+                                        {
+                                            "type": "string",
+                                            "description": "Comma-separated string of options (e.g. 'A, B, C')"
+                                        }
+                                    ],
+                                    "description": "Options to select from. Can be an array or a comma-separated string."
                                 },
                                 "when": {
                                     "type": "string",
                                     "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when any option is selected"
+                                    "oneOf": [
+                                        { "$ref": "#/properties/elements" },
+                                        { "$ref": "#/properties/elements/items" }
+                                    ],
+                                    "description": "Child elements shown when any option is selected. Can be an array or a single element object."
                                 },
                             },
-                            "required": ["multi", "id", "options"],
+                            "required": ["multi", "options"],
                             "patternProperties": {
                                 "^(?!multi|id|options|when|reveals).*$": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
+                                    "oneOf": [
+                                        { "$ref": "#/properties/elements" },
+                                        { "$ref": "#/properties/elements/items" },
+                                        { "type": "string", "description": "Implicit Text element" }
+                                    ],
+                                    "description": "Option-as-key: Use option text as JSON key for child elements. Can be Array (multiple), Object (single), or String (text)."
                                 }
                             },
                             "additionalProperties": false
@@ -191,15 +207,21 @@ pub fn get_input_schema() -> serde_json::Value {
                                 },
                                 "id": {
                                     "type": "string",
-                                    "description": "Element ID for state tracking (required)"
+                                    "description": "Element ID for state tracking (Optional: Auto-generated from label if omitted)"
                                 },
                                 "options": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "minItems": 1,
-                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes '<id>': 'Other (please specify)' and '<id>_other_text': 'custom value'."
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "items": { "type": "string" },
+                                            "minItems": 1
+                                        },
+                                        {
+                                            "type": "string",
+                                            "description": "Comma-separated string of options (e.g. 'A, B, C')"
+                                        }
+                                    ],
+                                    "description": "Options to select from. Can be an array or a comma-separated string."
                                 },
                                 "default": {
                                     "type": "string",
@@ -210,15 +232,22 @@ pub fn get_input_schema() -> serde_json::Value {
                                     "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
                                 },
                                 "reveals": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when any option is selected"
+                                    "oneOf": [
+                                        { "$ref": "#/properties/elements" },
+                                        { "$ref": "#/properties/elements/items" }
+                                    ],
+                                    "description": "Child elements shown when any option is selected. Can be an array or a single element object."
                                 },
                             },
-                            "required": ["select", "id", "options"],
+                            "required": ["select", "options"],
                             "patternProperties": {
                                 "^(?!select|id|options|default|when|reveals).*$": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
+                                    "oneOf": [
+                                        { "$ref": "#/properties/elements" },
+                                        { "$ref": "#/properties/elements/items" },
+                                        { "type": "string", "description": "Implicit Text element" }
+                                    ],
+                                    "description": "Option-as-key: Use option text as JSON key for child elements. Can be Array (multiple), Object (single), or String (text)."
                                 }
                             },
                             "additionalProperties": false
