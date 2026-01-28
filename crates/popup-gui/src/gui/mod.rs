@@ -2,11 +2,12 @@ use anyhow::Result;
 use eframe::egui;
 use egui::{CentralPanel, Color32, Context, Id, Key, Rect, RichText, ScrollArea, TopBottomPanel, Vec2};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
 use popup_common::{evaluate_condition, parse_condition};
-use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
+use popup_common::{ConditionExpr, Element, PopupDefinition, PopupResult, PopupState};
 
 #[cfg(test)]
 pub mod tests {
@@ -110,7 +111,9 @@ struct PopupApp {
     first_interactive_widget_id: Option<Id>,
     first_widget_focused: bool,
     last_size: Vec2,
+    frame_count: usize,
     markdown_cache: CommonMarkCache,
+    condition_cache: HashMap<String, Option<ConditionExpr>>,
 }
 
 impl PopupApp {
@@ -127,7 +130,9 @@ impl PopupApp {
             first_interactive_widget_id: None,
             first_widget_focused: false,
             last_size: Vec2::ZERO, // Initialize to zero to force resize on first frame
+            frame_count: 0,
             markdown_cache: CommonMarkCache::default(),
+            condition_cache: HashMap::new(),
         }
     }
 
@@ -153,6 +158,8 @@ impl PopupApp {
 
 impl eframe::App for PopupApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        self.frame_count += 1;
+
         // Apply theme
         self.theme.apply_to_egui(ctx);
 
@@ -213,6 +220,7 @@ impl eframe::App for PopupApp {
                             first_widget_id: &mut self.first_interactive_widget_id,
                             widget_focused: self.first_widget_focused,
                             markdown_cache: &mut self.markdown_cache,
+                            condition_cache: &mut self.condition_cache,
                         };
                         render_elements_in_grid(
                             ui,
@@ -239,28 +247,74 @@ impl eframe::App for PopupApp {
             .memory(|mem| mem.data.get_temp::<Rect>("content_rect".into()))
             .unwrap_or(Rect::ZERO);
 
-        let desired_width = content_rect.width() + ctx.style().spacing.window_margin.sum().x;
-        let desired_height = content_rect.height()
-            + bottom_panel_height
-            + ctx.style().spacing.window_margin.sum().y
-            + 5.0; // Add a small buffer to prevent scrollbar appearing unnecessarily
+        let chrome_w = ctx.style().spacing.window_margin.sum().x;
+        let chrome_h = bottom_panel_height + ctx.style().spacing.window_margin.sum().y + 5.0;
 
-        let min_width = if self.definition.elements.len() > 1 {
+        let desired_width = content_rect.width() + chrome_w;
+        let desired_height = content_rect.height() + chrome_h;
+
+        // Calculate a "preferred" width based on the complexity of the visible elements
+        // This helps break the circular dependency where desired_width is constrained by current width.
+        let visible_item_count = self.definition.elements.iter().filter(|e| {
+             let when = match e {
+                Element::Text { when, .. } => when,
+                Element::Markdown { when, .. } => when,
+                Element::Slider { when, .. } => when,
+                Element::Check { when, .. } => when,
+                Element::Input { when, .. } => when,
+                Element::Multi { when, .. } => when,
+                Element::Select { when, .. } => when,
+                Element::Group { when, .. } => when,
+            };
+            if let Some(w) = when {
+                let state_map = self.state.to_value_map(&self.definition.elements);
+                parse_condition(w).map(|ast| evaluate_condition(&ast, &state_map)).unwrap_or(true)
+            } else {
+                true
+            }
+        }).count();
+
+        let mut preferred_width = if visible_item_count > 1 {
             650.0
         } else {
             400.0
         };
 
-        // Clamp size to reasonable limits
-        let new_size = Vec2::new(
-            desired_width.clamp(min_width, 800.0),
-            desired_height.clamp(200.0, 800.0),
-        );
+        // If it's getting very tall, push the width out to encourage 2-column layout
+        if desired_height > 500.0 && visible_item_count > 2 {
+            preferred_width = 850.0;
+        }
 
-        // Resize the window if the desired size has changed
-        if (new_size - self.last_size).length_sq() > 0.01 {
-            self.last_size = new_size;
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(new_size));
+        // Get current window size (inner size)
+        let current_rect = ctx.input(|i| i.viewport().inner_rect).unwrap_or(Rect::ZERO);
+        let current_size = current_rect.size();
+
+        let mut target_size = current_size;
+
+        // Constraint 1: Min/Preferred width
+        if target_size.x < preferred_width {
+            target_size.x = preferred_width;
+        }
+
+        // Constraint 2: Expand to fit content (up to max)
+        // Note: desired_width is often limited by current_size.x, but we still check it
+        if desired_width > target_size.x {
+            target_size.x = desired_width.min(1000.0);
+        }
+        if desired_height > target_size.y {
+            target_size.y = desired_height.min(800.0);
+        }
+
+        // Constraint 3: Initial Shrink (snap to fit)
+        if self.frame_count < 5 {
+            target_size.x = desired_width.max(preferred_width).min(1000.0);
+            target_size.y = desired_height.clamp(200.0, 800.0);
+        }
+
+        // Only issue command if significant change
+        if (target_size - current_size).length_sq() > 1.0 {
+            self.last_size = target_size;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(target_size));
         }
 
         // --- Phase 3: Handle Focus ---
@@ -282,6 +336,7 @@ struct RenderContext<'a> {
     first_widget_id: &'a mut Option<Id>,
     widget_focused: bool,
     markdown_cache: &'a mut CommonMarkCache,
+    condition_cache: &'a mut HashMap<String, Option<ConditionExpr>>,
 }
 
 fn render_elements_in_grid(
@@ -309,9 +364,16 @@ fn render_elements_in_grid(
         };
 
         let is_visible = if let Some(when_expr) = when_clause {
-            match parse_condition(when_expr) {
-                Ok(ast) => evaluate_condition(&ast, &state_values),
-                Err(_) => true, // fail-open
+            let cached_expr = ctx.condition_cache
+                .entry(when_expr.clone())
+                .or_insert_with(|| parse_condition(when_expr).ok());
+            
+            match cached_expr {
+                Some(ast) => evaluate_condition(ast, &state_values),
+                None => {
+                    log::warn!("Failed to parse when clause: {}", when_expr);
+                    true // fail-open
+                },
             }
         } else {
             true
@@ -506,16 +568,20 @@ fn render_single_element(
 
     if let Some(when_expr) = when_clause {
         let state_values = state.to_value_map(all_elements);
-        match parse_condition(when_expr) {
-            Ok(ast) => {
-                if !evaluate_condition(&ast, &state_values) {
+        let cached_expr = ctx.condition_cache
+            .entry(when_expr.clone())
+            .or_insert_with(|| parse_condition(when_expr).ok());
+        
+        match cached_expr {
+            Some(ast) => {
+                if !evaluate_condition(ast, &state_values) {
                     // Condition not met - don't render this element
                     return;
                 }
-            }
-            Err(e) => {
+            },
+            None => {
                 // Log warning but render anyway (fail-open)
-                log::warn!("Failed to parse when clause '{}': {}", when_expr, e);
+                log::warn!("Failed to parse when clause: {}", when_expr);
             }
         }
     }
@@ -524,7 +590,6 @@ fn render_single_element(
         Element::Text { text, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("text_{}", element_path), |ui| {
-                ui.set_max_width(400.0);
                 ui.label(RichText::new(text).color(ctx.theme.text_primary));
             });
         }
@@ -532,7 +597,6 @@ fn render_single_element(
         Element::Markdown { markdown, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
             ui.push_id(format!("markdown_{}", element_path), |ui| {
-                ui.set_max_width(400.0);
                 ui.style_mut().visuals.override_text_color = Some(ctx.theme.neon_pink);
                 CommonMarkViewer::new().show(ui, ctx.markdown_cache, markdown);
             });
@@ -573,13 +637,16 @@ fn render_single_element(
 
                     ui.add_space(4.0);
 
+                    let available_width = ui.available_width();
+                    let num_cols = if available_width >= 800.0 { 3 } else { 2 };
+
                     egui::Grid::new(format!("multi_grid_{}", id))
-                        .num_columns(2)
+                        .num_columns(num_cols)
                         .spacing([20.0, 8.0])
                         .show(ui, |ui| {
                             for (i, option) in options.iter().enumerate() {
                                 if i < selections.len() {
-                                    // Constrain width for text wrapping (2-column layout)
+                                    // Constrain width for text wrapping
                                     ui.push_id(format!("multi_{}_{}", id, i), |ui| {
                                         ui.set_max_width(250.0);
                                         ui.horizontal_wrapped(|ui| {
@@ -600,8 +667,8 @@ fn render_single_element(
                                         });
                                     });
                                 }
-                                // End row every 2 items for 2-column layout
-                                if (i + 1) % 2 == 0 {
+                                // End row
+                                if (i + 1) % num_cols == 0 {
                                     ui.end_row();
                                 }
                             }
@@ -611,7 +678,7 @@ fn render_single_element(
                 } else {
                     vec![]
                 };
-
+// ... (rest of Multi logic)
                 for (i, option) in options.iter().enumerate() {
                     if i < selections_snapshot.len() && selections_snapshot[i] {
                         if let Some(children) = option_children.get(option.value()) {
@@ -646,6 +713,7 @@ fn render_single_element(
         }
 
         Element::Select {
+// ... (omitting Select for now as it's fine)
             select,
             id,
             options,
@@ -816,7 +884,7 @@ fn render_single_element(
 
                     if let Some(value) = state.get_text_mut(id) {
                         let height = rows.unwrap_or(1) as f32 * 24.0;
-                        let input_width = ui.available_width().min(400.0);
+                        let input_width = ui.available_width().min(600.0);
                         let text_edit = egui::TextEdit::multiline(value)
                             .text_color(ctx.theme.base2)
                             .desired_width(input_width)

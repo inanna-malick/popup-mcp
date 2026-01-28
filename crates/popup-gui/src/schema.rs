@@ -12,7 +12,7 @@ use serde_json::json;
 pub fn get_popup_tool_schema() -> serde_json::Value {
     json!({
         "name": "popup",
-        "description": "Author a dialogue tree that collapses multiple conversation turns into one interaction.\n\nCORE PATTERN: Anticipate likely user responses. For each anticipated answer, encode branch-specific followup questions. Nest 3-5 levels deep.\n\nANTI-PATTERN: Don't build flat forms. If an answer would prompt a followup question, encode that followup as a nested branch NOW.\n\nBRANCHING MECHANICS:\n- option-as-key: {\"select\": \"Lang\", \"id\": \"x\", \"options\": [\"Rust\", \"Go\"], \"Rust\": [{...rust-specific followups...}]}\n- reveals: {\"check\": \"Advanced\", \"id\": \"x\", \"reveals\": [{...shown when checked...}]}\n- when: {\"slider\": \"X\", \"when\": \"advanced && selected(lang, 'Rust')\"}\n\nELEMENTS: text, slider, check, input, select (single-select), multi, group\n\nAUTO-INJECTED 'OTHER' OPTION:\nAll 'select' and 'multi' elements automatically receive an 'Other (please specify)' option. When selected, a text input appears for custom values. DO NOT manually add 'Other' options - they are added automatically.\n\nRETURN FORMAT:\n- select/multi: Returns selected option text (\"Rust\", not index)\n- When 'Other' is selected: Returns both \"Other (please specify)\" in the selection AND a separate \"<id>_other_text\" field with the custom text\n- Example: {\"mode\": \"Other (please specify)\", \"mode_other_text\": \"Custom mode\"}\n- slider: integer value (7)\n- Only visible elements included\n\nRETURNS: {\"status\": \"completed\"|\"cancelled\", \"button\": \"submit\"|\"cancel\", \"<id>\": value}\n\nNOTE: Widget type names (text, slider, check, input, select, multi, group) are reserved and cannot be used as option values in select/multi.",
+        "description": "Create a rich, branching GUI interaction that captures a full decision tree in a single turn.\n\nPHILOSOPHY: Stop the back-and-forth. Don't ask a question, wait for an answer, and then ask another. Instead, anticipate the user's choices and pre-load the appropriate follow-up questions into the interface.\n\nCORE MECHANIC: Deeply nested conditional logic.\n- If asking 'Deployment Environment', immediately nest 'Production' and 'Staging' specific config fields under those respective options.\n- If asking 'Add Feature', use a checkbox that `reveals` the feature's configuration options when checked.\n\nYour goal is to receive a complete, actionable state from the user in ONE interaction, no matter which path they take through the decision tree.\n\nBRANCHING SYNTAX:\n- Option-Specific Children (Preferred): {\"select\": \"Env\", \"options\": [\"Prod\", \"Dev\"], \"Prod\": [{...prod_fields...}], \"Dev\": [{...dev_fields...}]}\n- Checkbox/Reveal: {\"check\": \"Enable\", \"reveals\": [{...config...}]}\n- Complex Logic: {\"input\": \"API Key\", \"when\": \"env == 'Prod' && !use_existing_key\"}\n\nAUTO-INJECTED 'OTHER':\n'select' and 'multi' widgets automatically get an 'Other (please specify)' option. Do NOT add it manually.\n\nRETURNS: {\"status\": \"completed\", \"button\": \"submit\", \"field_id\": value}\n- select/multi return the text value (e.g., \"Prod\")\n- 'Other' returns both the selection string AND an `<id>_other_text` field",
         "inputSchema": get_input_schema()
     })
 }
@@ -291,10 +291,12 @@ pub fn get_input_schema() -> serde_json::Value {
 ///
 /// Useful for documentation or help text
 pub fn get_schema_description() -> &'static str {
-    "Author dialogue trees that collapse multiple conversation turns into one interaction.
+    "Create a rich, branching GUI interaction that captures a full decision tree in a single turn.
 
-CORE PATTERN: Anticipate likely user responses. For each anticipated answer,
-encode branch-specific followup questions. Nest 3-5 levels deep.
+PHILOSOPHY: Stop the back-and-forth. Don't ask a question, wait for an answer, and then ask another.
+Instead, anticipate the user's choices and pre-load the appropriate follow-up questions into the interface.
+
+Your goal is to receive a complete, actionable state from the user in ONE interaction.
 
 STRUCTURE:
 {
@@ -310,17 +312,14 @@ STRUCTURE:
   ]
 }
 
-BRANCHING:
-- option-as-key: \"A\": [...] adds children shown when option A selected
-- reveals: [...] adds children shown when parent is active
-- when: \"id && selected(other, 'value')\" for cross-element conditions
+BRANCHING SYNTAX:
+- Option-Specific Children: \"Prod\": [{...prod_fields...}] (Preferred)
+- Checkbox/Reveal: \"reveals\": [{...config...}]
+- Complex Logic: \"when\": \"env == 'Prod' && !use_existing_key\"
 
-RETURNS: {\"status\": \"completed\", \"<id>\": value, ...} or {\"status\": \"cancelled\"}
-- select/multi: selected text (not index)
-- slider: integer value
-- Only visible elements included
-
-NOTE: Widget type names are reserved and cannot be used as option values."
+RETURNS: {\"status\": \"completed\", \"<id>\": value, ...}
+- select/multi: selected text
+- 'Other': returns both selection AND <id>_other_text field"
 }
 
 #[cfg(test)]
