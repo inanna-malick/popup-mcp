@@ -9,19 +9,6 @@ use crate::theme::Theme;
 use popup_common::{evaluate_condition, parse_condition};
 use popup_common::{ConditionExpr, Element, PopupDefinition, PopupResult, PopupState};
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    pub fn collect_active_elements_for_test(
-        elements: &[Element],
-        state: &PopupState,
-        all_elements: &[Element],
-    ) -> Vec<String> {
-        super::collect_active_elements(elements, state, all_elements, "")
-    }
-}
-
 fn setup_custom_fonts(ctx: &Context) {
     // Install image loaders for egui-twemoji (required for emoji rendering)
     egui_extras::install_image_loaders(ctx);
@@ -328,8 +315,6 @@ impl eframe::App for PopupApp {
         }
     }
 }
-
-// Removed old rendering functions that are no longer used
 
 struct RenderContext<'a> {
     theme: &'a Theme,
@@ -1099,4 +1084,15 @@ fn collect_active_elements(
     active_ids
 }
 
+#[cfg(test)]
+pub mod tests {
+    use super::*;
 
+    pub fn collect_active_elements_for_test(
+        elements: &[Element],
+        state: &PopupState,
+        all_elements: &[Element],
+    ) -> Vec<String> {
+        super::collect_active_elements(elements, state, all_elements, "")
+    }
+}
