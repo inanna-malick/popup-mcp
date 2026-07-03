@@ -103,6 +103,9 @@ struct PopupApp {
     current_page: usize,
     /// Enter was pressed in a single-line input this frame
     advance_requested: bool,
+    /// Wizard note text per top-level page index; composed into _notes as
+    /// "[Page label] note" lines on submit
+    page_notes: std::collections::HashMap<usize, String>,
 }
 
 impl PopupApp {
@@ -122,6 +125,7 @@ impl PopupApp {
             markdown_cache: CommonMarkCache::default(),
             current_page: 0,
             advance_requested: false,
+            page_notes: std::collections::HashMap::new(),
         }
     }
 
@@ -140,10 +144,32 @@ impl PopupApp {
             .collect()
     }
 
+    /// Fold per-page wizard notes into the single _notes string
+    fn compose_page_notes(&mut self) {
+        let lines: Vec<String> = self
+            .definition
+            .elements
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, element)| {
+                let note = self.page_notes.get(&idx)?.trim();
+                if note.is_empty() {
+                    None
+                } else {
+                    Some(format!("[{}] {}", element.label(), note))
+                }
+            })
+            .collect();
+        if !lines.is_empty() {
+            self.state.notes = lines.join("\n");
+        }
+    }
+
     fn send_result_and_close(&mut self, ctx: &Context) {
         let popup_result = if self.state.button_clicked.as_deref() == Some("cancel") {
             PopupResult::Cancelled
         } else {
+            self.compose_page_notes();
             // Collect only active element ids based on current state
             let active_ids =
                 popup_common::collect_active_ids(&self.definition.elements, &self.state);
@@ -213,19 +239,30 @@ impl eframe::App for PopupApp {
             ui.separator();
 
             if show_notes {
+                // Wizards get one note per page (bound to the current page);
+                // single-screen popups get the global note
+                let (header, note_text): (&str, &mut String) = if is_wizard {
+                    let page_idx = visible_pages[self.current_page];
+                    (
+                        "Add a note for this page (optional)",
+                        self.page_notes.entry(page_idx).or_default(),
+                    )
+                } else {
+                    ("Add a note (optional)", &mut self.state.notes)
+                };
                 egui::CollapsingHeader::new(
-                    RichText::new("Add a note (optional)")
+                    RichText::new(header)
                         .color(self.theme.text_secondary)
                         .size(13.0),
                 )
                 .default_open(false)
                 .show(ui, |ui| {
                     ui.add(
-                        egui::TextEdit::multiline(&mut self.state.notes)
+                        egui::TextEdit::multiline(note_text)
                             .desired_rows(2)
                             .desired_width(f32::INFINITY)
                             .text_color(self.theme.base2)
-                            .hint_text("Anything the form didn't ask about"),
+                            .hint_text("Anything this page didn't ask about"),
                     );
                 });
             }
