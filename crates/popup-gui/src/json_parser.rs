@@ -1,5 +1,5 @@
-use anyhow::Result;
-use popup_common::PopupDefinition;
+use anyhow::{anyhow, Result};
+use popup_common::{validate_definition, PopupDefinition};
 
 /// Parse JSON input into a PopupDefinition
 ///
@@ -10,9 +10,35 @@ pub fn parse_popup_json(input: &str) -> Result<PopupDefinition> {
     Ok(popup)
 }
 
-/// Validate popup JSON without parsing into PopupDefinition
+/// Parse, apply automatic transforms ("Other" injection), and structurally
+/// validate popup JSON: duplicate/reserved ids, broken when clauses,
+/// out-of-range defaults, etc.
+///
+/// Validation runs on the post-injection definition - the one that will
+/// actually render - so collisions with injected "<id>_other_text" inputs
+/// are caught too. Returns the render-ready definition.
+pub fn parse_and_validate_popup_json(input: &str) -> Result<PopupDefinition> {
+    let popup = crate::transform::inject_other_options(parse_popup_json(input)?);
+    let issues = validate_definition(&popup);
+    if issues.is_empty() {
+        Ok(popup)
+    } else {
+        let summary = issues
+            .iter()
+            .map(|i| format!("- {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        Err(anyhow!(
+            "Popup definition has {} problem(s):\n{}",
+            issues.len(),
+            summary
+        ))
+    }
+}
+
+/// Validate popup JSON without using the parsed PopupDefinition
 pub fn validate_popup_json(input: &str) -> Result<()> {
-    parse_popup_json(input).map(|_| ())
+    parse_and_validate_popup_json(input).map(|_| ())
 }
 
 #[cfg(test)]
@@ -49,7 +75,10 @@ mod tests {
 
         let result = parse_popup_json(json);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("missing field `title`"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("missing field `title`"));
     }
 
     #[test]
@@ -60,6 +89,9 @@ mod tests {
 
         let result = parse_popup_json(json);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("missing field `elements`"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("missing field `elements`"));
     }
 }

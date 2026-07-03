@@ -20,6 +20,9 @@ The `popup` binary operates in three modes based on CLI flags:
 **1. MCP Server Mode (default - no flags)**
 - JSON-RPC over stdio (implemented in mcp_server.rs)
 - Provides `popup` tool (raw JSON DSL) + dynamic template tools
+- Validates every definition BEFORE spawning a window; validation failures
+  return `isError: true` with per-element fixes ("did you mean ..."), so the
+  calling model can retry without the user ever seeing a broken popup
 - Loads templates from `~/.config/popup-mcp/popup.toml`
 - Each template becomes its own MCP tool with typed parameters
 - Spawns itself with `--stdin` flag to render popups
@@ -38,30 +41,19 @@ The `popup` binary operates in three modes based on CLI flags:
 ### Core Modules
 
 **json_parser.rs**
-- Deserializes PopupDefinition from JSON
-- Validates structure and types
-- Entry point: `parse_popup_definition(json_str) -> Result<PopupDefinition>`
+- `parse_popup_json(json_str) -> Result<PopupDefinition>` - parse only
+- `parse_and_validate_popup_json(json_str)` - parse + `validate_definition` with
+  aggregated, fixable error messages (used by --stdin/--file modes)
 
-**gui/mod.rs** - Main rendering logic
-- `PopupWindow` - egui application state
-- Event loop with conditional filtering
-- Submit/Cancel button handling
-- Escape key for cancel
-- Returns PopupResult on close
-
-**gui/widget_renderers.rs** - Individual widget implementations
-- `render_element(ui, element, state, active_labels) -> bool`
-- Returns true if widget value changed (triggers UI update)
-- Handles conditional visibility via active_labels set
-- Widget-specific rendering:
-  - Text: `ui.label()`
-  - Slider: `ui.add(Slider::new())`
-  - Check: `ui.checkbox()`
-  - Input: `ui.text_edit_singleline()` or `TextEdit::multiline()`
-  - Choice: `ComboBox::from_label()`
-  - Multi: Vertical list of checkboxes
-  - Group: Collapsing header with nested elements
-  - Conditional: Delegates to child elements if condition true
+**gui/mod.rs** - All window + widget rendering
+- `PopupApp` - egui application state (definition, PopupState, theme, note text)
+- Single-column layout in author order; consecutive simple checkboxes wrap horizontally
+- Select rendering: radio list with inline option descriptions when <=6 options
+  (or `"style": "radio"`), dropdown otherwise
+- Sliders honor `step` (default 1) and display integers for whole steps
+- Bottom panel: collapsed "Add a note" field (unless `notes: false`) + submit
+  button labeled from `definition.submit_label()`
+- Escape -> `PopupResult::Cancelled`; submit -> `PopupResult::from_state(state, definition, active_ids)`
 
 **templates.rs** - Dynamic template system
 - Loads from `~/.config/popup-mcp/popup.toml` config file
@@ -76,10 +68,11 @@ The `popup` binary operates in three modes based on CLI flags:
 - Visuals, spacing, colors
 - Applied on egui context creation
 
-**schema.rs** - MCP tool schemas
-- JSON Schema definitions for MCP tools
-- Defines parameters and return types
-- Used by MCP clients for validation
+**schema.rs** - MCP tool schema + description
+- The tool description is effectively a prompt teaching the calling model to
+  author conversation trees; keep its result-format claims in sync with
+  `PopupResult::from_state`
+- Schema examples are tested: they must parse and validate (`test_schema_examples_are_valid_definitions`)
 
 ### Testing
 
@@ -119,9 +112,10 @@ The `popup` binary operates in three modes based on CLI flags:
 - On change: recompute conditionals, mark UI dirty
 
 ### Result Construction
-- Submit: `PopupResult::from_state_with_active_elements()`
+- Submit: `PopupResult::from_state(state, definition, active_ids)` - only visible
+  elements; absent = branch not taken, "" = blank input, null = unselected select
 - Cancel/Escape: `PopupResult::Cancelled`
-- Includes only visible elements in result
+- User note (bottom panel) returned as `_notes` when non-empty
 
 ## Common Commands
 

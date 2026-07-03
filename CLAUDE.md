@@ -59,7 +59,9 @@ cargo run -p popup-gui -- --file examples/simple_confirm.json
 
 ## Important Note on Buttons
 
-**Buttons are no longer user-specifiable.** Every popup automatically includes a single "Submit" button at the bottom. Users can press the Submit button to confirm or use the Escape key to cancel. The PopupResult will include `"button": "submit"` or `"button": "cancel"` accordingly.
+Every popup has exactly one submit button at the bottom; its label defaults to "Submit" and can be set with the top-level `"submit"` field (name it after the consequence, e.g. `"submit": "Deploy"`). Pressing it returns `{"status": "completed", "button": "submit", ...values}`. Escape cancels and returns `{"status": "cancelled"}` with no values.
+
+Popups also include a collapsed "Add a note (optional)" free-text field above the submit button (disable with `"notes": false`). If the user writes anything there it comes back as `"_notes"` in the result — treat it as extra instructions the form didn't anticipate.
 
 ## High-Level Architecture
 
@@ -86,15 +88,16 @@ MCP Client (receives result)
 
 **crates/popup-common** - Shared types
 - `PopupDefinition`, `Element`, `PopupResult` - Core data structures
-- `condition.rs` - When clause parsing and evaluation
-- Serialization via serde for JSON compatibility
+- `element_deser.rs` - Strict element-as-key (de)serialization with "did you mean" errors
+- `condition.rs` + `condition.pest` - When clause parsing and evaluation
+- `validate.rs` - Pre-flight structural validation (duplicate/reserved ids, bad when-refs, ranges)
 
 **crates/popup-gui** - Native GUI implementation
-- `json_parser.rs`: JSON → PopupDefinition deserialization
-- `gui/mod.rs`: egui window logic and event loop
-- `gui/widget_renderers.rs`: Individual widget rendering
-- `mcp_server.rs`: MCP server (JSON-RPC over stdio)
-- `schema.rs`: MCP tool schema definitions
+- `json_parser.rs`: JSON → PopupDefinition parsing + validation entry points
+- `gui/mod.rs`: egui window logic, event loop, and all widget rendering
+- `transform.rs`: automatic "Other (please specify)" injection for select/multi
+- `mcp_server.rs`: MCP server (JSON-RPC over stdio), validates before rendering
+- `schema.rs`: MCP tool schema + the tool description that teaches tree authoring
 - `templates.rs`: Dynamic template system with Handlebars
 - Binary: `popup` (operates in 3 modes: MCP server, stdin, file)
 
@@ -129,68 +132,54 @@ MCP Client (receives result)
 - `conditional_settings.json`: Settings with conditional visibility
 - `choice_demo.json`: Choice widget demonstrations
 
-## JSON Structure Reference (V2 Schema)
+## JSON Structure Reference
 
 **Key Concepts:**
-- **Element-as-key**: Widget type is the JSON key (e.g., `{"slider": "Volume"}` not `{"type": "slider"}`)
-- **Required IDs**: All interactive elements must have an `"id"` field for state management
-- **When clauses**: Replace standalone Conditional elements with `"when"` field on any element
-- **Reveals**: Inline conditionals on checkboxes/multiselect/choice using `"reveals"` field
-- **Option-as-key nesting**: Choice/Multi children use option text as direct JSON keys
+- **Element-as-key**: Widget type is the JSON key (e.g., `{"slider": "Volume"}` not `{"type": "slider"}`) and its value is the human-facing label
+- **Auto IDs**: `id` is derived from the label when omitted ("Enable Feature" → `enable_feature`); explicit ids are more reliable for `when` clauses
+- **Option-as-key branching**: an option's text used as a direct JSON key on select/multi maps to follow-up elements shown when that option is chosen
+- **Reveals**: elements shown while a check is checked (or once a select/multi has any selection)
+- **When clauses**: cross-element visibility conditions on any element
+- **Strict validation**: unknown keys, typo'd branch keys, duplicate/reserved ids, and broken when clauses are rejected before rendering, with "did you mean" suggestions
 
 ### Basic Structure
 ```json
 {
-  "title": "Popup Title",
-  "elements": [
-    // Array of element objects
-  ]
+  "title": "Short sentence describing what this interaction decides",
+  "submit": "Deploy",          // optional submit-button label (default "Submit")
+  "notes": true,                // optional; false hides the "Add a note" field
+  "elements": [ ... ]
 }
 ```
 
 ### Element Types
 
-#### Text
+#### Text / Markdown
 ```json
-{
-  "text": "Display text",
-  "id": "message"  // Optional for text elements
-}
+{"text": "Display text"}
+{"markdown": "**Context:** framing for the questions below"}
 ```
 
 #### Slider
 ```json
 {
-  "slider": "Volume",
-  "id": "volume",
-  "min": 0,
-  "max": 100,
-  "default": 50  // Optional, defaults to midpoint
+  "slider": "Time budget (hours)",
+  "id": "budget",
+  "min": 1,
+  "max": 8,
+  "step": 1,        // optional, default 1; whole steps return integers
+  "default": 3      // optional, defaults to midpoint
 }
 ```
 
 #### Check
 ```json
 {
-  "check": "Enable feature",
-  "id": "enable_feature",
-  "default": true  // Optional, defaults to false
-}
-```
-
-With reveals (shown when checked):
-```json
-{
-  "check": "Enable advanced",
-  "id": "enable_advanced",
-  "default": false,
-  "reveals": [
-    {
-      "slider": "Advanced level",
-      "id": "advanced_level",
-      "min": 1,
-      "max": 10
-    }
+  "check": "Set up CI now",
+  "id": "ci",
+  "default": true,
+  "reveals": [      // shown while checked
+    {"multi": "CI jobs", "id": "ci_jobs", "options": ["test", "lint", "release"]}
   ]
 }
 ```
@@ -198,255 +187,119 @@ With reveals (shown when checked):
 #### Input
 ```json
 {
-  "input": "Name",
-  "id": "user_name",
-  "placeholder": "Enter your name",  // Optional
-  "rows": 5  // Optional, for multiline
+  "input": "Service name",
+  "id": "name",
+  "placeholder": "my-service",
+  "default": "payments-webhook",  // prefill with your best guess (accept-or-correct)
+  "rows": 3                        // optional, multiline
 }
 ```
 
-#### Choice (Single Selection)
+#### Select (Single Choice)
 ```json
 {
-  "select": "Theme",
-  "id": "theme",
-  "options": ["Light", "Dark", "Auto"]
-}
-```
-
-With per-option children (option-as-key nesting):
-```json
-{
-  "select": "Mode",
-  "id": "mode",
-  "options": ["Simple", "Advanced"],
-  "Advanced": [
-    {
-      "slider": "Complexity",
-      "id": "complexity",
-      "min": 1,
-      "max": 10
-    }
+  "select": "Fix strategy",
+  "id": "strategy",
+  "options": [
+    {"value": "Patch fixtures", "description": "~20 min, fixtures keep drifting"},
+    {"value": "Regenerate from sandbox", "description": "~1 hour, matches prod exactly"}
+  ],
+  "default": "Regenerate from sandbox",   // preselect your recommendation
+  "style": "radio",                        // optional: "radio" | "dropdown" (auto: radio ≤6 options)
+  "Regenerate from sandbox": [             // option-as-key branch
+    {"input": "Sandbox key", "id": "sandbox_key"}
   ]
 }
 ```
+Options may be plain strings or `{value, description}` objects; descriptions render under each radio option. Selects with ≤6 options render as radio lists so users see every branch; longer lists become dropdowns.
 
-#### Multi
+#### Multi (Multiple Choice)
 ```json
 {
   "multi": "Features",
   "id": "features",
-  "options": ["Feature A", "Feature B", "Feature C"]
-}
-```
-
-With per-option children (option-as-key nesting):
-```json
-{
-  "multi": "Features",
-  "id": "features",
-  "options": ["Basic", "Advanced", "Expert"],
-  "Advanced": [
-    {
-      "slider": "Advanced Level",
-      "id": "advanced_level",
-      "min": 1,
-      "max": 5
-    }
-  ],
-  "Expert": [
-    {
-      "input": "Expert Config",
-      "id": "expert_config",
-      "placeholder": "Enter configuration"
-    }
+  "options": ["Basic", "Advanced"],
+  "Advanced": [                            // shown while "Advanced" is checked
+    {"slider": "Level", "id": "level", "min": 1, "max": 5}
   ]
 }
 ```
 
 #### Group
 ```json
-{
-  "group": "Settings",
-  "elements": [
-    // Nested elements
-  ]
-}
+{"group": "Deployment", "elements": [ ... ]}
 ```
 
-#### When Clauses (Conditional Visibility)
+### Auto-Injected "Other" Option
 
-Any element can have a `"when"` field for conditional visibility:
+Every select/multi automatically receives an "Other (please specify)" option with an attached text input. Never add one manually. When chosen, the result contains the selection plus `"<id>_other_text"` with the custom text.
+
+### When Clauses (Conditional Visibility)
+
+Any element can have a `"when"` field:
 
 ```json
-{
-  "slider": "Debug level",
-  "id": "debug_level",
-  "min": 0,
-  "max": 10,
-  "when": "show_advanced"  // Simple boolean check
-}
+{"slider": "Debug level", "id": "debug_level", "min": 0, "max": 10, "when": "show_advanced"}
 ```
 
-**When Clause Syntax:**
-- `@id` - Boolean check (true if checkbox checked, multiselect has selections, etc.)
-- `selected(id, value)` - Check if specific value is selected
-- `count(@id) > 2` - Check selection count with operators: `>`, `<`, `>=`, `<=`, `==`
-- `@id1 && @id2` - Logical AND
-- `@id1 || @id2` - Logical OR
-- `!@id` - Logical NOT
+**Syntax:**
+- `some_id` — truthy check (checkbox checked, multi has selections, input non-empty). A legacy `@some_id` prefix is also accepted
+- `selected(id, value)` — specific option selected; the value may be an unquoted phrase (`selected(strategy, Regenerate from sandbox)`); quote it only if it contains a closing paren
+- `count(id) > 2` — selection count, with `>`, `<`, `>=`, `<=`, `==`, `!=`
+- Numeric comparisons against sliders: `severity >= 7`, negative numbers allowed (`lufs > -9`)
+- Combine with `&&`, `||`, `!`, and parentheses; `any(...)`/`all(...)` also work
 
-**Complex When Examples:**
-```json
-{
-  "text": "Advanced mode active",
-  "when": "enable_advanced && selected(mode, Pro)"
-}
-```
+When clauses are validated up front: parse errors, references to unknown ids, `selected()` values that aren't options of the target, and `selected()` on non-select elements are all returned as errors before the popup renders.
+
+**Caveat:** conditions see hidden elements' current values (defaults persist while hidden). When referencing an id that lives inside a branch, AND in that branch's own condition: `"when": "selected(strategy, Regenerate from sandbox) && selected(creds, \"I'll provide fresh keys\")"`.
+
+### Result Format
 
 ```json
-{
-  "text": "Many items selected",
-  "when": "count(features) >= 3"
-}
+{"status": "completed", "button": "submit", "strategy": "Regenerate from sandbox", "budget": 3, ...}
+{"status": "cancelled"}
 ```
+
+Value semantics (deliberate signals, not noise):
+- **absent key** — element was never shown (its branch wasn't taken)
+- **`""` for input** — shown but left blank; **`null` for select** — shown, nothing chosen; **`[]` for multi** — shown, nothing checked; **`false` for check** — shown, unchecked
+- select returns option text; multi returns an array of option texts
+- slider returns a number (integer when whole)
+- `"_notes"` — free-form note the user added via the always-available note field
+- Reserved ids (cannot be used by elements): `status`, `button`, `error`, `_notes`
 
 ## Example Popups
 
-### Simple Confirmation
+### Branching Interview (the core pattern)
+
+Anticipate answers; nest the follow-ups each answer would trigger:
+
 ```json
 {
-  "title": "Delete File?",
+  "title": "How should I handle the failing payment-webhook tests?",
+  "submit": "Go with this plan",
   "elements": [
-    {
-      "text": "This action cannot be undone.",
-      "id": "warning"
-    }
+    {"markdown": "**Context:** 4 tests fail after the Stripe API version bump."},
+    {"select": "Fix strategy", "id": "strategy",
+     "options": [
+       {"value": "Patch fixtures", "description": "~20 min, drift remains"},
+       {"value": "Regenerate from sandbox", "description": "~1 hour, drift removed"}
+     ],
+     "default": "Regenerate from sandbox",
+     "Patch fixtures": [
+       {"check": "Add a schema-drift test", "id": "drift_test", "default": true}
+     ],
+     "Regenerate from sandbox": [
+       {"check": "Also regenerate refund fixtures", "id": "refunds", "reveals": [
+         {"slider": "Extra time (min)", "id": "extra", "min": 10, "max": 60, "step": 10}
+       ]}
+     ]},
+    {"text": "Note: sandbox keys required", "when": "selected(strategy, Regenerate from sandbox)"}
   ]
 }
 ```
 
-### Settings Form
-```json
-{
-  "title": "Settings",
-  "elements": [
-    {
-      "slider": "Volume",
-      "id": "volume",
-      "min": 0,
-      "max": 100,
-      "default": 75
-    },
-    {
-      "check": "Notifications",
-      "id": "notifications",
-      "default": true
-    },
-    {
-      "select": "Theme",
-      "id": "theme",
-      "options": ["Light", "Dark", "Auto"]
-    }
-  ]
-}
-```
-
-### Conditional UI (When Clauses)
-```json
-{
-  "title": "Advanced Settings",
-  "elements": [
-    {
-      "check": "Show advanced",
-      "id": "show_advanced",
-      "default": false
-    },
-    {
-      "slider": "Debug level",
-      "id": "debug_level",
-      "min": 0,
-      "max": 10,
-      "when": "show_advanced"
-    },
-    {
-      "input": "Log file",
-      "id": "log_file",
-      "placeholder": "/tmp/debug.log",
-      "when": "show_advanced"
-    }
-  ]
-}
-```
-
-### Reveals (Inline Conditionals)
-```json
-{
-  "title": "Feature Configuration",
-  "elements": [
-    {
-      "check": "Enable advanced mode",
-      "id": "enable_advanced",
-      "default": false,
-      "reveals": [
-        {
-          "slider": "Complexity",
-          "id": "complexity",
-          "min": 1,
-          "max": 10
-        }
-      ]
-    },
-    {
-      "select": "Profile",
-      "id": "profile",
-      "options": ["Basic", "Pro"],
-      "Pro": [
-        {
-          "input": "License Key",
-          "id": "license_key",
-          "placeholder": "XXXX-XXXX-XXXX"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Complex When Expressions
-```json
-{
-  "title": "Multi-Conditional Example",
-  "elements": [
-    {
-      "check": "Debug mode",
-      "id": "debug",
-      "default": false
-    },
-    {
-      "multi": "Features",
-      "id": "features",
-      "options": ["Analytics", "Sync", "Backup"]
-    },
-    {
-      "text": "Debug mode active with multiple features",
-      "when": "debug && count(features) > 1"
-    },
-    {
-      "select": "Mode",
-      "id": "mode",
-      "options": ["Simple", "Advanced", "Expert"]
-    },
-    {
-      "slider": "Expert complexity",
-      "id": "expert_complexity",
-      "min": 1,
-      "max": 10,
-      "when": "selected(mode, Expert)"
-    }
-  ]
-}
-```
+See `examples/fix_strategy_interview.json` for the full version, and the other files in `examples/` for more patterns (settings forms, conditional UI, count-based conditions).
 
 ## Claude Desktop Configuration
 

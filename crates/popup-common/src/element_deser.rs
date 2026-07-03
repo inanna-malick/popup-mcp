@@ -3,14 +3,15 @@
 /// **Serialization**: Element variant name becomes JSON discriminator key
 /// Example: Element::Text { text: "Hello", ... } → {"text": "Hello", ...}
 ///
-/// **Deserialization Challenge**: Choice and Multiselect have HashMap<String, Vec<Element>>
-/// where keys are arbitrary option values. Standard serde(flatten) can't distinguish
-/// between known fields and unknown option keys.
+/// **Deserialization**: The discriminator key selects the variant. Select and
+/// Multi additionally accept their option values as direct keys mapping to
+/// child element arrays (option-as-key branching).
 ///
-/// **Solution**: Manual Serialize/Deserialize impls that:
-/// - Serialize: Use variant field as discriminator, flatten option_children as direct keys
-/// - Deserialize: Extract known fields first, treat remaining matching option keys as children
-use crate::{Element, OptionValue};
+/// Deserialization is strict: unknown keys are an error with a "did you mean"
+/// suggestion. A typo'd branch key silently dropping an entire subtree is the
+/// worst failure mode this interface can have, so we fail loudly instead.
+use crate::validate::suggest;
+use crate::{Element, OptionValue, SelectStyle};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
@@ -68,6 +69,45 @@ fn get_id_or_auto(obj: &serde_json::Map<String, Value>, label: &str) -> String {
         .unwrap_or_else(|| label_to_snake_case(label))
 }
 
+/// Reject unknown keys with an actionable message.
+///
+/// `branch_keys` holds option values that are legal as direct keys
+/// (option-as-key branching on select/multi); empty for other elements.
+fn check_unknown_keys<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+    kind: &str,
+    label: &str,
+    allowed: &[&str],
+    branch_keys: &[&str],
+) -> Result<(), E> {
+    for key in obj.keys() {
+        if allowed.contains(&key.as_str()) || branch_keys.contains(&key.as_str()) {
+            continue;
+        }
+        let mut msg = format!(
+            "{} \"{}\": unknown key \"{}\". Allowed keys: {}",
+            kind,
+            label,
+            key,
+            allowed.join(", ")
+        );
+        if !branch_keys.is_empty() {
+            msg.push_str(&format!(
+                ", or an option value as a branch key ({})",
+                branch_keys.join(", ")
+            ));
+        }
+        if let Some(s) = suggest(
+            key,
+            allowed.iter().copied().chain(branch_keys.iter().copied()),
+        ) {
+            msg.push_str(&format!(". Did you mean \"{}\"?", s));
+        }
+        return Err(serde::de::Error::custom(msg));
+    }
+    Ok(())
+}
+
 /// Custom Serialize for Element - produces element-as-key format
 impl Serialize for Element {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -105,6 +145,7 @@ impl Serialize for Element {
                 min,
                 max,
                 default,
+                step,
                 when,
             } => {
                 let mut map = serializer.serialize_map(None)?;
@@ -114,6 +155,9 @@ impl Serialize for Element {
                 map.serialize_entry("max", max)?;
                 if let Some(d) = default {
                     map.serialize_entry("default", d)?;
+                }
+                if let Some(s) = step {
+                    map.serialize_entry("step", s)?;
                 }
                 if let Some(w) = when {
                     map.serialize_entry("when", w)?;
@@ -148,6 +192,7 @@ impl Serialize for Element {
                 input,
                 id,
                 placeholder,
+                default,
                 rows,
                 when,
             } => {
@@ -156,6 +201,9 @@ impl Serialize for Element {
                 map.serialize_entry("id", id)?;
                 if let Some(p) = placeholder {
                     map.serialize_entry("placeholder", p)?;
+                }
+                if let Some(d) = default {
+                    map.serialize_entry("default", d)?;
                 }
                 if let Some(r) = rows {
                     map.serialize_entry("rows", r)?;
@@ -196,6 +244,7 @@ impl Serialize for Element {
                 id,
                 options,
                 default,
+                style,
                 option_children,
                 reveals,
                 when,
@@ -206,6 +255,9 @@ impl Serialize for Element {
                 map.serialize_entry("options", options)?;
                 if let Some(d) = default {
                     map.serialize_entry("default", d)?;
+                }
+                if let Some(s) = style {
+                    map.serialize_entry("style", s)?;
                 }
                 // Serialize option_children as direct keys (option-as-key pattern)
                 for (option_key, children) in option_children {
@@ -241,24 +293,6 @@ impl Serialize for Element {
     }
 }
 
-//
-// Approach:
-// 1. Deserialize to generic Value first
-// 2. Check which discriminator key is present (text, slider, check, etc.)
-// 3. Extract known fields for that variant
-// 4. For Choice/Multiselect: remaining keys become option_children HashMap
-// 5. Reconstruct Element enum variant with extracted data
-//
-// Example JSON for Choice with option-as-key:
-// {
-//   "select": "Theme",
-//   "id": "theme",
-//   "options": ["Light", "Dark"],
-//   "Dark": [  // <-- option-as-key: "Dark" maps to nested elements
-//     {"slider": "Brightness", "id": "brightness", "min": 0, "max": 100}
-//   ]
-// }
-
 impl<'de> Deserialize<'de> for Element {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -290,8 +324,24 @@ impl<'de> Deserialize<'de> for Element {
         } else if obj.contains_key("group") {
             deserialize_group(obj)
         } else {
-            Err(serde::de::Error::custom("Unknown element type - must have one of: text, markdown, slider, check, input, multi, select, group"))
+            let keys: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
+            Err(serde::de::Error::custom(format!(
+                "Unknown element type (keys present: {}) - every element needs exactly one of: text, markdown, slider, check, input, multi, select, group",
+                keys.join(", ")
+            )))
         }
+    }
+}
+
+fn get_when<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+) -> Result<Option<String>, E> {
+    match obj.get("when") {
+        None => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(_) => Err(serde::de::Error::custom(
+            "\"when\" must be a string condition expression",
+        )),
     }
 }
 
@@ -304,16 +354,18 @@ fn deserialize_text<E: serde::de::Error>(
         .ok_or_else(|| serde::de::Error::custom("text field must be a string"))?
         .to_string();
 
+    check_unknown_keys(obj, "text", &text, &["text", "id", "when"], &[])?;
+
     let id = obj
         .get("id")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
 
-    Ok(Element::Text { text, id, when })
+    Ok(Element::Text {
+        text,
+        id,
+        when: get_when(obj)?,
+    })
 }
 
 fn deserialize_markdown<E: serde::de::Error>(
@@ -325,16 +377,18 @@ fn deserialize_markdown<E: serde::de::Error>(
         .ok_or_else(|| serde::de::Error::custom("markdown field must be a string"))?
         .to_string();
 
+    check_unknown_keys(obj, "markdown", &markdown, &["markdown", "id", "when"], &[])?;
+
     let id = obj
         .get("id")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
 
-    Ok(Element::Markdown { markdown, id, when })
+    Ok(Element::Markdown {
+        markdown,
+        id,
+        when: get_when(obj)?,
+    })
 }
 
 fn deserialize_slider<E: serde::de::Error>(
@@ -345,6 +399,14 @@ fn deserialize_slider<E: serde::de::Error>(
         .and_then(|v| v.as_str())
         .ok_or_else(|| serde::de::Error::custom("slider field must be a string"))?
         .to_string();
+
+    check_unknown_keys(
+        obj,
+        "slider",
+        &slider,
+        &["slider", "id", "min", "max", "default", "step", "when"],
+        &[],
+    )?;
 
     // Auto-generate ID from label if not provided
     let id = get_id_or_auto(obj, &slider);
@@ -366,10 +428,7 @@ fn deserialize_slider<E: serde::de::Error>(
         .and_then(|v| v.as_f64())
         .map(|f| f as f32);
 
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+    let step = obj.get("step").and_then(|v| v.as_f64()).map(|f| f as f32);
 
     Ok(Element::Slider {
         slider,
@@ -377,7 +436,8 @@ fn deserialize_slider<E: serde::de::Error>(
         min,
         max,
         default,
-        when,
+        step,
+        when: get_when(obj)?,
     })
 }
 
@@ -389,6 +449,14 @@ fn deserialize_checkbox<E: serde::de::Error>(
         .and_then(|v| v.as_str())
         .ok_or_else(|| serde::de::Error::custom("check field must be a string"))?
         .to_string();
+
+    check_unknown_keys(
+        obj,
+        "check",
+        &check,
+        &["check", "id", "default", "reveals", "when"],
+        &[],
+    )?;
 
     // Auto-generate ID from label if not provided
     let id = get_id_or_auto(obj, &check);
@@ -405,17 +473,12 @@ fn deserialize_checkbox<E: serde::de::Error>(
         .map_err(serde::de::Error::custom)?
         .unwrap_or_default();
 
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
     Ok(Element::Check {
         check,
         id,
         default,
         reveals,
-        when,
+        when: get_when(obj)?,
     })
 }
 
@@ -428,6 +491,14 @@ fn deserialize_textbox<E: serde::de::Error>(
         .ok_or_else(|| serde::de::Error::custom("input field must be a string"))?
         .to_string();
 
+    check_unknown_keys(
+        obj,
+        "input",
+        &input,
+        &["input", "id", "placeholder", "default", "rows", "when"],
+        &[],
+    )?;
+
     // Auto-generate ID from label if not provided
     let id = get_id_or_auto(obj, &input);
 
@@ -435,20 +506,51 @@ fn deserialize_textbox<E: serde::de::Error>(
         .get("placeholder")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let rows = obj.get("rows").and_then(|v| v.as_u64()).map(|n| n as u32);
-
-    let when = obj
-        .get("when")
+    let default = obj
+        .get("default")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let rows = obj.get("rows").and_then(|v| v.as_u64()).map(|n| n as u32);
 
     Ok(Element::Input {
         input,
         id,
         placeholder,
+        default,
         rows,
-        when,
+        when: get_when(obj)?,
     })
+}
+
+fn parse_options<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+    kind: &str,
+) -> Result<Vec<OptionValue>, E> {
+    let options = obj
+        .get("options")
+        .ok_or_else(|| serde::de::Error::custom(format!("{} must have options field", kind)))?;
+    serde_json::from_value::<Vec<OptionValue>>(options.clone()).map_err(serde::de::Error::custom)
+}
+
+/// Extract option-as-key children: keys matching option values map to child
+/// element arrays shown when that option is selected
+fn parse_option_children<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+    known_fields: &[&str],
+    options: &[OptionValue],
+) -> Result<HashMap<String, Vec<Element>>, E> {
+    let option_values: Vec<&str> = options.iter().map(|o| o.value()).collect();
+    let mut option_children = HashMap::new();
+
+    for (key, value) in obj.iter() {
+        if !known_fields.contains(&key.as_str()) && option_values.contains(&key.as_str()) {
+            let children = serde_json::from_value::<Vec<Element>>(value.clone()).map_err(|e| {
+                serde::de::Error::custom(format!("Invalid children for option '{}': {}", key, e))
+            })?;
+            option_children.insert(key.clone(), children);
+        }
+    }
+    Ok(option_children)
 }
 
 fn deserialize_multiselect<E: serde::de::Error>(
@@ -463,11 +565,11 @@ fn deserialize_multiselect<E: serde::de::Error>(
     // Auto-generate ID from label if not provided
     let id = get_id_or_auto(obj, &multi);
 
-    let options = obj
-        .get("options")
-        .ok_or_else(|| serde::de::Error::custom("multiselect must have options field"))?;
-    let options = serde_json::from_value::<Vec<OptionValue>>(options.clone())
-        .map_err(serde::de::Error::custom)?;
+    let options = parse_options(obj, "multi")?;
+
+    let known_fields = crate::validate::MULTI_FIELDS;
+    let option_values: Vec<&str> = options.iter().map(|o| o.value()).collect();
+    check_unknown_keys(obj, "multi", &multi, known_fields, &option_values)?;
 
     let reveals = obj
         .get("reveals")
@@ -476,25 +578,7 @@ fn deserialize_multiselect<E: serde::de::Error>(
         .map_err(serde::de::Error::custom)?
         .unwrap_or_default();
 
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    // Extract option-as-key children: any key that's not a known field and IS in options list
-    let known_fields = ["multi", "id", "options", "reveals", "when"];
-    let option_values: Vec<&str> = options.iter().map(|o| o.value()).collect();
-    let mut option_children = HashMap::new();
-
-    for (key, value) in obj.iter() {
-        if !known_fields.contains(&key.as_str()) && option_values.contains(&key.as_str()) {
-            // This is an option-as-key mapping
-            let children = serde_json::from_value::<Vec<Element>>(value.clone()).map_err(|e| {
-                serde::de::Error::custom(format!("Invalid children for option '{}': {}", key, e))
-            })?;
-            option_children.insert(key.clone(), children);
-        }
-    }
+    let option_children = parse_option_children(obj, known_fields, &options)?;
 
     Ok(Element::Multi {
         multi,
@@ -502,7 +586,7 @@ fn deserialize_multiselect<E: serde::de::Error>(
         options,
         option_children,
         reveals,
-        when,
+        when: get_when(obj)?,
     })
 }
 
@@ -518,16 +602,28 @@ fn deserialize_choice<E: serde::de::Error>(
     // Auto-generate ID from label if not provided
     let id = get_id_or_auto(obj, &select);
 
-    let options = obj
-        .get("options")
-        .ok_or_else(|| serde::de::Error::custom("choice must have options field"))?;
-    let options = serde_json::from_value::<Vec<OptionValue>>(options.clone())
-        .map_err(serde::de::Error::custom)?;
+    let options = parse_options(obj, "select")?;
+
+    let known_fields = crate::validate::SELECT_FIELDS;
+    let option_values: Vec<&str> = options.iter().map(|o| o.value()).collect();
+    check_unknown_keys(obj, "select", &select, known_fields, &option_values)?;
 
     let default = obj
         .get("default")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+
+    let style = match obj.get("style") {
+        None => None,
+        Some(v) => Some(
+            serde_json::from_value::<SelectStyle>(v.clone()).map_err(|_| {
+                serde::de::Error::custom(format!(
+                    "select \"{}\": style must be \"radio\" or \"dropdown\", got {}",
+                    select, v
+                ))
+            })?,
+        ),
+    };
 
     let reveals = obj
         .get("reveals")
@@ -536,33 +632,17 @@ fn deserialize_choice<E: serde::de::Error>(
         .map_err(serde::de::Error::custom)?
         .unwrap_or_default();
 
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    // Extract option-as-key children
-    let known_fields = ["select", "id", "options", "default", "reveals", "when"];
-    let option_values: Vec<&str> = options.iter().map(|o| o.value()).collect();
-    let mut option_children = HashMap::new();
-
-    for (key, value) in obj.iter() {
-        if !known_fields.contains(&key.as_str()) && option_values.contains(&key.as_str()) {
-            let children = serde_json::from_value::<Vec<Element>>(value.clone()).map_err(|e| {
-                serde::de::Error::custom(format!("Invalid children for option '{}': {}", key, e))
-            })?;
-            option_children.insert(key.clone(), children);
-        }
-    }
+    let option_children = parse_option_children(obj, known_fields, &options)?;
 
     Ok(Element::Select {
         select,
         id,
         options,
         default,
+        style,
         option_children,
         reveals,
-        when,
+        when: get_when(obj)?,
     })
 }
 
@@ -575,6 +655,14 @@ fn deserialize_group<E: serde::de::Error>(
         .ok_or_else(|| serde::de::Error::custom("group field must be a string"))?
         .to_string();
 
+    check_unknown_keys(
+        obj,
+        "group",
+        &group,
+        &["group", "id", "elements", "when"],
+        &[],
+    )?;
+
     let id = obj
         .get("id")
         .and_then(|v| v.as_str())
@@ -586,16 +674,11 @@ fn deserialize_group<E: serde::de::Error>(
     let elements = serde_json::from_value::<Vec<Element>>(elements.clone())
         .map_err(serde::de::Error::custom)?;
 
-    let when = obj
-        .get("when")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
     Ok(Element::Group {
         group,
         id,
         elements,
-        when,
+        when: get_when(obj)?,
     })
 }
 
@@ -631,7 +714,7 @@ mod tests {
         let original = Element::Text {
             text: "Test".to_string(),
             id: None,
-            when: Some("@enabled".to_string()),
+            when: Some("enabled".to_string()),
         };
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: Element = serde_json::from_str(&json).unwrap();
@@ -640,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_slider() {
-        let json = r#"{"slider": "Volume", "id": "vol", "min": 0, "max": 100}"#;
+        let json = r#"{"slider": "Volume", "id": "vol", "min": 0, "max": 100, "step": 5}"#;
         let elem: Element = serde_json::from_str(json).unwrap();
         match elem {
             Element::Slider {
@@ -648,14 +731,28 @@ mod tests {
                 id,
                 min,
                 max,
+                step,
                 ..
             } => {
                 assert_eq!(slider, "Volume");
                 assert_eq!(id, "vol");
                 assert_eq!(min, 0.0);
                 assert_eq!(max, 100.0);
+                assert_eq!(step, Some(5.0));
             }
             _ => panic!("Expected Slider variant"),
+        }
+    }
+
+    #[test]
+    fn test_deserialize_input_with_default() {
+        let json = r#"{"input": "Name", "default": "proposed value"}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match elem {
+            Element::Input { default, .. } => {
+                assert_eq!(default, Some("proposed value".to_string()));
+            }
+            _ => panic!("Expected Input variant"),
         }
     }
 
@@ -688,6 +785,68 @@ mod tests {
             }
             _ => panic!("Expected Choice variant"),
         }
+    }
+
+    #[test]
+    fn test_deserialize_select_style() {
+        let json = r#"{"select": "Theme", "options": ["A", "B"], "style": "radio"}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match elem {
+            Element::Select { style, .. } => assert_eq!(style, Some(SelectStyle::Radio)),
+            _ => panic!("Expected Select variant"),
+        }
+
+        let json = r#"{"select": "Theme", "options": ["A", "B"], "style": "fancy"}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("radio"), "unexpected error: {}", err);
+    }
+
+    #[test]
+    fn test_typod_branch_key_is_error_with_suggestion() {
+        // "Drak" is not an option - previously this subtree silently vanished
+        let json = r#"{
+            "select": "Theme",
+            "options": ["Light", "Dark"],
+            "Drak": [{"text": "Dark mode settings"}]
+        }"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("unknown key \"Drak\""),
+            "unexpected error: {}",
+            err
+        );
+        assert!(
+            err.contains("Did you mean \"Dark\"?"),
+            "unexpected error: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_unknown_field_is_error() {
+        let json = r#"{"slider": "Volume", "min": 0, "max": 100, "reveals": []}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("unknown key \"reveals\""),
+            "unexpected error: {}",
+            err
+        );
+
+        let json = r#"{"check": "Enable", "revales": []}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("Did you mean \"reveals\"?"),
+            "unexpected error: {}",
+            err
+        );
     }
 
     #[test]
@@ -756,6 +915,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             default: Some(75.0),
+            step: None,
             when: None,
         };
         let json = serde_json::to_value(&elem).unwrap();
@@ -775,6 +935,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 default: Some(50.0),
+                step: None,
                 when: None,
             }],
         );
@@ -787,6 +948,7 @@ mod tests {
                 OptionValue::Simple("Dark".to_string()),
             ],
             default: Some("Dark".to_string()),
+            style: Some(SelectStyle::Radio),
             option_children,
             reveals: vec![],
             when: None,
@@ -817,6 +979,7 @@ mod tests {
                 OptionValue::Simple("Advanced".to_string()),
             ],
             default: None,
+            style: None,
             option_children,
             reveals: vec![],
             when: None,
@@ -849,6 +1012,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 default: None,
+                step: Some(0.5),
                 when: None,
             },
             Element::Check {
@@ -862,6 +1026,7 @@ mod tests {
                 input: "Name".to_string(),
                 id: "name".to_string(),
                 placeholder: Some("Enter name".to_string()),
+                default: Some("Ada".to_string()),
                 rows: Some(3),
                 when: None,
             },
@@ -895,7 +1060,7 @@ mod tests {
         }
     }
 
-    // Phase 6: Auto-ID generation tests
+    // Auto-ID generation tests
 
     #[test]
     fn test_label_to_snake_case() {

@@ -186,21 +186,19 @@
           "id": "consequences",
           "min": 1,
           "max": 10,
-          "default": 7,
-          "reveals": [
-            {
-              "text": "Strong consequentialism - evaluate ideas by practical effects",
-              "when": "consequences >= 8"
-            },
-            {
-              "text": "Moderate consequentialism - balance theory and practice",
-              "when": "consequences >= 4 && consequences < 8"
-            },
-            {
-              "text": "Weak consequentialism - more theoretical grounding",
-              "when": "consequences < 4"
-            }
-          ]
+          "default": 7
+        },
+        {
+          "text": "Strong consequentialism - evaluate ideas by practical effects",
+          "when": "consequences >= 8"
+        },
+        {
+          "text": "Moderate consequentialism - balance theory and practice",
+          "when": "consequences >= 4 && consequences < 8"
+        },
+        {
+          "text": "Weak consequentialism - more theoretical grounding",
+          "when": "consequences < 4"
         }
       ],
       "Critical Theory": [
@@ -307,13 +305,11 @@
               "id": "emancipation",
               "min": 1,
               "max": 10,
-              "default": 8,
-              "reveals": [
-                {
-                  "text": "Strong emancipatory commitment - explicit normative stance",
-                  "when": "emancipation >= 7"
-                }
-              ]
+              "default": 8
+            },
+            {
+              "text": "Strong emancipatory commitment - explicit normative stance",
+              "when": "emancipation >= 7"
             },
             {
               "id": "ideology_critique",
@@ -464,17 +460,15 @@
               "id": "emergence_strength",
               "min": 1,
               "max": 10,
-              "default": 5,
-              "reveals": [
-                {
-                  "text": "Strong emergence - irreducible to components",
-                  "when": "emergence_strength >= 7"
-                },
-                {
-                  "text": "Weak emergence - reducible in principle",
-                  "when": "emergence_strength < 4"
-                }
-              ]
+              "default": 5
+            },
+            {
+              "text": "Strong emergence - irreducible to components",
+              "when": "emergence_strength >= 7"
+            },
+            {
+              "text": "Weak emergence - reducible in principle",
+              "when": "emergence_strength < 4"
             }
           ],
           "Self-organization": [

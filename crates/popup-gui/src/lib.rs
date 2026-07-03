@@ -10,10 +10,13 @@ pub mod transform;
 mod tests;
 
 // Re-export from popup-common
-pub use popup_common::{Element, ElementValue, PopupDefinition, PopupResult, PopupState};
+pub use popup_common::{
+    validate_definition, Element, ElementValue, PopupDefinition, PopupResult, PopupState,
+    SelectStyle, ValidationIssue,
+};
 
 // Re-export from this crate
 pub use gui::render_popup;
-pub use json_parser::{parse_popup_json, validate_popup_json};
+pub use json_parser::{parse_and_validate_popup_json, parse_popup_json, validate_popup_json};
 pub use schema::{get_input_schema, get_popup_tool_schema, get_schema_description};
 pub use transform::inject_other_options;

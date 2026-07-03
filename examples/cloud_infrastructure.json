@@ -31,21 +31,19 @@
               "id": "lambda_concurrency",
               "min": 10,
               "max": 10000,
-              "default": 100,
-              "reveals": [
-                {
-                  "text": "Low concurrency - standard limits OK",
-                  "when": "lambda_concurrency < 100"
-                },
-                {
-                  "text": "Medium concurrency - monitor limits",
-                  "when": "lambda_concurrency >= 100 && lambda_concurrency < 1000"
-                },
-                {
-                  "text": "⚠ High concurrency - request limit increase",
-                  "when": "lambda_concurrency >= 1000"
-                }
-              ]
+              "default": 100
+            },
+            {
+              "text": "Low concurrency - standard limits OK",
+              "when": "lambda_concurrency < 100"
+            },
+            {
+              "text": "Medium concurrency - monitor limits",
+              "when": "lambda_concurrency >= 100 && lambda_concurrency < 1000"
+            },
+            {
+              "text": "⚠ High concurrency - request limit increase",
+              "when": "lambda_concurrency >= 1000"
             },
             {
               "id": "provisioned_concurrency",
@@ -181,13 +179,11 @@
               "id": "gke_pools",
               "min": 1,
               "max": 10,
-              "default": 1,
-              "reveals": [
-                {
-                  "text": "⚠ Multiple node pools - ensure cost tracking",
-                  "when": "gke_pools >= 3"
-                }
-              ]
+              "default": 1
+            },
+            {
+              "text": "⚠ Multiple node pools - ensure cost tracking",
+              "when": "gke_pools >= 3"
             }
           ],
           "multi": "Core GCP Services"
@@ -274,46 +270,42 @@
           "id": "rps",
           "min": 1,
           "max": 100000,
-          "default": 100,
-          "reveals": [
-            {
-              "text": "Low traffic - serverless ideal",
-              "when": "rps < 100"
-            },
-            {
-              "text": "Medium traffic - hybrid approach",
-              "when": "rps >= 100 && rps < 1000"
-            },
-            {
-              "text": "High traffic - dedicated infrastructure",
-              "when": "rps >= 1000"
-            },
-            {
-              "text": "🚀 Very high traffic - consider CDN + edge computing",
-              "when": "rps >= 10000"
-            }
-          ]
+          "default": 100
+        },
+        {
+          "text": "Low traffic - serverless ideal",
+          "when": "rps < 100"
+        },
+        {
+          "text": "Medium traffic - hybrid approach",
+          "when": "rps >= 100 && rps < 1000"
+        },
+        {
+          "text": "High traffic - dedicated infrastructure",
+          "when": "rps >= 1000"
+        },
+        {
+          "text": "🚀 Very high traffic - consider CDN + edge computing",
+          "when": "rps >= 10000"
         },
         {
           "slider": "P95 latency requirement (ms)",
           "id": "latency_p95",
           "min": 10,
           "max": 5000,
-          "default": 500,
-          "reveals": [
-            {
-              "text": "⚠ Strict latency - avoid cold starts, use provisioned capacity",
-              "when": "latency_p95 < 100"
-            },
-            {
-              "text": "Moderate latency tolerance",
-              "when": "latency_p95 >= 100 && latency_p95 < 1000"
-            },
-            {
-              "text": "Relaxed latency - serverless OK",
-              "when": "latency_p95 >= 1000"
-            }
-          ]
+          "default": 500
+        },
+        {
+          "text": "⚠ Strict latency - avoid cold starts, use provisioned capacity",
+          "when": "latency_p95 < 100"
+        },
+        {
+          "text": "Moderate latency tolerance",
+          "when": "latency_p95 >= 100 && latency_p95 < 1000"
+        },
+        {
+          "text": "Relaxed latency - serverless OK",
+          "when": "latency_p95 >= 1000"
         },
         {
           "id": "data_chars",
@@ -528,21 +520,19 @@
           "id": "budget",
           "min": 100,
           "max": 100000,
-          "default": 5000,
-          "reveals": [
-            {
-              "text": "Startup/small project budget",
-              "when": "budget < 1000"
-            },
-            {
-              "text": "Medium project budget",
-              "when": "budget >= 1000 && budget < 10000"
-            },
-            {
-              "text": "Enterprise budget",
-              "when": "budget >= 10000"
-            }
-          ]
+          "default": 5000
+        },
+        {
+          "text": "Startup/small project budget",
+          "when": "budget < 1000"
+        },
+        {
+          "text": "Medium project budget",
+          "when": "budget >= 1000 && budget < 10000"
+        },
+        {
+          "text": "Enterprise budget",
+          "when": "budget >= 10000"
         },
         {
           "id": "cost_strategies",
@@ -573,11 +563,11 @@
         },
         {
           "text": "⚠ High availability target without multi-region - mismatch",
-          "when": "selected(availability, ''99.99% (52.56 min/year')') && count(regions) < 2"
+          "when": "selected(availability, '99.99% (52.56 min/year)') && count(regions) < 2"
         },
         {
           "text": "⚠ Low budget with high availability + many regions - cost overrun risk",
-          "when": "budget < 5000 && selected(availability, ''99.99% (52.56 min/year')') && count(regions) >= 2"
+          "when": "budget < 5000 && selected(availability, '99.99% (52.56 min/year)') && count(regions) >= 2"
         },
         {
           "text": "⚠ High traffic + serverless + strict latency - consider dedicated infrastructure",
@@ -593,7 +583,7 @@
         },
         {
           "text": "🚨 EXPENSIVE COMBO: Multi-region + high availability + many services + ML workloads",
-          "when": "count(regions) >= 3 && selected(availability, ''99.99% (52.56 min/year')') && count(aws_services) >= 5 && ml_workloads"
+          "when": "count(regions) >= 3 && selected(availability, '99.99% (52.56 min/year)') && count(aws_services) >= 5 && ml_workloads"
         },
         {
           "text": "⚠ HIPAA + multi-cloud - ensure BAAs with all providers",

@@ -12,7 +12,7 @@ use serde_json::json;
 pub fn get_popup_tool_schema() -> serde_json::Value {
     json!({
         "name": "popup",
-        "description": "Author a dialogue tree that collapses multiple conversation turns into one interaction.\n\nCORE PATTERN: Anticipate likely user responses. For each anticipated answer, encode branch-specific followup questions. Nest 3-5 levels deep.\n\nANTI-PATTERN: Don't build flat forms. If an answer would prompt a followup question, encode that followup as a nested branch NOW.\n\nBRANCHING MECHANICS:\n- option-as-key: {\"select\": \"Lang\", \"id\": \"x\", \"options\": [\"Rust\", \"Go\"], \"Rust\": [{...rust-specific followups...}]}\n- reveals: {\"check\": \"Advanced\", \"id\": \"x\", \"reveals\": [{...shown when checked...}]}\n- when: {\"slider\": \"X\", \"when\": \"advanced && selected(lang, 'Rust')\"}\n\nELEMENTS: text, slider, check, input, select (single-select), multi, group\n\nAUTO-INJECTED 'OTHER' OPTION:\nAll 'select' and 'multi' elements automatically receive an 'Other (please specify)' option. When selected, a text input appears for custom values. DO NOT manually add 'Other' options - they are added automatically.\n\nRETURN FORMAT:\n- select/multi: Returns selected option text (\"Rust\", not index)\n- When 'Other' is selected: Returns both \"Other (please specify)\" in the selection AND a separate \"<id>_other_text\" field with the custom text\n- Example: {\"mode\": \"Other (please specify)\", \"mode_other_text\": \"Custom mode\"}\n- slider: integer value (7)\n- Only visible elements included\n\nRETURNS: {\"status\": \"completed\"|\"cancelled\", \"button\": \"submit\"|\"cancel\", \"<id>\": value}\n\nNOTE: Widget type names (text, slider, check, input, select, multi, group) are reserved and cannot be used as option values in select/multi.",
+        "description": get_schema_description(),
         "inputSchema": get_input_schema()
     })
 }
@@ -22,223 +22,177 @@ pub fn get_popup_tool_schema() -> serde_json::Value {
 /// Use this if you want to customize the name or description
 /// but need the proper schema for the popup structure.
 pub fn get_input_schema() -> serde_json::Value {
+    let when_desc = "Visibility condition over other elements' ids. Syntax: bare id is a truthy check (\"advanced\"), selected(id, value) tests one option (value may be an unquoted phrase: selected(strategy, Regenerate from sandbox); quote it if it contains a closing paren), count(id) > N counts selections, any(...)/all(...) combine conditions, numbers may be negative, combine with && || ! and parentheses. Conditions see hidden elements' current values - when referencing an id inside a branch, AND in that branch's own condition.";
+
     json!({
         "type": "object",
         "properties": {
             "title": {
                 "type": "string",
-                "description": "A semantically-meaningful short sentence-length description of the popup's purpose (e.g., 'Configure your profile settings' or 'Confirm deletion of the project')."
+                "description": "Short sentence describing what this interaction decides (e.g. 'Configure deployment target')"
+            },
+            "submit": {
+                "type": "string",
+                "description": "Optional label for the submit button (default \"Submit\"). Use a verb matching the consequence, e.g. \"Deploy\", \"Send reply\"."
+            },
+            "notes": {
+                "type": "boolean",
+                "description": "Whether to show the collapsed free-text 'Add a note' field (default true). Leave enabled: it catches answers your options didn't anticipate."
             },
             "elements": {
                 "type": "array",
-                "description": "Array of UI elements to display",
+                "description": "UI elements in display order. The element type is the JSON key that carries the label.",
                 "items": {
                     "oneOf": [
-                        // Text element (V2: element-as-key, id optional)
                         {
                             "type": "object",
+                            "description": "Static text",
                             "properties": {
-                                "text": {
-                                    "type": "string",
-                                    "description": "Text to display"
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Optional element ID (text elements don't need state tracking)"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                },
+                                "text": {"type": "string", "description": "Text to display"},
+                                "id": {"type": "string", "description": "Optional id"},
+                                "when": {"type": "string", "description": when_desc}
                             },
                             "required": ["text"],
                             "additionalProperties": false
                         },
-                        // Slider element (V2: slider is the key, id required)
                         {
                             "type": "object",
+                            "description": "Markdown block for richer framing/context",
                             "properties": {
-                                "slider": {
-                                    "type": "string",
-                                    "description": "Label for the slider"
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Element ID for state tracking (required)"
-                                },
-                                "min": {
-                                    "type": "number",
-                                    "description": "Minimum value"
-                                },
-                                "max": {
-                                    "type": "number",
-                                    "description": "Maximum value"
-                                },
-                                "default": {
-                                    "type": "number",
-                                    "description": "Default value (optional, defaults to midpoint)"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                }
+                                "markdown": {"type": "string", "description": "Markdown content"},
+                                "id": {"type": "string", "description": "Optional id"},
+                                "when": {"type": "string", "description": when_desc}
                             },
-                            "required": ["slider", "id", "min", "max"],
+                            "required": ["markdown"],
                             "additionalProperties": false
                         },
-                        // Checkbox element (V2: checkbox is the key, id required)
                         {
                             "type": "object",
+                            "description": "Numeric slider",
                             "properties": {
-                                "check": {
-                                    "type": "string",
-                                    "description": "Label for the checkbox"
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Element ID for state tracking (required)"
-                                },
-                                "default": {
-                                    "type": "boolean",
-                                    "description": "Default checked state"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                },
+                                "slider": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
+                                "min": {"type": "number"},
+                                "max": {"type": "number"},
+                                "default": {"type": "number", "description": "Defaults to midpoint"},
+                                "step": {"type": "number", "description": "Increment (default 1). Whole steps return integers."},
+                                "when": {"type": "string", "description": when_desc}
+                            },
+                            "required": ["slider", "min", "max"],
+                            "additionalProperties": false
+                        },
+                        {
+                            "type": "object",
+                            "description": "Checkbox; nest follow-ups under `reveals` to show them only when checked",
+                            "properties": {
+                                "check": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
+                                "default": {"type": "boolean", "description": "Initial checked state (default false)"},
                                 "reveals": {
                                     "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when checkbox is checked"
+                                    "description": "Elements shown while checked - put checked-branch follow-up questions here"
                                 },
+                                "when": {"type": "string", "description": when_desc}
                             },
-                            "required": ["check", "id"],
+                            "required": ["check"],
                             "additionalProperties": false
                         },
-                        // Textbox element (V2: textbox is the key, id required)
                         {
                             "type": "object",
+                            "description": "Text input",
                             "properties": {
-                                "input": {
-                                    "type": "string",
-                                    "description": "Label for the text input"
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Element ID for state tracking (required)"
-                                },
-                                "placeholder": {
-                                    "type": "string",
-                                    "description": "Placeholder text (optional)"
-                                },
-                                "rows": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "description": "Number of rows for multiline input (optional)"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                },
+                                "input": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
+                                "placeholder": {"type": "string"},
+                                "default": {"type": "string", "description": "Prefilled text. Propose your best guess so the user edits instead of typing from scratch."},
+                                "rows": {"type": "integer", "minimum": 1, "description": "Rows for multiline input"},
+                                "when": {"type": "string", "description": when_desc}
                             },
-                            "required": ["input", "id"],
+                            "required": ["input"],
                             "additionalProperties": false
                         },
-                        // Multiselect element (V2: multiselect is the key, id required, option-as-key for children)
                         {
                             "type": "object",
+                            "description": "Single choice. BRANCH POINT: use an option's text as a direct JSON key mapping to an array of follow-up elements shown when that option is selected.",
                             "properties": {
-                                "multi": {
-                                    "type": "string",
-                                    "description": "Label for the multiselect. NOTE: An 'Other (please specify)' option is automatically added - do not include it manually."
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Element ID for state tracking (required)"
-                                },
+                                "select": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
                                 "options": {
                                     "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
                                     "minItems": 1,
-                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes both the selection and a '<id>_other_text' field."
+                                    "items": {
+                                        "oneOf": [
+                                            {"type": "string"},
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "value": {"type": "string"},
+                                                    "description": {"type": "string", "description": "Shown under the option - use to explain tradeoffs"}
+                                                },
+                                                "required": ["value", "description"]
+                                            }
+                                        ]
+                                    },
+                                    "description": "Options. An 'Other (please specify)' option + text input is appended automatically; never add one yourself."
                                 },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                },
+                                "default": {"type": "string", "description": "Preselected option text. Set to your recommendation."},
+                                "style": {"type": "string", "enum": ["radio", "dropdown"], "description": "Override rendering. Auto: radio (all options visible) up to 6 options, dropdown beyond."},
                                 "reveals": {
                                     "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when any option is selected"
+                                    "description": "Elements shown once anything is selected (branch-independent follow-ups)"
                                 },
+                                "when": {"type": "string", "description": when_desc}
                             },
-                            "required": ["multi", "id", "options"],
-                            "patternProperties": {
-                                "^(?!multi|id|options|when|reveals).*$": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
-                                }
-                            },
-                            "additionalProperties": false
+                            "required": ["select", "options"],
+                            "additionalProperties": {
+                                "$ref": "#/properties/elements",
+                                "description": "Option-as-key branch: key must exactly match an option's text; value is the follow-up elements for that branch"
+                            }
                         },
-                        // Choice element (V2: choice is the key, id required, option-as-key for children)
                         {
                             "type": "object",
+                            "description": "Multiple choice. Same option-as-key branching as select; a branch shows while its option is checked.",
                             "properties": {
-                                "select": {
-                                    "type": "string",
-                                    "description": "Label for the dropdown. NOTE: An 'Other (please specify)' option is automatically added - do not include it manually."
-                                },
-                                "id": {
-                                    "type": "string",
-                                    "description": "Element ID for state tracking (required)"
-                                },
+                                "multi": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
                                 "options": {
                                     "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
                                     "minItems": 1,
-                                    "description": "Array of option strings. 'Other (please specify)' is automatically appended - do not add manually. When 'Other' is selected, result includes '<id>': 'Other (please specify)' and '<id>_other_text': 'custom value'."
-                                },
-                                "default": {
-                                    "type": "string",
-                                    "description": "Default selected option value (must match an option, omit for no selection)"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
+                                    "items": {
+                                        "oneOf": [
+                                            {"type": "string"},
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "value": {"type": "string"},
+                                                    "description": {"type": "string"}
+                                                },
+                                                "required": ["value", "description"]
+                                            }
+                                        ]
+                                    },
+                                    "description": "Options. 'Other (please specify)' is appended automatically."
                                 },
                                 "reveals": {
                                     "$ref": "#/properties/elements",
-                                    "description": "Child elements shown when any option is selected"
+                                    "description": "Elements shown once any option is selected"
                                 },
+                                "when": {"type": "string", "description": when_desc}
                             },
-                            "required": ["select", "id", "options"],
-                            "patternProperties": {
-                                "^(?!select|id|options|default|when|reveals).*$": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Option-as-key: Use option text as JSON key for child elements shown when that option is selected"
-                                }
-                            },
-                            "additionalProperties": false
+                            "required": ["multi", "options"],
+                            "additionalProperties": {
+                                "$ref": "#/properties/elements",
+                                "description": "Option-as-key branch: key must exactly match an option's text"
+                            }
                         },
-                        // Group element (V2: group is the key)
                         {
                             "type": "object",
+                            "description": "Visual grouping of related elements",
                             "properties": {
-                                "group": {
-                                    "type": "string",
-                                    "description": "Label for the group"
-                                },
-                                "elements": {
-                                    "$ref": "#/properties/elements",
-                                    "description": "Nested elements within the group"
-                                },
-                                "when": {
-                                    "type": "string",
-                                    "description": "Condition for visibility. Syntax: id (truthy check), selected(id, \"value\"), count(id) > N, with &&/||/! operators"
-                                },
+                                "group": {"type": "string", "description": "Group label"},
+                                "id": {"type": "string"},
+                                "elements": {"$ref": "#/properties/elements"},
+                                "when": {"type": "string", "description": when_desc}
                             },
                             "required": ["group", "elements"],
                             "additionalProperties": false
@@ -251,76 +205,77 @@ pub fn get_input_schema() -> serde_json::Value {
         "additionalProperties": false,
         "examples": [
             {
-                "title": "Quick confirmation",
+                "title": "How should I fix the failing auth tests?",
                 "elements": [
-                    {"text": "Are you sure you want to proceed?", "id": "confirm_text"},
-                    {"check": "Don't ask again", "id": "dont_ask"}
+                    {"select": "Approach", "id": "approach", "options": [
+                        {"value": "Patch the mock", "description": "Fast, but the mock drifts further from prod"},
+                        {"value": "Rewrite against test containers", "description": "Slower, removes the drift for good"}
+                     ],
+                     "default": "Patch the mock",
+                     "Rewrite against test containers": [
+                        {"check": "Also migrate the session tests", "id": "migrate_sessions"},
+                        {"slider": "Time budget (hours)", "id": "budget", "min": 1, "max": 8, "default": 3}
+                     ]}
                 ]
             },
             {
-                "title": "User preferences",
+                "title": "Configure the new service",
                 "elements": [
-                    {"select": "Theme", "id": "theme", "options": ["Light", "Dark", "Auto"], "default": "Auto"},
-                    {"slider": "Font size", "id": "font_size", "min": 8, "max": 24, "default": 14}
-                ]
-            },
-            {
-                "title": "Conditional form",
-                "elements": [
-                    {"check": "Enable advanced options", "id": "advanced", "reveals": [
-                        {"slider": "Debug level", "id": "debug", "min": 0, "max": 5}
-                    ]}
-                ]
-            },
-            {
-                "title": "Deep nesting (3 levels) - anticipate answers",
-                "elements": [
-                    {"select": "Project", "id": "proj", "options": ["Web", "CLI", "Library"],
-                     "Web": [{"select": "Framework", "id": "fw", "options": ["React", "Vue"],
-                              "React": [{"check": "TypeScript", "id": "ts", "reveals": [
-                                  {"check": "Strict mode", "id": "strict"}
-                              ]}]}],
-                     "CLI": [{"select": "Language", "id": "lang", "options": ["Rust", "Go"]}]}
+                    {"select": "Language", "id": "lang", "options": ["Rust", "TypeScript"],
+                     "Rust": [{"select": "Async runtime", "id": "runtime", "options": ["tokio", "async-std"], "default": "tokio"}],
+                     "TypeScript": [{"check": "Strict mode", "id": "strict", "default": true}]},
+                    {"check": "Set up CI now", "id": "ci", "default": true, "reveals": [
+                        {"multi": "CI jobs", "id": "ci_jobs", "options": ["test", "lint", "release"]}
+                    ]},
+                    {"input": "Service name", "id": "name", "default": "my-service"}
                 ]
             }
         ]
     })
 }
 
-/// Get a human-readable description of the popup schema
+/// The popup tool description shown to MCP clients.
 ///
-/// Useful for documentation or help text
+/// This is effectively a prompt: it teaches the calling model how to author
+/// conversation trees. Result-format claims here must stay in sync with
+/// PopupResult::from_state.
 pub fn get_schema_description() -> &'static str {
-    "Author dialogue trees that collapse multiple conversation turns into one interaction.
+    "Open a native GUI form and wait for the user to fill it in. Use this instead of asking questions in chat: one well-built popup replaces an entire back-and-forth conversation.
 
-CORE PATTERN: Anticipate likely user responses. For each anticipated answer,
-encode branch-specific followup questions. Nest 3-5 levels deep.
+AUTHORING MINDSET: You are compressing a dialogue tree into one screen. For every question, predict the likely answers; for each answer that would trigger a follow-up question, NEST that follow-up inside the answer so it appears only when chosen. Flat forms that ignore answers waste the round trip. Nesting 3-5 levels deep is normal.
 
-STRUCTURE:
-{
-  \"title\": \"Window title\",
-  \"elements\": [
-    {\"text\": \"Display text\"},
-    {\"slider\": \"Label\", \"id\": \"x\", \"min\": 0, \"max\": 100},
-    {\"check\": \"Label\", \"id\": \"x\", \"reveals\": [...]},
-    {\"input\": \"Label\", \"id\": \"x\", \"placeholder\": \"...\"},
-    {\"select\": \"Label\", \"id\": \"x\", \"options\": [\"A\", \"B\"], \"A\": [...]},
-    {\"multi\": \"Label\", \"id\": \"x\", \"options\": [\"A\", \"B\"], \"A\": [...]},
-    {\"group\": \"Label\", \"elements\": [...]}
-  ]
-}
+BRANCHING TOOLS (in order of preference):
+1. option-as-key on select/multi - follow-ups for one specific answer:
+   {\"select\": \"Database\", \"id\": \"db\", \"options\": [\"Postgres\", \"SQLite\"],
+    \"Postgres\": [{\"input\": \"Connection string\", \"id\": \"conn\"}]}
+2. reveals on check (shown while checked) or select/multi (shown once anything is selected):
+   {\"check\": \"Enable retries\", \"id\": \"retries\", \"reveals\": [{\"slider\": \"Max attempts\", \"id\": \"attempts\", \"min\": 1, \"max\": 10}]}
+3. when - cross-element conditions anywhere:
+   {\"text\": \"Heads up: slow\", \"when\": \"selected(db, SQLite) && count(features) > 2\"}
+   Caveat: when-clauses see hidden elements' current values (defaults persist while hidden). When referencing an id that lives inside a branch, AND in that branch's own condition.
 
-BRANCHING:
-- option-as-key: \"A\": [...] adds children shown when option A selected
-- reveals: [...] adds children shown when parent is active
-- when: \"id && selected(other, 'value')\" for cross-element conditions
+ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, group. The element type is the JSON key and its value is the label; ids are auto-derived from labels when omitted (\"Enable Feature\" -> enable_feature) but explicit ids are more reliable for when-clauses.
 
-RETURNS: {\"status\": \"completed\", \"<id>\": value, ...} or {\"status\": \"cancelled\"}
-- select/multi: selected text (not index)
-- slider: integer value
-- Only visible elements included
+DO:
+- Give options a description (\"options\": [{\"value\": \"X\", \"description\": \"tradeoff...\"}]) - descriptions render under each option and help the user decide
+- Set select defaults to your recommendation so the user confirms instead of choosing from scratch; prefill inputs with your best guess (multi has no default - options start unchecked)
+- Name the submit button after the consequence (\"submit\": \"Deploy\")
 
-NOTE: Widget type names are reserved and cannot be used as option values."
+DON'T:
+- Don't add an 'Other' option - every select/multi automatically gets 'Other (please specify)' with a text input
+- Don't reuse ids, and don't use reserved ids: status, button, error, _notes
+- Don't use widget type names (text, slider, check, input, select, multi, group) as option values
+
+VALIDATION: definitions are checked before anything is shown; errors come back with precise fixes (unknown keys, typo'd branch keys, bad when-refs). Fix and retry - the user never sees invalid popups.
+
+RESULT: {\"status\": \"completed\", \"button\": \"submit\", \"<id>\": <value>, ...} or {\"status\": \"cancelled\"} (user pressed Escape - do not retry the same popup).
+Value semantics:
+- key absent -> that element was never shown (its branch wasn't taken)
+- \"\" for input -> shown but left blank; null for select -> shown, nothing chosen; [] for multi -> shown, nothing checked; false for check -> shown, unchecked
+- select returns the option text; multi returns an array of option texts
+- slider returns a number (integer when whole)
+- 'Other' chosen -> selection contains \"Other (please specify)\" plus \"<id>_other_text\" with the custom text
+- \"_notes\" -> free-form note the user added; treat it as extra instructions"
 }
 
 #[cfg(test)]
@@ -342,5 +297,25 @@ mod tests {
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["title"].is_object());
         assert!(schema["properties"]["elements"].is_object());
+        assert!(schema["properties"]["submit"].is_object());
+        assert!(schema["properties"]["notes"].is_object());
+    }
+
+    #[test]
+    fn test_schema_examples_are_valid_definitions() {
+        // The examples shown to calling models must parse and validate
+        let schema = get_input_schema();
+        let examples = schema["examples"].as_array().unwrap();
+        assert!(!examples.is_empty());
+        for example in examples {
+            let def: popup_common::PopupDefinition =
+                serde_json::from_value(example.clone()).expect("example must deserialize");
+            let issues = popup_common::validate_definition(&def);
+            assert!(
+                issues.is_empty(),
+                "schema example failed validation: {:?}",
+                issues
+            );
+        }
     }
 }

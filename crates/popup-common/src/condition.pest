@@ -1,7 +1,11 @@
 // PEG grammar for popup condition expressions
-// V2: Bare identifiers are references, strings must be quoted
+// Bare identifiers are references; an optional @ prefix is accepted for compatibility.
+// String literals may be quoted with " or '.
 
 WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+
+// Entry point: require the whole input to parse (no silently ignored trailing garbage)
+full = { SOI ~ expr ~ EOI }
 
 // Top-level expression
 expr = { or }
@@ -24,19 +28,27 @@ value = {
   | "!" ~ value       // Negation
   | boolean           // Boolean literals (before ref to match first)
   | func              // Function call (before ref - needs parens)
-  | ref               // Field reference (bare identifier)
+  | ref               // Field reference (bare identifier, optional @ prefix)
   | number            // Numeric literal
   | string            // String literal (must be quoted)
 }
 
-// Boolean literals
-boolean = { "true" | "false" }
+// Boolean literals (must not be a prefix of a longer identifier)
+boolean = @{ ("true" | "false") ~ !(ASCII_ALPHANUMERIC | "_") }
 
-// Field reference (bare identifier - no @ prefix in V2)
-ref = @{ ident }
+// Field reference (bare identifier, optional legacy @ prefix)
+ref = @{ "@"? ~ ident }
 
-// Function call
-func = { ident ~ "(" ~ args? ~ ")" }
+// Function call. selected() is special-cased: its second argument is a
+// literal option value that may contain spaces without quoting,
+// e.g. selected(strategy, Regenerate from sandbox)
+func = { selected_func | generic_func }
+
+selected_func = { "selected" ~ "(" ~ ref ~ "," ~ selected_value ~ ")" }
+selected_value = { string | bare_value }
+bare_value = @{ (!")" ~ ANY)+ }
+
+generic_func = { ident ~ "(" ~ args? ~ ")" }
 
 // Function arguments
 args = { expr ~ ("," ~ expr)* }
@@ -44,8 +56,8 @@ args = { expr ~ ("," ~ expr)* }
 // Identifier (alphanumeric + underscore, must start with letter or underscore)
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-// Number literal (integer or float)
-number = @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+// Number literal (integer or float, optionally negative)
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 
 // String literal (single or double quoted)
 string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\"" | "'" ~ (!("'") ~ ANY)* ~ "'" }

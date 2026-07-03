@@ -157,8 +157,7 @@ mod tests {
         );
 
         // Create result with active filtering
-        let result =
-            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
+        let result = popup_common::PopupResult::from_state(&state, &popup, &active_ids);
 
         // Should only have the visible elements
         let values = match result {
@@ -178,8 +177,7 @@ mod tests {
             &popup.elements,
         );
 
-        let result =
-            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
+        let result = popup_common::PopupResult::from_state(&state, &popup, &active_ids);
 
         // Now should include the conditional slider
         let values = match result {
@@ -376,9 +374,9 @@ mod tests {
     }
 
     #[test]
-    fn test_comprehensive_result_comparison() {
-        // Test that results from old method include inactive elements
-        // while new method excludes them
+    fn test_result_filters_inactive_and_keeps_blank_inputs() {
+        // from_state must exclude untaken branches entirely, while visible
+        // blank inputs come back as "" (shown-but-blank is real signal)
         let json = json!({
             "title": "Result Comparison",
             "elements": [
@@ -415,48 +413,38 @@ mod tests {
         let mut state = PopupState::new(&popup);
         state.button_clicked = Some("submit".to_string());
 
-        // Compare old method (includes all) vs new method (filters inactive)
-        let old_result = popup_common::PopupResult::from_state_with_context(&state, &popup);
-
+        // With the branch untaken, its elements are absent from the result
         let active_ids = crate::gui::tests::collect_active_elements_for_test(
             &popup.elements,
             &state,
             &popup.elements,
         );
-        let new_result =
-            popup_common::PopupResult::from_state_with_active_elements(&state, &popup, &active_ids);
-
-        // Destructure results to get values
-        let old_values = match old_result {
-            popup_common::PopupResult::Completed { values, .. } => values,
-            _ => panic!("Expected Completed result"),
-        };
-        let new_values = match new_result {
+        let result = popup_common::PopupResult::from_state(&state, &popup, &active_ids);
+        let values = match result {
             popup_common::PopupResult::Completed { values, .. } => values,
             _ => panic!("Expected Completed result"),
         };
 
-        // Old method includes phantom values from inactive when clause elements
-        assert!(old_values.contains_key("enable_advanced"));
-        assert!(old_values.contains_key("basic_setting"));
-        assert!(old_values.contains_key("advanced_setting")); // Phantom!
-        assert!(!old_values.contains_key("advanced_config")); // Empty text skipped
+        assert!(values.contains_key("enable_advanced"));
+        assert!(values.contains_key("basic_setting"));
+        assert!(!values.contains_key("advanced_setting")); // Branch not taken
+        assert!(!values.contains_key("advanced_config")); // Branch not taken
 
-        // New method excludes inactive when clause values
-        assert!(new_values.contains_key("enable_advanced"));
-        assert!(new_values.contains_key("basic_setting"));
-        assert!(!new_values.contains_key("advanced_setting")); // Correctly filtered!
-        assert!(!new_values.contains_key("advanced_config"));
+        // Take the branch: hidden elements appear, blank input comes back as ""
+        *state.get_boolean_mut("enable_advanced").unwrap() = true;
+        let active_ids = crate::gui::tests::collect_active_elements_for_test(
+            &popup.elements,
+            &state,
+            &popup.elements,
+        );
+        let result = popup_common::PopupResult::from_state(&state, &popup, &active_ids);
+        let values = match result {
+            popup_common::PopupResult::Completed { values, .. } => values,
+            _ => panic!("Expected Completed result"),
+        };
 
-        // Verify values match for active elements
-        assert_eq!(
-            old_values.get("enable_advanced"),
-            new_values.get("enable_advanced")
-        );
-        assert_eq!(
-            old_values.get("basic_setting"),
-            new_values.get("basic_setting")
-        );
+        assert_eq!(values.get("advanced_setting").unwrap().as_i64(), Some(80));
+        assert_eq!(values.get("advanced_config").unwrap().as_str(), Some(""));
     }
 
     #[test]

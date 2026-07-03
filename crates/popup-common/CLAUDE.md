@@ -11,78 +11,49 @@ Provides core types shared across the popup-mcp architecture:
 ## Core Types
 
 ### PopupDefinition
-JSON-serializable dialog definition with optional title and element list.
+JSON-serializable dialog definition.
 
 ```rust
 pub struct PopupDefinition {
-    pub title: Option<String>,
+    pub title: String,
     pub elements: Vec<Element>,
+    pub submit: Option<String>, // submit button label (default "Submit")
+    pub notes: bool,            // show the "Add a note" field (default true)
 }
 ```
 
-### Element (V2 Schema)
-Tagged enum of widget types using element-as-key deserialization. All interactive elements require an `id` field.
+Construct with `PopupDefinition::new(title, elements)` in tests.
 
-**Variants:**
-- `Text { text, id?, when? }` - Static text display (ID optional)
-- `Slider { slider, id, min, max, default?, when?, reveals? }` - Numeric input (f32)
-- `Check { checkbox, id, default?, when?, reveals? }` - Boolean input with optional reveals
-- `Input { textbox, id, placeholder?, rows?, when? }` - Text input (single/multi-line)
-- `Multi { multiselect, id, options, option_children?, reveals?, when? }` - Multiple choice
-- `Choice { choice, id, options, default?, option_children?, reveals?, when? }` - Single selection
-- `Group { group, elements, when? }` - Labeled container
+### Element
+Enum of widget types using element-as-key (de)serialization: the JSON key is the widget type and its value is the label. Deserialization is **strict** - unknown keys (including typo'd option-as-key branch keys) are errors with "did you mean" suggestions.
 
-**Key V2 Features:**
+**Variants (JSON key = first field):**
+- `Text { text, id?, when? }` - Static text
+- `Markdown { markdown, id?, when? }` - Rich text block
+- `Slider { slider, id, min, max, default?, step?, when? }` - Numeric input (f32); step defaults to 1
+- `Check { check, id, default, reveals, when? }` - Boolean with nested reveals
+- `Input { input, id, placeholder?, default?, rows?, when? }` - Text input; `default` prefills
+- `Multi { multi, id, options, option_children, reveals, when? }` - Multiple choice
+- `Select { select, id, options, default?, style?, option_children, reveals, when? }` - Single choice; `style` is `radio` or `dropdown`
+- `Group { group, id?, elements, when? }` - Labeled container
 
-**When Clauses (`when?: Option<String>`):**
-- Any element can have conditional visibility via `when` field
-- Expression syntax supports: `@id`, `selected(id, value)`, `count(@id) > 2`
-- Logical operators: `&&`, `||`, `!`
-- Example: `"when": "debug && count(features) >= 2"`
+**Accessors:** `element.id()`, `element.when()`, `element.label()`, `element.kind()`, `element.child_lists()`. Free functions `find_element_by_id(elements, id)` and `walk_elements(elements, f)` traverse the whole tree (reveals, option children, groups) - use these instead of hand-rolled recursion.
 
-**Reveals (`reveals?: Option<Vec<Element>>`):**
-- Inline conditionals attached to checkbox/multiselect/choice
-- Shown when parent is active (checkbox checked, option selected, etc.)
-- Replaces v1 inline `conditional` field
+Ids are auto-derived from labels at deserialization when omitted ("Enable Feature" -> `enable_feature`).
 
-**Option-as-Key Nesting (`option_children?: HashMap<String, Vec<Element>>`):**
-- Choice/Multi children use option text as direct JSON key
+**Option-as-Key Nesting (`option_children: HashMap<String, Vec<Element>>`):**
+- Select/Multi children use option text as direct JSON key
 - Example: `"Advanced": [{"slider": "Level", "id": "level", "min": 1, "max": 10}]`
-- Replaces v1 OptionValue enum with nested conditionals
 
-**V2 JSON Format:**
-```json
-{
-  "check": "Enable debug",
-  "id": "enable_debug",
-  "default": false,
-  "reveals": [
-    {
-      "slider": "Debug level",
-      "id": "debug_level",
-      "min": 1,
-      "max": 10
-    }
-  ]
-}
-```
+### Validation (`validate.rs`)
 
-**Choice with Option-as-Key Nesting:**
-```json
-{
-  "select": "Mode",
-  "id": "mode",
-  "options": ["Simple", "Advanced"],
-  "Advanced": [
-    {
-      "slider": "Complexity",
-      "id": "complexity",
-      "min": 1,
-      "max": 10
-    }
-  ]
-}
-```
+`validate_definition(&PopupDefinition) -> Vec<ValidationIssue>` runs pre-flight checks so structural mistakes surface as fixable errors instead of mis-rendered popups:
+- duplicate ids; reserved ids (`status`, `button`, `error`, `_notes`)
+- slider `min < max`, default in range, positive step
+- select default must be one of the options (with closest-match suggestion)
+- when clauses must parse, and every referenced id must exist (with suggestion)
+
+`suggest()` / `edit_distance()` provide the "did you mean" machinery, shared with element_deser.
 
 ### PopupState
 Runtime state management for widget values. Uses HashMap keyed by element IDs (not labels).
@@ -91,50 +62,53 @@ Runtime state management for widget values. Uses HashMap keyed by element IDs (n
 pub struct PopupState {
     pub values: HashMap<String, ElementValue>,
     pub button_clicked: Option<String>,
+    pub notes: String, // free-form user note
 }
 ```
 
 **ElementValue variants:** Number, Boolean, Text, MultiChoice(Vec<bool>), Choice(Option<usize>)
 
 **Methods:**
-- `new(definition)` - Initialize from definition with defaults
+- `new(definition)` - Initialize from definition with defaults (input `default` prefills Text)
 - `get_*_mut(id)` - Type-safe mutable access by ID (returns Option)
 - `get_*(id)` - Immutable access for conditionals
 - `to_value_map()` - Convert to serde_json::Value for when clause evaluation
 
 ### When Clause Evaluation
 
-**Condition Parsing (`condition.rs`):**
+**Condition Parsing (`condition.rs` + `condition.pest`):**
 ```rust
-pub fn parse_condition(expr: &str) -> Result<ConditionAst>
-pub fn evaluate_condition(ast: &ConditionAst, state: &HashMap<String, Value>) -> bool
+pub fn parse_condition(expr: &str) -> Result<ConditionExpr>
+pub fn evaluate_condition(expr: &ConditionExpr, state: &HashMap<String, Value>) -> bool
+pub fn collect_refs(expr: &ConditionExpr, out: &mut Vec<String>) // ids referenced (for validation)
 ```
 
-**ConditionAst:**
-- `BooleanRef(id)` - `@id` checks if value is truthy
-- `Selected { id, value }` - `selected(id, value)` checks if specific option selected
-- `Count { id, op, value }` - `count(@id) > 2` counts selections
-- `And(left, right)`, `Or(left, right)`, `Not(inner)` - Logical operators
+**Syntax notes:**
+- Bare identifiers are references; a legacy `@id` prefix is accepted and stripped
+- `selected(id, value)`: value may be an unquoted phrase with spaces (`selected(strategy, Regenerate from sandbox)`) - it is parsed as a literal, not a reference
+- Numbers may be negative (`lufs > -9`)
+- The whole input must parse: trailing garbage is an error (`enabled && (` fails instead of silently evaluating `enabled`)
 
 **Examples:**
-- `"@enable_debug"` → Check if checkbox is checked
-- `"selected(mode, Expert)"` → Check if "Expert" option selected
-- `"count(features) >= 3"` → Check if 3+ multiselect options selected
-- `"debug && !@production"` → Logical AND and NOT
+- `"enable_debug"` -> Check if checkbox is checked
+- `"selected(mode, Expert)"` -> Check if "Expert" option selected
+- `"count(features) >= 3"` -> Check if 3+ multiselect options selected
+- `"debug && !production"` -> Logical AND and NOT
 
 ### PopupResult
 Serialized user interaction result.
 
 **Variants:**
 - `Completed { values, button }` - User submitted with values
-- `Cancelled` - User closed/cancelled
-- `Timeout { message }` - No response within timeout
+- `Cancelled` - User pressed Escape (no values)
 
-**Construction methods:**
-- `from_state(state)` - Basic serialization (indices for multiselect/choice)
-- `from_state_with_context(state, definition)` - Rich format (slider integer value, option texts)
-- `from_state_with_active_elements(state, definition, active_labels)` - Filtered by visibility
+**Construction:** single entry point `PopupResult::from_state(state, definition, active_ids)`.
 
+Value semantics (kept in sync with the MCP tool description in popup-gui/src/schema.rs):
+- absent key = element never shown; `""` = input shown but blank; `null` = select shown, unselected
+- select -> option text; multi -> array of option texts
+- slider -> integer when whole, float otherwise (no blanket integer truncation)
+- `_notes` = trimmed free-form note, present only when non-empty
 
 ## Example JSON (V2 Schema)
 
@@ -228,4 +202,4 @@ Serialized user interaction result.
 **Serialization strategy:**
 - Tagged enums with `#[serde(tag = "status")]` for PopupResult
 - Optional fields use `#[serde(default)]` for forward compatibility
-- Result variants cover all possible popup outcomes (completed/cancelled/timeout)
+- Result variants cover all popup outcomes (completed/cancelled)

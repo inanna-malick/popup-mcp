@@ -61,17 +61,15 @@
                   "id": "magic_prevalence",
                   "min": 1,
                   "max": 10,
-                  "default": 5,
-                  "reveals": [
-                    {
-                      "text": "Rare magic - elite practitioners, sense of wonder",
-                      "when": "magic_prevalence <= 3"
-                    },
-                    {
-                      "text": "Common magic - integrated into daily life",
-                      "when": "magic_prevalence >= 7"
-                    }
-                  ]
+                  "default": 5
+                },
+                {
+                  "text": "Rare magic - elite practitioners, sense of wonder",
+                  "when": "magic_prevalence <= 3"
+                },
+                {
+                  "text": "Common magic - integrated into daily life",
+                  "when": "magic_prevalence >= 7"
                 }
               ],
               "Soft magic (mysterious/mythic)": [
@@ -154,21 +152,19 @@
               "id": "grimdark",
               "min": 1,
               "max": 10,
-              "default": 5,
-              "reveals": [
-                {
-                  "text": "Light darkness - morally complex but hopeful",
-                  "when": "grimdark <= 4"
-                },
-                {
-                  "text": "Medium grimdark - ambiguous morality, high stakes",
-                  "when": "grimdark >= 5 && grimdark <= 7"
-                },
-                {
-                  "text": "Full grimdark - nihilistic, graphic, bleak",
-                  "when": "grimdark >= 8"
-                }
-              ]
+              "default": 5
+            },
+            {
+              "text": "Light darkness - morally complex but hopeful",
+              "when": "grimdark <= 4"
+            },
+            {
+              "text": "Medium grimdark - ambiguous morality, high stakes",
+              "when": "grimdark >= 5 && grimdark <= 7"
+            },
+            {
+              "text": "Full grimdark - nihilistic, graphic, bleak",
+              "when": "grimdark >= 8"
             },
             {
               "id": "cosmic_horror",
@@ -217,17 +213,15 @@
                   "id": "redeemability",
                   "min": 1,
                   "max": 10,
-                  "default": 5,
-                  "reveals": [
-                    {
-                      "text": "Irredeemable villain protagonist",
-                      "when": "redeemability <= 2"
-                    },
-                    {
-                      "text": "Redemption arc potential",
-                      "when": "redeemability >= 7"
-                    }
-                  ]
+                  "default": 5
+                },
+                {
+                  "text": "Irredeemable villain protagonist",
+                  "when": "redeemability <= 2"
+                },
+                {
+                  "text": "Redemption arc potential",
+                  "when": "redeemability >= 7"
                 }
               ],
               "multi": "Protagonist traits"
@@ -286,21 +280,19 @@
               "id": "scifi_years",
               "min": 10,
               "max": 10000,
-              "default": 100,
-              "reveals": [
-                {
-                  "text": "Near-future - extrapolate current tech",
-                  "when": "scifi_years <= 50"
-                },
-                {
-                  "text": "Mid-future - significant but grounded changes",
-                  "when": "scifi_years > 50 && scifi_years <= 500"
-                },
-                {
-                  "text": "Far-future - radically transformed civilization",
-                  "when": "scifi_years > 500"
-                }
-              ]
+              "default": 100
+            },
+            {
+              "text": "Near-future - extrapolate current tech",
+              "when": "scifi_years <= 50"
+            },
+            {
+              "text": "Mid-future - significant but grounded changes",
+              "when": "scifi_years > 50 && scifi_years <= 500"
+            },
+            {
+              "text": "Far-future - radically transformed civilization",
+              "when": "scifi_years > 500"
             }
           ],
           "Space Opera": [
@@ -357,17 +349,15 @@
                   "id": "transhuman",
                   "min": 1,
                   "max": 10,
-                  "default": 5,
-                  "reveals": [
-                    {
-                      "text": "Mild augmentation - cybernetic limbs, neural interfaces",
-                      "when": "transhuman <= 4"
-                    },
-                    {
-                      "text": "Heavy modification - more machine than human",
-                      "when": "transhuman >= 7"
-                    }
-                  ]
+                  "default": 5
+                },
+                {
+                  "text": "Mild augmentation - cybernetic limbs, neural interfaces",
+                  "when": "transhuman <= 4"
+                },
+                {
+                  "text": "Heavy modification - more machine than human",
+                  "when": "transhuman >= 7"
                 }
               ],
               "multi": "Cyberpunk themes"
@@ -408,21 +398,19 @@
               "id": "years_post",
               "min": 1,
               "max": 1000,
-              "default": 20,
-              "reveals": [
-                {
-                  "text": "Immediate aftermath - survival focus, resources available",
-                  "when": "years_post <= 10"
-                },
-                {
-                  "text": "Generation later - new societies forming",
-                  "when": "years_post > 10 && years_post <= 100"
-                },
-                {
-                  "text": "Distant future - legends of old world",
-                  "when": "years_post > 100"
-                }
-              ]
+              "default": 20
+            },
+            {
+              "text": "Immediate aftermath - survival focus, resources available",
+              "when": "years_post <= 10"
+            },
+            {
+              "text": "Generation later - new societies forming",
+              "when": "years_post > 10 && years_post <= 100"
+            },
+            {
+              "text": "Distant future - legends of old world",
+              "when": "years_post > 100"
             }
           ],
           "select": "Sci-Fi Subgenre"
@@ -501,13 +489,11 @@
               "id": "atmosphere",
               "min": 1,
               "max": 10,
-              "default": 8,
-              "reveals": [
-                {
-                  "text": "⚠ Maximum tension - sustained dread, reader exhaustion risk",
-                  "when": "atmosphere >= 9"
-                }
-              ]
+              "default": 8
+            },
+            {
+              "text": "⚠ Maximum tension - sustained dread, reader exhaustion risk",
+              "when": "atmosphere >= 9"
             }
           ],
           "select": "Mystery Type"
@@ -524,13 +510,11 @@
                   "id": "false_leads",
                   "min": 1,
                   "max": 10,
-                  "default": 3,
-                  "reveals": [
-                    {
-                      "text": "⚠ Many red herrings - ensure fair play for reader",
-                      "when": "false_leads >= 5"
-                    }
-                  ]
+                  "default": 3
+                },
+                {
+                  "text": "⚠ Many red herrings - ensure fair play for reader",
+                  "when": "false_leads >= 5"
                 }
               ],
               "check": "Red herrings"
@@ -605,13 +589,11 @@
               "id": "sanity",
               "min": 1,
               "max": 10,
-              "default": 7,
-              "reveals": [
-                {
-                  "text": "Total madness - protagonist loses coherence",
-                  "when": "sanity >= 9"
-                }
-              ]
+              "default": 7
+            },
+            {
+              "text": "Total madness - protagonist loses coherence",
+              "when": "sanity >= 9"
             },
             {
               "id": "forbidden_knowledge",
@@ -639,42 +621,38 @@
               "id": "gore",
               "min": 1,
               "max": 10,
-              "default": 4,
-              "reveals": [
-                {
-                  "text": "Implied/psychological horror - minimal gore",
-                  "when": "gore <= 3"
-                },
-                {
-                  "text": "Moderate violence - some explicit moments",
-                  "when": "gore >= 4 && gore <= 7"
-                },
-                {
-                  "text": "Extreme/splatterpunk - graphic throughout",
-                  "when": "gore >= 8"
-                }
-              ]
+              "default": 4
+            },
+            {
+              "text": "Implied/psychological horror - minimal gore",
+              "when": "gore <= 3"
+            },
+            {
+              "text": "Moderate violence - some explicit moments",
+              "when": "gore >= 4 && gore <= 7"
+            },
+            {
+              "text": "Extreme/splatterpunk - graphic throughout",
+              "when": "gore >= 8"
             },
             {
               "slider": "Dread vs jump scares",
               "id": "dread_vs_jump",
               "min": 1,
               "max": 10,
-              "default": 7,
-              "reveals": [
-                {
-                  "text": "Jump scare heavy - adrenaline spikes",
-                  "when": "dread_vs_jump <= 3"
-                },
-                {
-                  "text": "Balanced tension and payoff",
-                  "when": "dread_vs_jump >= 4 && dread_vs_jump <= 7"
-                },
-                {
-                  "text": "Slow-burn dread - sustained atmosphere",
-                  "when": "dread_vs_jump >= 8"
-                }
-              ]
+              "default": 7
+            },
+            {
+              "text": "Jump scare heavy - adrenaline spikes",
+              "when": "dread_vs_jump <= 3"
+            },
+            {
+              "text": "Balanced tension and payoff",
+              "when": "dread_vs_jump >= 4 && dread_vs_jump <= 7"
+            },
+            {
+              "text": "Slow-burn dread - sustained atmosphere",
+              "when": "dread_vs_jump >= 8"
             },
             {
               "id": "horror_hope",
@@ -701,21 +679,19 @@
           "id": "historical_accuracy",
           "min": 1,
           "max": 10,
-          "default": 7,
-          "reveals": [
-            {
-              "text": "Loose historical inspiration - prioritize story",
-              "when": "historical_accuracy <= 4"
-            },
-            {
-              "text": "Researched accuracy - plausible within period",
-              "when": "historical_accuracy >= 5 && historical_accuracy <= 8"
-            },
-            {
-              "text": "Rigorous accuracy - documentary-level research",
-              "when": "historical_accuracy >= 9"
-            }
-          ]
+          "default": 7
+        },
+        {
+          "text": "Loose historical inspiration - prioritize story",
+          "when": "historical_accuracy <= 4"
+        },
+        {
+          "text": "Researched accuracy - plausible within period",
+          "when": "historical_accuracy >= 5 && historical_accuracy <= 8"
+        },
+        {
+          "text": "Rigorous accuracy - documentary-level research",
+          "when": "historical_accuracy >= 9"
         },
         {
           "id": "historical_fantasy",
@@ -754,13 +730,11 @@
               "id": "pov_count",
               "min": 2,
               "max": 10,
-              "default": 3,
-              "reveals": [
-                {
-                  "text": "⚠ Many POVs - ensure distinct voices",
-                  "when": "pov_count >= 5"
-                }
-              ]
+              "default": 3
+            },
+            {
+              "text": "⚠ Many POVs - ensure distinct voices",
+              "when": "pov_count >= 5"
             }
           ],
           "Second person": [
@@ -837,21 +811,19 @@
           "id": "optimism",
           "min": 1,
           "max": 10,
-          "default": 5,
-          "reveals": [
-            {
-              "text": "Nihilistic/bleak worldview",
-              "when": "optimism <= 2"
-            },
-            {
-              "text": "Balanced - both light and shadow",
-              "when": "optimism >= 4 && optimism <= 7"
-            },
-            {
-              "text": "Hopeful/idealistic worldview",
-              "when": "optimism >= 8"
-            }
-          ]
+          "default": 5
+        },
+        {
+          "text": "Nihilistic/bleak worldview",
+          "when": "optimism <= 2"
+        },
+        {
+          "text": "Balanced - both light and shadow",
+          "when": "optimism >= 4 && optimism <= 7"
+        },
+        {
+          "text": "Hopeful/idealistic worldview",
+          "when": "optimism >= 8"
         }
       ]
     },
@@ -884,7 +856,7 @@
         },
         {
           "text": "✓ Hard magic + extensive world-building - Sanderson-style epic fantasy",
-          "when": "selected(magic_system, ''Hard magic (Sanderson-style rules')') && count(worldbuilding) >= 4"
+          "when": "selected(magic_system, 'Hard magic (Sanderson-style rules)') && count(worldbuilding) >= 4"
         },
         {
           "text": "⚠ Extreme tension + bleak ending - ensure payoff justifies reader investment",

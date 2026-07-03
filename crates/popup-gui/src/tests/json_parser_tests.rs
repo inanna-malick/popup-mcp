@@ -63,7 +63,7 @@ fn test_all_widget_types() {
         } => {
             assert_eq!(check, "Enable");
             assert_eq!(id, "enable");
-            assert_eq!(*default, true);
+            assert!(*default);
         }
         _ => panic!("Expected checkbox"),
     }

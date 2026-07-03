@@ -1,19 +1,56 @@
-use crate::{Element, ElementValue, OptionValue, PopupDefinition, PopupState};
+use crate::{Element, ElementValue, OptionValue, PopupDefinition, PopupResult, PopupState};
 use std::collections::HashMap;
+
+fn slider(label: &str, id: &str, min: f32, max: f32, default: Option<f32>) -> Element {
+    Element::Slider {
+        slider: label.to_string(),
+        id: id.to_string(),
+        min,
+        max,
+        default,
+        step: None,
+        when: None,
+    }
+}
+
+fn check(label: &str, id: &str, default: bool, reveals: Vec<Element>) -> Element {
+    Element::Check {
+        check: label.to_string(),
+        id: id.to_string(),
+        default,
+        reveals,
+        when: None,
+    }
+}
+
+fn select(
+    label: &str,
+    id: &str,
+    options: &[&str],
+    default: Option<&str>,
+    option_children: HashMap<String, Vec<Element>>,
+) -> Element {
+    Element::Select {
+        select: label.to_string(),
+        id: id.to_string(),
+        options: options
+            .iter()
+            .map(|o| OptionValue::Simple(o.to_string()))
+            .collect(),
+        default: default.map(|s| s.to_string()),
+        style: None,
+        option_children,
+        reveals: vec![],
+        when: None,
+    }
+}
 
 #[test]
 fn test_popupstate_init_slider() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Slider {
-            slider: "Volume".to_string(),
-            id: "vol".to_string(),
-            min: 0.0,
-            max: 100.0,
-            default: Some(75.0),
-            when: None,
-        }],
-    };
+    let def = PopupDefinition::new(
+        "Test",
+        vec![slider("Volume", "vol", 0.0, 100.0, Some(75.0))],
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("vol"), Some(&ElementValue::Number(75.0)));
@@ -21,17 +58,7 @@ fn test_popupstate_init_slider() {
 
 #[test]
 fn test_popupstate_init_slider_default_midpoint() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Slider {
-            slider: "Level".to_string(),
-            id: "level".to_string(),
-            min: 1.0,
-            max: 10.0,
-            default: None, // Should default to midpoint
-            when: None,
-        }],
-    };
+    let def = PopupDefinition::new("Test", vec![slider("Level", "level", 1.0, 10.0, None)]);
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("level"), Some(&ElementValue::Number(5.5)));
@@ -39,16 +66,7 @@ fn test_popupstate_init_slider_default_midpoint() {
 
 #[test]
 fn test_popupstate_init_checkbox() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Check {
-            check: "Enable".to_string(),
-            id: "enable".to_string(),
-            default: true,
-            reveals: vec![],
-            when: None,
-        }],
-    };
+    let def = PopupDefinition::new("Test", vec![check("Enable", "enable", true, vec![])]);
 
     let state = PopupState::new(&def);
     assert_eq!(
@@ -59,23 +77,15 @@ fn test_popupstate_init_checkbox() {
 
 #[test]
 fn test_popupstate_init_with_reveals() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Check {
-            check: "Enable advanced".to_string(),
-            id: "enable".to_string(),
-            default: false,
-            reveals: vec![Element::Slider {
-                slider: "Level".to_string(),
-                id: "level".to_string(),
-                min: 1.0,
-                max: 10.0,
-                default: None,
-                when: None,
-            }],
-            when: None,
-        }],
-    };
+    let def = PopupDefinition::new(
+        "Test",
+        vec![check(
+            "Enable advanced",
+            "enable",
+            false,
+            vec![slider("Level", "level", 1.0, 10.0, None)],
+        )],
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(
@@ -90,31 +100,19 @@ fn test_popupstate_init_with_option_children() {
     let mut option_children = HashMap::new();
     option_children.insert(
         "Dark".to_string(),
-        vec![Element::Slider {
-            slider: "Brightness".to_string(),
-            id: "brightness".to_string(),
-            min: 0.0,
-            max: 100.0,
-            default: Some(50.0),
-            when: None,
-        }],
+        vec![slider("Brightness", "brightness", 0.0, 100.0, Some(50.0))],
     );
 
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Select {
-            select: "Theme".to_string(),
-            id: "theme".to_string(),
-            options: vec![
-                OptionValue::Simple("Light".to_string()),
-                OptionValue::Simple("Dark".to_string()),
-            ],
-            default: None,
+    let def = PopupDefinition::new(
+        "Test",
+        vec![select(
+            "Theme",
+            "theme",
+            &["Light", "Dark"],
+            None,
             option_children,
-            reveals: vec![],
-            when: None,
-        }],
-    };
+        )],
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("theme"), Some(&ElementValue::Choice(None)));
@@ -126,9 +124,9 @@ fn test_popupstate_init_with_option_children() {
 
 #[test]
 fn test_popupstate_init_multiselect() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Multi {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Multi {
             multi: "Features".to_string(),
             id: "features".to_string(),
             options: vec![
@@ -140,7 +138,7 @@ fn test_popupstate_init_multiselect() {
             reveals: vec![],
             when: None,
         }],
-    };
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(
@@ -151,16 +149,17 @@ fn test_popupstate_init_multiselect() {
 
 #[test]
 fn test_popupstate_init_textbox() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Input {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Input {
             input: "Name".to_string(),
             id: "name".to_string(),
             placeholder: None,
+            default: None,
             rows: None,
             when: None,
         }],
-    };
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(
@@ -170,32 +169,40 @@ fn test_popupstate_init_textbox() {
 }
 
 #[test]
+fn test_popupstate_init_textbox_with_default() {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Input {
+            input: "Name".to_string(),
+            id: "name".to_string(),
+            placeholder: None,
+            default: Some("proposed".to_string()),
+            rows: None,
+            when: None,
+        }],
+    );
+
+    let state = PopupState::new(&def);
+    assert_eq!(
+        state.values.get("name"),
+        Some(&ElementValue::Text("proposed".to_string()))
+    );
+}
+
+#[test]
 fn test_popupstate_init_group() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Group {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Group {
             group: "Settings".to_string(),
             id: None,
             elements: vec![
-                Element::Slider {
-                    slider: "Volume".to_string(),
-                    id: "vol".to_string(),
-                    min: 0.0,
-                    max: 100.0,
-                    default: Some(50.0),
-                    when: None,
-                },
-                Element::Check {
-                    check: "Mute".to_string(),
-                    id: "mute".to_string(),
-                    default: false,
-                    reveals: vec![],
-                    when: None,
-                },
+                slider("Volume", "vol", 0.0, 100.0, Some(50.0)),
+                check("Mute", "mute", false, vec![]),
             ],
             when: None,
         }],
-    };
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(state.values.get("vol"), Some(&ElementValue::Number(50.0)));
@@ -227,26 +234,13 @@ fn test_to_value_map() {
 
 #[test]
 fn test_get_mut_methods() {
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![
-            Element::Slider {
-                slider: "Volume".to_string(),
-                id: "vol".to_string(),
-                min: 0.0,
-                max: 100.0,
-                default: Some(50.0),
-                when: None,
-            },
-            Element::Check {
-                check: "Enabled".to_string(),
-                id: "enabled".to_string(),
-                default: false,
-                reveals: vec![],
-                when: None,
-            },
+    let def = PopupDefinition::new(
+        "Test",
+        vec![
+            slider("Volume", "vol", 0.0, 100.0, Some(50.0)),
+            check("Enabled", "enabled", false, vec![]),
         ],
-    };
+    );
 
     let mut state = PopupState::new(&def);
 
@@ -272,37 +266,24 @@ fn test_nested_reveals_and_option_children() {
     let mut option_children = HashMap::new();
     option_children.insert(
         "Advanced".to_string(),
-        vec![Element::Slider {
-            slider: "Complexity".to_string(),
-            id: "complexity".to_string(),
-            min: 1.0,
-            max: 10.0,
-            default: Some(5.0),
-            when: None,
-        }],
+        vec![slider("Complexity", "complexity", 1.0, 10.0, Some(5.0))],
     );
 
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Check {
-            check: "Show options".to_string(),
-            id: "show_opts".to_string(),
-            default: false,
-            reveals: vec![Element::Select {
-                select: "Mode".to_string(),
-                id: "mode".to_string(),
-                options: vec![
-                    OptionValue::Simple("Basic".to_string()),
-                    OptionValue::Simple("Advanced".to_string()),
-                ],
-                default: Some("Basic".to_string()),
+    let def = PopupDefinition::new(
+        "Test",
+        vec![check(
+            "Show options",
+            "show_opts",
+            false,
+            vec![select(
+                "Mode",
+                "mode",
+                &["Basic", "Advanced"],
+                Some("Basic"),
                 option_children,
-                reveals: vec![],
-                when: None,
-            }],
-            when: None,
-        }],
-    };
+            )],
+        )],
+    );
 
     let state = PopupState::new(&def);
     assert_eq!(
@@ -320,39 +301,29 @@ fn test_nested_reveals_and_option_children() {
 }
 
 #[test]
-fn test_find_element_in_option_children() {
-    // Test that from_state_with_context can find elements nested in option_children
-    // This validates that the find_element_by_id function searches option_children correctly
-    use crate::PopupResult;
-
+fn test_from_state_finds_element_in_option_children() {
     let mut option_children = HashMap::new();
     option_children.insert(
         "Pro".to_string(),
-        vec![Element::Slider {
-            slider: "Feature level".to_string(),
-            id: "feature_level".to_string(),
-            min: 1.0,
-            max: 100.0,
-            default: Some(50.0),
-            when: None,
-        }],
+        vec![slider(
+            "Feature level",
+            "feature_level",
+            1.0,
+            100.0,
+            Some(50.0),
+        )],
     );
 
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Select {
-            select: "Plan".to_string(),
-            id: "plan".to_string(),
-            options: vec![
-                OptionValue::Simple("Basic".to_string()),
-                OptionValue::Simple("Pro".to_string()),
-            ],
-            default: Some("Pro".to_string()),
+    let def = PopupDefinition::new(
+        "Test",
+        vec![select(
+            "Plan",
+            "plan",
+            &["Basic", "Pro"],
+            Some("Pro"),
             option_children,
-            reveals: vec![],
-            when: None,
-        }],
-    };
+        )],
+    );
 
     let mut state = PopupState::new(&def);
     state.button_clicked = Some("submit".to_string());
@@ -362,12 +333,12 @@ fn test_find_element_in_option_children() {
         *level = 75.0;
     }
 
-    // Use from_state_with_context which calls find_element_by_id
-    let result = PopupResult::from_state_with_context(&state, &def);
+    let active = vec!["plan".to_string(), "feature_level".to_string()];
+    let result = PopupResult::from_state(&state, &def, &active);
 
     match result {
         PopupResult::Completed { values, .. } => {
-            // Should find the element and return the integer value
+            // Should find the element and return the integer value + option text
             assert_eq!(values.get("feature_level").unwrap().as_i64(), Some(75));
             assert_eq!(values.get("plan").unwrap().as_str(), Some("Pro"));
         }
@@ -376,44 +347,29 @@ fn test_find_element_in_option_children() {
 }
 
 #[test]
-fn test_find_element_in_nested_reveals_and_option_children() {
-    // Test deep nesting: choice with option_children containing elements with reveals
-    use crate::PopupResult;
-
+fn test_from_state_deep_nesting() {
+    // Deep nesting: choice with option_children containing elements with reveals
     let mut option_children = HashMap::new();
     option_children.insert(
         "Advanced".to_string(),
-        vec![Element::Check {
-            check: "Debug mode".to_string(),
-            id: "debug".to_string(),
-            default: false,
-            reveals: vec![Element::Slider {
-                slider: "Debug level".to_string(),
-                id: "debug_level".to_string(),
-                min: 1.0,
-                max: 10.0,
-                default: Some(5.0),
-                when: None,
-            }],
-            when: None,
-        }],
+        vec![check(
+            "Debug mode",
+            "debug",
+            false,
+            vec![slider("Debug level", "debug_level", 1.0, 10.0, Some(5.0))],
+        )],
     );
 
-    let def = PopupDefinition {
-        title: "Test".to_string(),
-        elements: vec![Element::Select {
-            select: "Mode".to_string(),
-            id: "mode".to_string(),
-            options: vec![
-                OptionValue::Simple("Simple".to_string()),
-                OptionValue::Simple("Advanced".to_string()),
-            ],
-            default: Some("Advanced".to_string()),
+    let def = PopupDefinition::new(
+        "Test",
+        vec![select(
+            "Mode",
+            "mode",
+            &["Simple", "Advanced"],
+            Some("Advanced"),
             option_children,
-            reveals: vec![],
-            when: None,
-        }],
-    };
+        )],
+    );
 
     let mut state = PopupState::new(&def);
     state.button_clicked = Some("submit".to_string());
@@ -423,13 +379,90 @@ fn test_find_element_in_nested_reveals_and_option_children() {
         *level = 8.0;
     }
 
-    // Use from_state_with_context which needs to find element in option_children -> reveals
-    let result = PopupResult::from_state_with_context(&state, &def);
+    let active = vec![
+        "mode".to_string(),
+        "debug".to_string(),
+        "debug_level".to_string(),
+    ];
+    let result = PopupResult::from_state(&state, &def, &active);
 
     match result {
         PopupResult::Completed { values, .. } => {
-            // Should find the deeply nested element and return integer value
             assert_eq!(values.get("debug_level").unwrap().as_i64(), Some(8));
+        }
+        _ => panic!("Expected Completed result"),
+    }
+}
+
+#[test]
+fn test_from_state_result_semantics() {
+    // absent = never shown; "" = shown but blank; null = shown but unselected
+    let def = PopupDefinition::new(
+        "Test",
+        vec![
+            Element::Input {
+                input: "Blank".to_string(),
+                id: "blank".to_string(),
+                placeholder: None,
+                default: None,
+                rows: None,
+                when: None,
+            },
+            Element::Input {
+                input: "Hidden".to_string(),
+                id: "hidden".to_string(),
+                placeholder: None,
+                default: None,
+                rows: None,
+                when: Some("false".to_string()),
+            },
+            select("Choice", "choice", &["A", "B"], None, HashMap::new()),
+            slider("Fraction", "fraction", 0.0, 1.0, Some(0.5)),
+        ],
+    );
+
+    let mut state = PopupState::new(&def);
+    state.button_clicked = Some("submit".to_string());
+
+    let active = vec![
+        "blank".to_string(),
+        "choice".to_string(),
+        "fraction".to_string(),
+    ];
+    let result = PopupResult::from_state(&state, &def, &active);
+
+    match result {
+        PopupResult::Completed { values, .. } => {
+            // shown-but-blank input: present as ""
+            assert_eq!(values.get("blank").unwrap().as_str(), Some(""));
+            // hidden input: absent
+            assert!(!values.contains_key("hidden"));
+            // unselected choice: null
+            assert!(values.get("choice").unwrap().is_null());
+            // fractional slider values survive (no integer truncation)
+            assert_eq!(values.get("fraction").unwrap().as_f64(), Some(0.5));
+            // no note was entered
+            assert!(!values.contains_key("_notes"));
+        }
+        _ => panic!("Expected Completed result"),
+    }
+}
+
+#[test]
+fn test_from_state_includes_notes() {
+    let def = PopupDefinition::new("Test", vec![check("Ok", "ok", true, vec![])]);
+
+    let mut state = PopupState::new(&def);
+    state.button_clicked = Some("submit".to_string());
+    state.notes = "  actually, please also check the logs  ".to_string();
+
+    let result = PopupResult::from_state(&state, &def, &["ok".to_string()]);
+    match result {
+        PopupResult::Completed { values, .. } => {
+            assert_eq!(
+                values.get("_notes").unwrap().as_str(),
+                Some("actually, please also check the logs")
+            );
         }
         _ => panic!("Expected Completed result"),
     }

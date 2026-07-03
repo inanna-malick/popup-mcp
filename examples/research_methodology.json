@@ -33,17 +33,15 @@
               "id": "phenom_depth",
               "min": 1,
               "max": 10,
-              "default": 5,
-              "reveals": [
-                {
-                  "text": "Deep exploration: 3-8 participants, multiple interviews",
-                  "when": "phenom_depth >= 7"
-                },
-                {
-                  "text": "Broad exploration: 15-25 participants, single interviews",
-                  "when": "phenom_depth <= 3"
-                }
-              ]
+              "default": 5
+            },
+            {
+              "text": "Deep exploration: 3-8 participants, multiple interviews",
+              "when": "phenom_depth >= 7"
+            },
+            {
+              "text": "Broad exploration: 15-25 participants, single interviews",
+              "when": "phenom_depth <= 3"
             }
           ],
           "Grounded Theory": [
@@ -71,17 +69,15 @@
               "id": "ethnography_months",
               "min": 1,
               "max": 24,
-              "default": 6,
-              "reveals": [
-                {
-                  "text": "⚠ Short immersion - consider if sufficient for cultural understanding",
-                  "when": "ethnography_months < 3"
-                },
-                {
-                  "text": "Extended ethnography - plan for researcher fatigue and bias drift",
-                  "when": "ethnography_months > 12"
-                }
-              ]
+              "default": 6
+            },
+            {
+              "text": "⚠ Short immersion - consider if sufficient for cultural understanding",
+              "when": "ethnography_months < 3"
+            },
+            {
+              "text": "Extended ethnography - plan for researcher fatigue and bias drift",
+              "when": "ethnography_months > 12"
             },
             {
               "id": "autoethnographic",
@@ -143,17 +139,15 @@
               "id": "qual_n",
               "min": 3,
               "max": 50,
-              "default": 12,
-              "reveals": [
-                {
-                  "text": "Small sample - ensure rich data per participant",
-                  "when": "qual_n < 8"
-                },
-                {
-                  "text": "Large qualitative sample - consider data management strategy",
-                  "when": "qual_n > 30"
-                }
-              ]
+              "default": 12
+            },
+            {
+              "text": "Small sample - ensure rich data per participant",
+              "when": "qual_n < 8"
+            },
+            {
+              "text": "Large qualitative sample - consider data management strategy",
+              "when": "qual_n > 30"
             }
           ]
         }
@@ -235,34 +229,30 @@
               "id": "effect_size",
               "min": 0.1,
               "max": 2.0,
-              "default": 0.5,
-              "reveals": [
-                {
-                  "text": "Small effect - will require large sample",
-                  "when": "effect_size < 0.3"
-                },
-                {
-                  "text": "Medium effect - moderate sample adequate",
-                  "when": "effect_size >= 0.3 && effect_size < 0.8"
-                },
-                {
-                  "text": "Large effect - smaller sample may suffice",
-                  "when": "effect_size >= 0.8"
-                }
-              ]
+              "default": 0.5
+            },
+            {
+              "text": "Small effect - will require large sample",
+              "when": "effect_size < 0.3"
+            },
+            {
+              "text": "Medium effect - moderate sample adequate",
+              "when": "effect_size >= 0.3 && effect_size < 0.8"
+            },
+            {
+              "text": "Large effect - smaller sample may suffice",
+              "when": "effect_size >= 0.8"
             },
             {
               "slider": "Desired power",
               "id": "power",
               "min": 0.5,
               "max": 0.99,
-              "default": 0.8,
-              "reveals": [
-                {
-                  "text": "⚠ Power < 0.8 increases Type II error risk",
-                  "when": "power < 0.8"
-                }
-              ]
+              "default": 0.8
+            },
+            {
+              "text": "⚠ Power < 0.8 increases Type II error risk",
+              "when": "power < 0.8"
             },
             {
               "slider": "Alpha level",
