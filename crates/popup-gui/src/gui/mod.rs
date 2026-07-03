@@ -101,6 +101,8 @@ struct PopupApp {
     markdown_cache: CommonMarkCache,
     /// Index into the currently-visible pages (wizard mode)
     current_page: usize,
+    /// Enter was pressed in a single-line input this frame
+    advance_requested: bool,
 }
 
 impl PopupApp {
@@ -119,6 +121,7 @@ impl PopupApp {
             last_size: Vec2::ZERO, // Initialize to zero to force resize on first frame
             markdown_cache: CommonMarkCache::default(),
             current_page: 0,
+            advance_requested: false,
         }
     }
 
@@ -177,6 +180,30 @@ impl eframe::App for PopupApp {
             self.current_page = visible_pages.len() - 1;
         }
         let on_last_page = !is_wizard || self.current_page + 1 == visible_pages.len();
+
+        // Keyboard flow: Cmd/Ctrl+Enter submits from anywhere; plain Enter
+        // advances when no widget has focus, or when a single-line input
+        // requested it last frame (advance_requested)
+        let cmd_enter = ctx.input(|i| i.key_pressed(Key::Enter) && i.modifiers.command);
+        let plain_enter_unfocused = ctx
+            .input(|i| i.key_pressed(Key::Enter) && i.modifiers.is_none())
+            && ctx.memory(|m| m.focused().is_none());
+
+        if cmd_enter {
+            self.state.button_clicked = Some("submit".to_string());
+            self.send_result_and_close(ctx);
+            return;
+        }
+        if self.advance_requested || plain_enter_unfocused {
+            self.advance_requested = false;
+            if on_last_page {
+                self.state.button_clicked = Some("submit".to_string());
+                self.send_result_and_close(ctx);
+                return;
+            } else {
+                self.current_page += 1;
+            }
+        }
 
         // Render the bottom panel (note field + navigation/submit) and get its height
         let submit_label = self.definition.submit_label().to_string();
@@ -300,6 +327,7 @@ impl eframe::App for PopupApp {
                                     first_widget_id: &mut self.first_interactive_widget_id,
                                     widget_focused: self.first_widget_focused,
                                     markdown_cache: &mut self.markdown_cache,
+                                    advance_requested: &mut self.advance_requested,
                                 };
                                 render_elements(
                                     ui,
@@ -369,6 +397,9 @@ struct RenderContext<'a> {
     first_widget_id: &'a mut Option<Id>,
     widget_focused: bool,
     markdown_cache: &'a mut CommonMarkCache,
+    /// Set when a single-line input receives Enter: advance to the next
+    /// page, or submit on the last one
+    advance_requested: &'a mut bool,
 }
 
 impl RenderContext<'_> {
@@ -859,18 +890,33 @@ fn render_single_element(
                     );
 
                     if let Some(value) = state.get_text_mut(id) {
-                        let height = rows.unwrap_or(1) as f32 * 24.0;
+                        let row_count = rows.unwrap_or(1);
                         let input_width = ui.available_width().min(CONTENT_MAX_WIDTH);
-                        let text_edit = egui::TextEdit::multiline(value)
-                            .text_color(ctx.theme.base2)
-                            .desired_width(input_width)
-                            .min_size(Vec2::new(input_width, height));
+
+                        // Single-line inputs use a singleline widget so Enter
+                        // advances the form instead of inserting a newline
+                        let text_edit = if row_count <= 1 {
+                            egui::TextEdit::singleline(value)
+                                .text_color(ctx.theme.base2)
+                                .desired_width(input_width)
+                        } else {
+                            egui::TextEdit::multiline(value)
+                                .text_color(ctx.theme.base2)
+                                .desired_width(input_width)
+                                .min_size(Vec2::new(input_width, row_count as f32 * 24.0))
+                        };
 
                         let response = if let Some(hint) = placeholder {
                             ui.add(text_edit.hint_text(hint))
                         } else {
                             ui.add(text_edit)
                         };
+                        if row_count <= 1
+                            && response.lost_focus()
+                            && ui.input(|i| i.key_pressed(Key::Enter))
+                        {
+                            *ctx.advance_requested = true;
+                        }
                         ctx.note_first_widget(response.id);
                     }
                 });

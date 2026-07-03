@@ -287,6 +287,8 @@ DON'T:
 
 VALIDATION: definitions are checked before anything is shown; errors come back with precise fixes (unknown keys, typo'd branch keys, bad when-refs). Fix and retry - the user never sees invalid popups.
 
+KEYS: Enter in a single-line input (or Cmd/Ctrl+Enter anywhere) advances/submits; Escape cancels.
+
 RESULT: {\"status\": \"completed\", \"button\": \"submit\", \"<id>\": <value>, ...} or {\"status\": \"cancelled\"} (user pressed Escape - do not retry the same popup).
 Value semantics:
 - key absent -> that element was never shown (its branch wasn't taken)
