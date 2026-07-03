@@ -328,12 +328,13 @@ Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_deskt
 {
   "mcpServers": {
     "popup": {
-      "command": "popup",
-      "args": ["--mcp-server"]
+      "command": "/Users/you/.cargo/bin/popup"
     }
   }
 }
 ```
+
+MCP server mode is the binary's default (no flags). Use the absolute path: GUI apps don't inherit your shell's PATH.
 
 Restart Claude Desktop and the `popup` tool will be available.
 
