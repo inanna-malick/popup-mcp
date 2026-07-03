@@ -476,6 +476,87 @@ fn test_from_state_result_semantics() {
 }
 
 #[test]
+fn test_rank_state_and_result() {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Rank {
+            rank: "Priorities".to_string(),
+            id: "priorities".to_string(),
+            options: vec![
+                OptionValue::Simple("Speed".to_string()),
+                OptionValue::Simple("Cost".to_string()),
+                OptionValue::Simple("Quality".to_string()),
+            ],
+            when: None,
+        }],
+    );
+
+    let mut state = PopupState::new(&def);
+    assert_eq!(
+        state.values.get("priorities"),
+        Some(&ElementValue::Order(vec![]))
+    );
+
+    // Rank Quality first, then Speed; Cost left unranked (partial)
+    state.get_order_mut("priorities").unwrap().extend([2, 0]);
+
+    // Value map: ranked texts in order, so count()/selected() work
+    let values = state.to_value_map(&def.elements);
+    assert_eq!(
+        values.get("priorities").unwrap(),
+        &serde_json::json!(["Quality", "Speed"])
+    );
+
+    // Result: same ranked array; unranked omitted
+    state.button_clicked = Some("submit".to_string());
+    let result = PopupResult::from_state(&state, &def, &["priorities".to_string()]);
+    match result {
+        PopupResult::Completed { values, .. } => {
+            assert_eq!(
+                values.get("priorities").unwrap(),
+                &serde_json::json!(["Quality", "Speed"])
+            );
+        }
+        _ => panic!("Expected Completed result"),
+    }
+}
+
+#[test]
+fn test_rank_works_with_conditions() {
+    use crate::{evaluate_condition, parse_condition};
+
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Rank {
+            rank: "Priorities".to_string(),
+            id: "priorities".to_string(),
+            options: vec![
+                OptionValue::Simple("Speed".to_string()),
+                OptionValue::Simple("Cost".to_string()),
+            ],
+            when: None,
+        }],
+    );
+
+    let mut state = PopupState::new(&def);
+    state.get_order_mut("priorities").unwrap().push(1); // rank "Cost"
+
+    let values = state.to_value_map(&def.elements);
+    assert!(evaluate_condition(
+        &parse_condition("selected(priorities, Cost)").unwrap(),
+        &values
+    ));
+    assert!(!evaluate_condition(
+        &parse_condition("selected(priorities, Speed)").unwrap(),
+        &values
+    ));
+    assert!(evaluate_condition(
+        &parse_condition("count(priorities) == 1").unwrap(),
+        &values
+    ));
+}
+
+#[test]
 fn test_from_state_includes_labels() {
     let def = PopupDefinition::new(
         "Test",

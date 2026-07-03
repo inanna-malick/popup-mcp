@@ -180,6 +180,15 @@ pub enum Element {
         when: Option<String>,
     },
 
+    /// Rank options by clicking them in priority order (partial ranking
+    /// allowed - unranked options are omitted from the result)
+    Rank {
+        rank: String, // Label text becomes the discriminator key
+        id: String,
+        options: Vec<OptionValue>,
+        when: Option<String>,
+    },
+
     /// Labeled container for grouping elements
     Group {
         group: String, // Label text becomes the discriminator key
@@ -212,7 +221,8 @@ impl Element {
             | Element::Check { id, .. }
             | Element::Input { id, .. }
             | Element::Multi { id, .. }
-            | Element::Select { id, .. } => Some(id),
+            | Element::Select { id, .. }
+            | Element::Rank { id, .. } => Some(id),
         }
     }
 
@@ -226,6 +236,7 @@ impl Element {
             | Element::Input { when, .. }
             | Element::Multi { when, .. }
             | Element::Select { when, .. }
+            | Element::Rank { when, .. }
             | Element::Group { when, .. }
             | Element::Page { when, .. } => when.as_deref(),
         }
@@ -241,6 +252,7 @@ impl Element {
             Element::Input { input, .. } => input,
             Element::Multi { multi, .. } => multi,
             Element::Select { select, .. } => select,
+            Element::Rank { rank, .. } => rank,
             Element::Group { group, .. } => group,
             Element::Page { page, .. } => page,
         }
@@ -256,6 +268,7 @@ impl Element {
             Element::Input { .. } => "input",
             Element::Multi { .. } => "multi",
             Element::Select { .. } => "select",
+            Element::Rank { .. } => "rank",
             Element::Group { .. } => "group",
             Element::Page { .. } => "page",
         }
@@ -266,7 +279,7 @@ impl Element {
     pub fn child_lists(&self) -> Vec<&[Element]> {
         match self {
             Element::Text { .. } | Element::Markdown { .. } | Element::Slider { .. } => vec![],
-            Element::Input { .. } => vec![],
+            Element::Input { .. } | Element::Rank { .. } => vec![],
             Element::Check { reveals, .. } => vec![reveals.as_slice()],
             Element::Multi {
                 option_children,
@@ -325,6 +338,8 @@ pub enum ElementValue {
     Text(String),
     MultiChoice(Vec<bool>),
     Choice(Option<usize>),
+    /// Option indices in ranked order (may be a subset of the options)
+    Order(Vec<usize>),
 }
 
 /// Runtime state of the popup
@@ -392,6 +407,11 @@ impl PopupState {
                     .values
                     .insert(id.clone(), ElementValue::Choice(default_idx));
             }
+            Element::Rank { id, .. } => {
+                state
+                    .values
+                    .insert(id.clone(), ElementValue::Order(Vec::new()));
+            }
             Element::Group { .. }
             | Element::Page { .. }
             | Element::Text { .. }
@@ -425,6 +445,20 @@ impl PopupState {
     pub fn get_multichoice_mut(&mut self, id: &str) -> Option<&mut Vec<bool>> {
         match self.values.get_mut(id) {
             Some(ElementValue::MultiChoice(ref mut v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn get_order_mut(&mut self, id: &str) -> Option<&mut Vec<usize>> {
+        match self.values.get_mut(id) {
+            Some(ElementValue::Order(ref mut v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn get_order(&self, id: &str) -> Option<&Vec<usize>> {
+        match self.values.get(id) {
+            Some(ElementValue::Order(v)) => Some(v),
             _ => None,
         }
     }
@@ -500,6 +534,21 @@ impl PopupState {
                         } else {
                             // Fallback: array of booleans
                             json!(selections)
+                        }
+                    }
+                    ElementValue::Order(order) => {
+                        // Array of option texts in ranked order, so
+                        // selected() and count() work on rankings
+                        if let Some(Element::Rank { options, .. }) =
+                            find_element_by_id(elements, id)
+                        {
+                            let ranked: Vec<&str> = order
+                                .iter()
+                                .filter_map(|&i| options.get(i).map(|o| o.value()))
+                                .collect();
+                            json!(ranked)
+                        } else {
+                            json!(order)
                         }
                     }
                     ElementValue::Choice(idx) => {
@@ -608,6 +657,14 @@ impl PopupResult {
                         .collect();
                     json!(indices)
                 }
+                (ElementValue::Order(order), Some(Element::Rank { options, .. })) => {
+                    let ranked: Vec<&str> = order
+                        .iter()
+                        .filter_map(|&i| options.get(i).map(|o| o.value()))
+                        .collect();
+                    json!(ranked)
+                }
+                (ElementValue::Order(order), _) => json!(order),
                 (ElementValue::Choice(Some(idx)), Some(Element::Select { options, .. })) => options
                     .get(*idx)
                     .map(|opt| json!(opt.value()))

@@ -192,6 +192,35 @@ pub fn get_input_schema() -> serde_json::Value {
                         },
                         {
                             "type": "object",
+                            "description": "Ranking: the user clicks options in priority order. Returns the ranked option texts in order; unranked options are omitted (partial / top-N ranking is fine). Use for 'prioritize these' questions instead of prose.",
+                            "properties": {
+                                "rank": {"type": "string", "description": "Label"},
+                                "id": {"type": "string", "description": "Unique id (auto-derived from label if omitted)"},
+                                "options": {
+                                    "type": "array",
+                                    "minItems": 2,
+                                    "items": {
+                                        "oneOf": [
+                                            {"type": "string"},
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "value": {"type": "string"},
+                                                    "description": {"type": "string"}
+                                                },
+                                                "required": ["value", "description"]
+                                            }
+                                        ]
+                                    },
+                                    "description": "Options to rank (no automatic 'Other' here)"
+                                },
+                                "when": {"type": "string", "description": when_desc}
+                            },
+                            "required": ["rank", "options"],
+                            "additionalProperties": false
+                        },
+                        {
+                            "type": "object",
                             "description": "Visual grouping of related elements",
                             "properties": {
                                 "group": {"type": "string", "description": "Group label"},
@@ -271,7 +300,7 @@ BRANCHING TOOLS (in order of preference):
    {\"text\": \"Heads up: slow\", \"when\": \"selected(db, SQLite) && count(features) > 2\"}
    Conditions only see visible elements' values: an id hidden inside an untaken branch reads as unset (falsy/unselected/count 0), even if it has a default, so cross-branch references are safe as-is.
 
-ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, group, page. The element type is the JSON key and its value is the label; ids are auto-derived from labels when omitted (\"Enable Feature\" -> enable_feature) but explicit ids are more reliable for when-clauses.
+ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, rank (click-to-order prioritization), group, page. The element type is the JSON key and its value is the label; ids are auto-derived from labels when omitted (\"Enable Feature\" -> enable_feature) but explicit ids are more reliable for when-clauses.
 
 WIZARD: for flows too long for one screen, make every top-level element a page: {\"page\": \"Step label\", \"elements\": [...]}. One page shows at a time (Back/Next, Submit on the last); a page's own when-clause can skip it based on earlier answers. Prefer one screen when it fits - pages cost the user a click each.
 
@@ -294,6 +323,7 @@ Value semantics:
 - key absent -> that element was never shown (its branch wasn't taken)
 - \"\" for input -> shown but left blank; null for select -> shown, nothing chosen; [] for multi -> shown, nothing checked; false for check -> shown, unchecked
 - select returns the option text; multi returns an array of option texts
+- rank returns option texts in the user's priority order (unranked options omitted)
 - slider returns a number (integer when whole)
 - 'Other' chosen -> selection contains \"Other (please specify)\" plus \"<id>_other_text\" with the custom text
 - \"_notes\" -> free-form note the user added; treat it as extra instructions

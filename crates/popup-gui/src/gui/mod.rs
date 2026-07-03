@@ -923,6 +923,79 @@ fn render_single_element(
             });
         }
 
+        Element::Rank {
+            rank, id, options, ..
+        } => {
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(rank)
+                            .color(ctx.theme.neon_cyan)
+                            .strong()
+                            .size(15.0),
+                    );
+                    ui.label(
+                        RichText::new("click in priority order")
+                            .color(ctx.theme.text_secondary)
+                            .size(12.0),
+                    );
+                });
+
+                if let Some(order) = state.get_order_mut(id) {
+                    for (i, option) in options.iter().enumerate() {
+                        let position = order.iter().position(|&x| x == i);
+                        let badge = match position {
+                            Some(p) => format!("{}", p + 1),
+                            None => "·".to_string(),
+                        };
+                        ui.push_id(format!("rank_{}_{}", id, i), |ui| {
+                            let response = ui.selectable_label(
+                                position.is_some(),
+                                RichText::new(format!(" {}  {}", badge, option.value()))
+                                    .color(ctx.theme.base2),
+                            );
+                            if response.clicked() {
+                                match position {
+                                    // Unrank: later items shift up
+                                    Some(p) => {
+                                        order.remove(p);
+                                    }
+                                    // Rank: next position
+                                    None => order.push(i),
+                                }
+                            }
+                            if i == 0 {
+                                ctx.note_first_widget(response.id);
+                            }
+                        });
+                        if let Some(desc) = option.description() {
+                            render_option_description(ui, ctx, desc);
+                        }
+                    }
+
+                    if !order.is_empty() {
+                        let ranked = order.len();
+                        ui.horizontal(|ui| {
+                            if ui.small_button("Clear").clicked() {
+                                order.clear();
+                            }
+                            if ranked < options.len() {
+                                ui.label(
+                                    RichText::new(format!(
+                                        "{} of {} ranked - unranked are omitted",
+                                        ranked,
+                                        options.len()
+                                    ))
+                                    .color(ctx.theme.text_secondary)
+                                    .size(12.0),
+                                );
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
         Element::Group {
             group, elements, ..
         } => {

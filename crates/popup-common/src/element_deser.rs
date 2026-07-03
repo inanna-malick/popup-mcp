@@ -276,6 +276,22 @@ impl Serialize for Element {
                 map.end()
             }
 
+            Element::Rank {
+                rank,
+                id,
+                options,
+                when,
+            } => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("rank", rank)?;
+                map.serialize_entry("id", id)?;
+                map.serialize_entry("options", options)?;
+                if let Some(w) = when {
+                    map.serialize_entry("when", w)?;
+                }
+                map.end()
+            }
+
             Element::Group {
                 group,
                 id,
@@ -343,6 +359,8 @@ impl<'de> Deserialize<'de> for Element {
             deserialize_multiselect(obj)
         } else if obj.contains_key("select") {
             deserialize_choice(obj)
+        } else if obj.contains_key("rank") {
+            deserialize_rank(obj)
         } else if obj.contains_key("group") {
             deserialize_group(obj)
         } else if obj.contains_key("page") {
@@ -350,7 +368,7 @@ impl<'de> Deserialize<'de> for Element {
         } else {
             let keys: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
             Err(serde::de::Error::custom(format!(
-                "Unknown element type (keys present: {}) - every element needs exactly one of: text, markdown, slider, check, input, multi, select, group, page",
+                "Unknown element type (keys present: {}) - every element needs exactly one of: text, markdown, slider, check, input, multi, select, rank, group, page",
                 keys.join(", ")
             )))
         }
@@ -686,6 +704,28 @@ fn deserialize_choice<E: serde::de::Error>(
         style,
         option_children,
         reveals,
+        when: get_when(obj)?,
+    })
+}
+
+fn deserialize_rank<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+) -> Result<Element, E> {
+    let rank = obj
+        .get("rank")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| serde::de::Error::custom("rank field must be a string"))?
+        .to_string();
+
+    check_unknown_keys(obj, "rank", &rank, &["rank", "id", "options", "when"], &[])?;
+
+    let id = get_id_or_auto(obj, &rank);
+    let options = parse_options(obj, "rank")?;
+
+    Ok(Element::Rank {
+        rank,
+        id,
+        options,
         when: get_when(obj)?,
     })
 }
@@ -1092,6 +1132,32 @@ mod tests {
         assert!(json.get("Advanced").is_some());
         assert!(json["Advanced"].is_array());
         assert_eq!(json["Advanced"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_rank_roundtrip_and_strict() {
+        let json = r#"{"rank": "Priorities", "options": ["A", "B"]}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match &elem {
+            Element::Rank {
+                rank, id, options, ..
+            } => {
+                assert_eq!(rank, "Priorities");
+                assert_eq!(id, "priorities"); // auto-derived
+                assert_eq!(options.len(), 2);
+            }
+            _ => panic!("Expected Rank variant"),
+        }
+        let roundtripped: Element =
+            serde_json::from_str(&serde_json::to_string(&elem).unwrap()).unwrap();
+        assert_eq!(roundtripped, elem);
+
+        // Rank keeps the schema lean: no reveals/branches
+        let json = r#"{"rank": "Priorities", "options": ["A"], "reveals": []}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown key \"reveals\""), "got: {}", err);
     }
 
     #[test]
