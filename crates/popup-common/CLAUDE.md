@@ -83,6 +83,8 @@ pub fn evaluate_condition(expr: &ConditionExpr, state: &HashMap<String, Value>) 
 pub fn collect_refs(expr: &ConditionExpr, out: &mut Vec<String>) // ids referenced (for validation)
 ```
 
+**Visibility scoping (`visibility.rs`):** `compute_visibility` / `collect_active_ids` / `visible_value_map` compute the active element set and the value map conditions see, at fixed point. Conditions only see visible elements' values - hidden ids read as unset, matching the result payload's "absent = branch not taken" semantics.
+
 **Syntax notes:**
 - Bare identifiers are references; a legacy `@id` prefix is accepted and stripped
 - `selected(id, value)`: value may be an unquoted phrase with spaces (`selected(strategy, Regenerate from sandbox)`) - it is parsed as a literal, not a reference

@@ -82,7 +82,7 @@
     },
     {
       "text": "Heads up: regenerating without sandbox keys in .env.test will fail fast.",
-      "when": "selected(strategy, Regenerate from sandbox) && selected(creds, \"I'll provide fresh keys\")"
+      "when": "selected(creds, \"I'll provide fresh keys\")"
     }
   ]
 }

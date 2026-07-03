@@ -97,6 +97,7 @@ mod tests {
                 .iter()
                 .map(|o| OptionValue::Simple(o.to_string()))
                 .collect(),
+            default: vec![],
             option_children: HashMap::new(),
             reveals: vec![],
             when: None,

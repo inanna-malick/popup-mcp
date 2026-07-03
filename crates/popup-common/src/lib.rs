@@ -1,6 +1,7 @@
 pub mod condition;
 mod element_deser;
 pub mod validate;
+pub mod visibility;
 
 #[cfg(test)]
 mod tests;
@@ -12,9 +13,10 @@ use std::collections::HashMap;
 
 pub use condition::{collect_refs, evaluate_condition, parse_condition, ConditionExpr};
 pub use validate::{validate_definition, ValidationIssue};
+pub use visibility::{collect_active_ids, compute_visibility, visible_value_map, when_is_visible};
 
 /// IDs that would collide with keys in the result payload
-pub const RESERVED_IDS: &[&str] = &["status", "button", "error", "_notes"];
+pub const RESERVED_IDS: &[&str] = &["status", "button", "error", "_notes", "_labels"];
 
 /// Option value for Choice/Multiselect - can be simple string or with description
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -154,6 +156,8 @@ pub enum Element {
         multi: String, // Label text becomes the discriminator key
         id: String,
         options: Vec<OptionValue>,
+        /// Option texts pre-checked on open (empty = nothing checked)
+        default: Vec<String>,
         // Option-as-key nesting: HashMap<option_value, Vec<Element>>
         // Custom serialize/deserialize handles option children as direct JSON keys
         option_children: HashMap<String, Vec<Element>>,
@@ -183,15 +187,27 @@ pub enum Element {
         elements: Vec<Element>,
         when: Option<String>,
     },
+
+    /// Wizard step (top-level only). When any page is present, every
+    /// top-level element must be a page; the GUI shows one page at a time
+    /// with Back/Next, and Submit on the last page.
+    Page {
+        page: String, // Step label becomes the discriminator key
+        id: Option<String>,
+        elements: Vec<Element>,
+        /// Pages with a false condition are skipped entirely
+        when: Option<String>,
+    },
 }
 
 impl Element {
     /// The element's id, if it has one
     pub fn id(&self) -> Option<&str> {
         match self {
-            Element::Text { id, .. } | Element::Markdown { id, .. } | Element::Group { id, .. } => {
-                id.as_deref()
-            }
+            Element::Text { id, .. }
+            | Element::Markdown { id, .. }
+            | Element::Group { id, .. }
+            | Element::Page { id, .. } => id.as_deref(),
             Element::Slider { id, .. }
             | Element::Check { id, .. }
             | Element::Input { id, .. }
@@ -210,7 +226,8 @@ impl Element {
             | Element::Input { when, .. }
             | Element::Multi { when, .. }
             | Element::Select { when, .. }
-            | Element::Group { when, .. } => when.as_deref(),
+            | Element::Group { when, .. }
+            | Element::Page { when, .. } => when.as_deref(),
         }
     }
 
@@ -225,6 +242,7 @@ impl Element {
             Element::Multi { multi, .. } => multi,
             Element::Select { select, .. } => select,
             Element::Group { group, .. } => group,
+            Element::Page { page, .. } => page,
         }
     }
 
@@ -239,6 +257,7 @@ impl Element {
             Element::Multi { .. } => "multi",
             Element::Select { .. } => "select",
             Element::Group { .. } => "group",
+            Element::Page { .. } => "page",
         }
     }
 
@@ -266,7 +285,9 @@ impl Element {
                 lists.push(reveals.as_slice());
                 lists
             }
-            Element::Group { elements, .. } => vec![elements.as_slice()],
+            Element::Group { elements, .. } | Element::Page { elements, .. } => {
+                vec![elements.as_slice()]
+            }
         }
     }
 }
@@ -342,10 +363,20 @@ impl PopupState {
                     ElementValue::Text(default.clone().unwrap_or_default()),
                 );
             }
-            Element::Multi { id, options, .. } => {
+            Element::Multi {
+                id,
+                options,
+                default,
+                ..
+            } => {
                 state.values.insert(
                     id.clone(),
-                    ElementValue::MultiChoice(vec![false; options.len()]),
+                    ElementValue::MultiChoice(
+                        options
+                            .iter()
+                            .map(|opt| default.iter().any(|d| d == opt.value()))
+                            .collect(),
+                    ),
                 );
             }
             Element::Select {
@@ -361,7 +392,10 @@ impl PopupState {
                     .values
                     .insert(id.clone(), ElementValue::Choice(default_idx));
             }
-            Element::Group { .. } | Element::Text { .. } | Element::Markdown { .. } => {}
+            Element::Group { .. }
+            | Element::Page { .. }
+            | Element::Text { .. }
+            | Element::Markdown { .. } => {}
         });
         state
     }
@@ -526,6 +560,8 @@ impl PopupResult {
     /// - selects/multis return option text, not indices
     /// - sliders return integers when the value is whole
     /// - "_notes" carries the free-form user note when non-empty
+    /// - "_labels" maps each returned id to its human-facing label, so the
+    ///   result is self-documenting without the original definition
     pub fn from_state(
         state: &PopupState,
         definition: &PopupDefinition,
@@ -534,6 +570,7 @@ impl PopupResult {
         use serde_json::json;
 
         let mut values = HashMap::new();
+        let mut labels = serde_json::Map::new();
 
         for (id, value) in &state.values {
             if !active_ids.contains(id) {
@@ -541,6 +578,9 @@ impl PopupResult {
             }
 
             let element = find_element_by_id(&definition.elements, id);
+            if let Some(element) = element {
+                labels.insert(id.clone(), json!(element.label()));
+            }
 
             let json_value = match (value, element) {
                 (ElementValue::Number(n), _) => number_to_json(*n),
@@ -581,6 +621,9 @@ impl PopupResult {
 
         if !state.notes.trim().is_empty() {
             values.insert("_notes".to_string(), json!(state.notes.trim()));
+        }
+        if !labels.is_empty() {
+            values.insert("_labels".to_string(), Value::Object(labels));
         }
 
         PopupResult::Completed {

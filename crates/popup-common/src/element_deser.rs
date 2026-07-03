@@ -218,6 +218,7 @@ impl Serialize for Element {
                 multi,
                 id,
                 options,
+                default,
                 option_children,
                 reveals,
                 when,
@@ -226,6 +227,9 @@ impl Serialize for Element {
                 map.serialize_entry("multi", multi)?;
                 map.serialize_entry("id", id)?;
                 map.serialize_entry("options", options)?;
+                if !default.is_empty() {
+                    map.serialize_entry("default", default)?;
+                }
                 // Serialize option_children as direct keys (option-as-key pattern)
                 for (option_key, children) in option_children {
                     map.serialize_entry(option_key, children)?;
@@ -289,6 +293,24 @@ impl Serialize for Element {
                 }
                 map.end()
             }
+
+            Element::Page {
+                page,
+                id,
+                elements,
+                when,
+            } => {
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("page", page)?;
+                if let Some(id_val) = id {
+                    map.serialize_entry("id", id_val)?;
+                }
+                map.serialize_entry("elements", elements)?;
+                if let Some(w) = when {
+                    map.serialize_entry("when", w)?;
+                }
+                map.end()
+            }
         }
     }
 }
@@ -323,10 +345,12 @@ impl<'de> Deserialize<'de> for Element {
             deserialize_choice(obj)
         } else if obj.contains_key("group") {
             deserialize_group(obj)
+        } else if obj.contains_key("page") {
+            deserialize_page(obj)
         } else {
             let keys: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
             Err(serde::de::Error::custom(format!(
-                "Unknown element type (keys present: {}) - every element needs exactly one of: text, markdown, slider, check, input, multi, select, group",
+                "Unknown element type (keys present: {}) - every element needs exactly one of: text, markdown, slider, check, input, multi, select, group, page",
                 keys.join(", ")
             )))
         }
@@ -578,12 +602,32 @@ fn deserialize_multiselect<E: serde::de::Error>(
         .map_err(serde::de::Error::custom)?
         .unwrap_or_default();
 
+    // Pre-checked options: array of option texts, or a single string
+    let default = match obj.get("default") {
+        None => Vec::new(),
+        Some(Value::String(s)) => vec![s.clone()],
+        Some(Value::Array(_)) => serde_json::from_value::<Vec<String>>(obj["default"].clone())
+            .map_err(|_| {
+                serde::de::Error::custom(format!(
+                    "multi \"{}\": default must be an array of option strings",
+                    multi
+                ))
+            })?,
+        Some(_) => {
+            return Err(serde::de::Error::custom(format!(
+                "multi \"{}\": default must be an array of option strings",
+                multi
+            )))
+        }
+    };
+
     let option_children = parse_option_children(obj, known_fields, &options)?;
 
     Ok(Element::Multi {
         multi,
         id,
         options,
+        default,
         option_children,
         reveals,
         when: get_when(obj)?,
@@ -676,6 +720,36 @@ fn deserialize_group<E: serde::de::Error>(
 
     Ok(Element::Group {
         group,
+        id,
+        elements,
+        when: get_when(obj)?,
+    })
+}
+
+fn deserialize_page<E: serde::de::Error>(
+    obj: &serde_json::Map<String, Value>,
+) -> Result<Element, E> {
+    let page = obj
+        .get("page")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| serde::de::Error::custom("page field must be a string"))?
+        .to_string();
+
+    check_unknown_keys(obj, "page", &page, &["page", "id", "elements", "when"], &[])?;
+
+    let id = obj
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let elements = obj
+        .get("elements")
+        .ok_or_else(|| serde::de::Error::custom("page must have elements field"))?;
+    let elements = serde_json::from_value::<Vec<Element>>(elements.clone())
+        .map_err(serde::de::Error::custom)?;
+
+    Ok(Element::Page {
+        page,
         id,
         elements,
         when: get_when(obj)?,
@@ -877,6 +951,33 @@ mod tests {
     }
 
     #[test]
+    fn test_deserialize_multi_with_defaults() {
+        let json = r#"{"multi": "Features", "options": ["A", "B", "C"], "default": ["A", "C"]}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match elem {
+            Element::Multi { default, .. } => {
+                assert_eq!(default, vec!["A".to_string(), "C".to_string()])
+            }
+            _ => panic!("Expected Multi variant"),
+        }
+
+        // Single string accepted as a one-element default
+        let json = r#"{"multi": "Features", "options": ["A", "B"], "default": "B"}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match elem {
+            Element::Multi { default, .. } => assert_eq!(default, vec!["B".to_string()]),
+            _ => panic!("Expected Multi variant"),
+        }
+
+        // Non-string default is a clear error
+        let json = r#"{"multi": "Features", "options": ["A"], "default": 3}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("array of option strings"), "got: {}", err);
+    }
+
+    #[test]
     fn test_deserialize_multiselect_with_option_children() {
         let json = r#"{
             "multi": "Features",
@@ -994,6 +1095,39 @@ mod tests {
     }
 
     #[test]
+    fn test_page_roundtrip() {
+        let json = r#"{
+            "page": "Basics",
+            "elements": [{"input": "Name", "id": "name"}],
+            "when": "advanced"
+        }"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        match &elem {
+            Element::Page {
+                page,
+                elements,
+                when,
+                ..
+            } => {
+                assert_eq!(page, "Basics");
+                assert_eq!(elements.len(), 1);
+                assert_eq!(when.as_deref(), Some("advanced"));
+            }
+            _ => panic!("Expected Page variant"),
+        }
+        let roundtripped: Element =
+            serde_json::from_str(&serde_json::to_string(&elem).unwrap()).unwrap();
+        assert_eq!(roundtripped, elem);
+
+        // Typo'd key errors with suggestion
+        let json = r#"{"page": "Basics", "element": []}"#;
+        let err = serde_json::from_str::<Element>(json)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("Did you mean \"elements\"?"), "got: {}", err);
+    }
+
+    #[test]
     fn test_roundtrip_all_variants() {
         let elements = vec![
             Element::Text {
@@ -1037,6 +1171,7 @@ mod tests {
                     OptionValue::Simple("A".to_string()),
                     OptionValue::Simple("B".to_string()),
                 ],
+                default: vec!["B".to_string()],
                 option_children: HashMap::new(),
                 reveals: vec![],
                 when: None,

@@ -7,7 +7,7 @@ use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
 use crate::theme::Theme;
-use popup_common::{evaluate_condition, parse_condition, SelectStyle};
+use popup_common::SelectStyle;
 use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
 
 /// Selects with at most this many options render as always-visible radio
@@ -99,6 +99,8 @@ struct PopupApp {
     first_widget_focused: bool,
     last_size: Vec2,
     markdown_cache: CommonMarkCache,
+    /// Index into the currently-visible pages (wizard mode)
+    current_page: usize,
 }
 
 impl PopupApp {
@@ -116,7 +118,23 @@ impl PopupApp {
             first_widget_focused: false,
             last_size: Vec2::ZERO, // Initialize to zero to force resize on first frame
             markdown_cache: CommonMarkCache::default(),
+            current_page: 0,
         }
+    }
+
+    /// Indices of currently-visible Page elements (empty = not a wizard)
+    fn visible_pages(&self) -> Vec<usize> {
+        let values = popup_common::visible_value_map(&self.definition.elements, &self.state);
+        self.definition
+            .elements
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| {
+                matches!(e, Element::Page { .. })
+                    && popup_common::when_is_visible(e.when(), &values)
+            })
+            .map(|(i, _)| i)
+            .collect()
     }
 
     fn send_result_and_close(&mut self, ctx: &Context) {
@@ -124,12 +142,8 @@ impl PopupApp {
             PopupResult::Cancelled
         } else {
             // Collect only active element ids based on current state
-            let active_ids = collect_active_elements(
-                &self.definition.elements,
-                &self.state,
-                &self.definition.elements,
-                "",
-            );
+            let active_ids =
+                popup_common::collect_active_ids(&self.definition.elements, &self.state);
             PopupResult::from_state(&self.state, &self.definition, &active_ids)
         };
         *self.result.lock().unwrap() = Some(popup_result);
@@ -156,7 +170,15 @@ impl eframe::App for PopupApp {
 
         // --- Phase 1: Render UI and Measure Size ---
 
-        // Render the bottom panel (note field + submit button) and get its height
+        // Wizard state: which pages are visible, and where we are
+        let visible_pages = self.visible_pages();
+        let is_wizard = !visible_pages.is_empty();
+        if is_wizard && self.current_page >= visible_pages.len() {
+            self.current_page = visible_pages.len() - 1;
+        }
+        let on_last_page = !is_wizard || self.current_page + 1 == visible_pages.len();
+
+        // Render the bottom panel (note field + navigation/submit) and get its height
         let submit_label = self.definition.submit_label().to_string();
         let show_notes = self.definition.notes;
         let bottom_panel_response = TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
@@ -183,17 +205,48 @@ impl eframe::App for PopupApp {
 
             ui.add_space(6.0);
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                let button_text = RichText::new(&submit_label)
-                    .size(18.0)
-                    .strong()
-                    .color(self.theme.base2);
-                let button = egui::Button::new(button_text)
-                    .min_size(egui::Vec2::new(140.0, 40.0))
-                    .fill(self.theme.neon_pink.linear_multiply(0.2));
+                ui.horizontal(|ui| {
+                    // Center the button row
+                    let row_width = if is_wizard { 340.0 } else { 140.0 };
+                    let pad = ((ui.available_width() - row_width) / 2.0).max(0.0);
+                    ui.add_space(pad);
 
-                if ui.add(button).clicked() {
-                    self.state.button_clicked = Some("submit".to_string());
-                }
+                    if is_wizard {
+                        let back = egui::Button::new(RichText::new("< Back").size(15.0))
+                            .min_size(egui::Vec2::new(90.0, 40.0));
+                        if ui.add_enabled(self.current_page > 0, back).clicked() {
+                            self.current_page -= 1;
+                        }
+                        ui.label(
+                            RichText::new(format!(
+                                "{} / {}",
+                                self.current_page + 1,
+                                visible_pages.len()
+                            ))
+                            .color(self.theme.text_secondary),
+                        );
+                    }
+
+                    let (label, action): (&str, &str) = if on_last_page {
+                        (&submit_label, "submit")
+                    } else {
+                        ("Next >", "next")
+                    };
+                    let button_text = RichText::new(label)
+                        .size(18.0)
+                        .strong()
+                        .color(self.theme.base2);
+                    let button = egui::Button::new(button_text)
+                        .min_size(egui::Vec2::new(140.0, 40.0))
+                        .fill(self.theme.neon_pink.linear_multiply(0.2));
+                    if ui.add(button).clicked() {
+                        if action == "submit" {
+                            self.state.button_clicked = Some("submit".to_string());
+                        } else {
+                            self.current_page += 1;
+                        }
+                    }
+                });
             });
             ui.add_space(8.0);
         });
@@ -221,6 +274,27 @@ impl eframe::App for PopupApp {
                             // Use a scope to measure the content rect
                             let content_response = ui.scope(|ui| {
                                 ui.set_max_width(CONTENT_MAX_WIDTH);
+
+                                // Wizard mode: render only the current page
+                                let (page_elements, path_prefix) = if is_wizard {
+                                    let page_idx = visible_pages[self.current_page];
+                                    match &self.definition.elements[page_idx] {
+                                        Element::Page { page, elements, .. } => {
+                                            ui.label(
+                                                RichText::new(page)
+                                                    .color(self.theme.electric_blue)
+                                                    .strong()
+                                                    .size(18.0),
+                                            );
+                                            ui.add_space(6.0);
+                                            (elements.as_slice(), format!("p{}", page_idx))
+                                        }
+                                        _ => (self.definition.elements.as_slice(), String::new()),
+                                    }
+                                } else {
+                                    (self.definition.elements.as_slice(), String::new())
+                                };
+
                                 let mut render_ctx = RenderContext {
                                     theme: &self.theme,
                                     first_widget_id: &mut self.first_interactive_widget_id,
@@ -229,11 +303,11 @@ impl eframe::App for PopupApp {
                                 };
                                 render_elements(
                                     ui,
-                                    &self.definition.elements,
+                                    page_elements,
                                     &mut self.state,
                                     &self.definition.elements,
                                     &mut render_ctx,
-                                    "",
+                                    &path_prefix,
                                 );
                             });
                             // Store the measured rect in temporary memory to access it after the panel is drawn
@@ -318,19 +392,15 @@ fn render_elements(
     ctx: &mut RenderContext,
     path_prefix: &str,
 ) {
-    let state_values = state.to_value_map(all_elements);
+    // Visibility-scoped value map: when-clauses only see values of elements
+    // that are themselves visible (fixed-point in popup-common)
+    let state_values = popup_common::visible_value_map(all_elements, state);
 
     // 1. Identify visible elements and their original indices
     let visible_indices: Vec<usize> = elements
         .iter()
         .enumerate()
-        .filter(|(_, element)| match element.when() {
-            None => true,
-            Some(when_expr) => match parse_condition(when_expr) {
-                Ok(ast) => evaluate_condition(&ast, &state_values),
-                Err(_) => true, // validated upstream; fail-open here
-            },
-        })
+        .filter(|(_, element)| popup_common::when_is_visible(element.when(), &state_values))
         .map(|(idx, _)| idx)
         .collect();
 
@@ -422,24 +492,8 @@ fn render_single_element(
     ctx: &mut RenderContext,
     element_path: &str,
 ) {
-    // Check if element should be visible based on when clause
-    if let Some(when_expr) = element.when() {
-        let state_values = state.to_value_map(all_elements);
-        match parse_condition(when_expr) {
-            Ok(ast) => {
-                if !evaluate_condition(&ast, &state_values) {
-                    // Condition not met - don't render this element
-                    return;
-                }
-            }
-            Err(e) => {
-                // Definitions are validated before rendering; if something
-                // slips through, render anyway (fail-open) but log it
-                log::warn!("Failed to parse when clause '{}': {}", when_expr, e);
-            }
-        }
-    }
-
+    // Visibility is decided by the caller (render_elements filters against
+    // the visibility-scoped value map before dispatching here)
     match element {
         Element::Text { text, .. } => {
             // Use element path as unique ID to prevent collisions in conditionals
@@ -589,22 +643,42 @@ fn render_single_element(
                             .strong()
                             .size(15.0),
                     );
-                    if let Some(selected) = state.get_choice_mut(id) {
-                        for (idx, option) in options.iter().enumerate() {
-                            ui.push_id(format!("radio_{}_{}", id, idx), |ui| {
-                                let response = ui.radio(
-                                    *selected == Some(idx),
-                                    RichText::new(option.value()).color(ctx.theme.base2),
-                                );
-                                if response.clicked() {
+                    for (idx, option) in options.iter().enumerate() {
+                        // Avoid holding a mutable borrow across the loop:
+                        // branch children below also need `state`
+                        let is_selected = state.get_choice(id).flatten() == Some(idx);
+                        ui.push_id(format!("radio_{}_{}", id, idx), |ui| {
+                            let response = ui.radio(
+                                is_selected,
+                                RichText::new(option.value()).color(ctx.theme.base2),
+                            );
+                            if response.clicked() {
+                                if let Some(selected) = state.get_choice_mut(id) {
                                     *selected = Some(idx);
                                 }
-                                if idx == 0 {
-                                    ctx.note_first_widget(response.id);
-                                }
-                            });
-                            if let Some(desc) = option.description() {
-                                render_option_description(ui, ctx, desc);
+                            }
+                            if idx == 0 {
+                                ctx.note_first_widget(response.id);
+                            }
+                        });
+                        if let Some(desc) = option.description() {
+                            render_option_description(ui, ctx, desc);
+                        }
+                        // Branch children render inline, directly under their
+                        // option, so the follow-ups visually belong to the
+                        // answer that revealed them
+                        if state.get_choice(id).flatten() == Some(idx) {
+                            if let Some(children) = option_children.get(option.value()) {
+                                ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
+                                    render_elements(
+                                        ui,
+                                        children,
+                                        state,
+                                        all_elements,
+                                        ctx,
+                                        &format!("{}.choice_{}", element_path, idx),
+                                    );
+                                });
                             }
                         }
                     }
@@ -654,19 +728,23 @@ fn render_single_element(
                 }
 
                 let selected_option = state.get_choice(id).flatten();
-                if let Some(idx) = selected_option {
-                    if let Some(option_val) = options.get(idx) {
-                        if let Some(children) = option_children.get(option_val.value()) {
-                            ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
-                                render_elements(
-                                    ui,
-                                    children,
-                                    state,
-                                    all_elements,
-                                    ctx,
-                                    &format!("{}.choice_{}", element_path, idx),
-                                );
-                            });
+                // Dropdown branch children render after the combo (the radio
+                // path renders them inline under the selected option above)
+                if !use_radio {
+                    if let Some(idx) = selected_option {
+                        if let Some(option_val) = options.get(idx) {
+                            if let Some(children) = option_children.get(option_val.value()) {
+                                ui.indent(format!("choice_cond_{}_{}", id, idx), |ui| {
+                                    render_elements(
+                                        ui,
+                                        children,
+                                        state,
+                                        all_elements,
+                                        ctx,
+                                        &format!("{}.choice_{}", element_path, idx),
+                                    );
+                                });
+                            }
                         }
                     }
                 }
@@ -834,160 +912,13 @@ fn render_single_element(
                 );
             });
         }
-    }
-}
 
-// Helper functions
-
-/// Collect only the active elements based on current state (evaluating when clauses)
-fn collect_active_elements(
-    elements: &[Element],
-    state: &PopupState,
-    all_elements: &[Element],
-    _path_prefix: &str,
-) -> Vec<String> {
-    let mut active_ids = Vec::new();
-    let state_values = state.to_value_map(all_elements);
-
-    // Helper to check if an element's when clause is satisfied
-    let is_visible = |when: Option<&str>| -> bool {
-        match when {
-            None => true, // No when clause means always visible
-            Some(when_expr) => {
-                // Parse and evaluate when clause
-                match parse_condition(when_expr) {
-                    Ok(ast) => evaluate_condition(&ast, &state_values),
-                    Err(_) => {
-                        // If parsing fails, default to visible (fail-open)
-                        log::warn!("Failed to parse when clause: {}", when_expr);
-                        true
-                    }
-                }
-            }
-        }
-    };
-
-    for element in elements {
-        match element {
-            Element::Slider { id, when, .. } | Element::Input { id, when, .. } => {
-                if is_visible(when.as_deref()) {
-                    active_ids.push(id.clone());
-                }
-            }
-            Element::Check {
-                id, reveals, when, ..
-            } => {
-                if is_visible(when.as_deref()) {
-                    active_ids.push(id.clone());
-                    // If checkbox is checked and has reveals, collect from it
-                    if state.get_boolean(id) && !reveals.is_empty() {
-                        active_ids.extend(collect_active_elements(
-                            reveals,
-                            state,
-                            all_elements,
-                            "",
-                        ));
-                    }
-                }
-            }
-            Element::Multi {
-                id,
-                options,
-                option_children,
-                reveals,
-                when,
-                ..
-            } => {
-                if is_visible(when.as_deref()) {
-                    active_ids.push(id.clone());
-                    // For each checked option with children, collect from it
-                    if let Some(selections) = state.get_multichoice(id) {
-                        let has_selection = selections.iter().any(|&s| s);
-
-                        for (i, option) in options.iter().enumerate() {
-                            if i < selections.len() && selections[i] {
-                                if let Some(children) = option_children.get(option.value()) {
-                                    active_ids.extend(collect_active_elements(
-                                        children,
-                                        state,
-                                        all_elements,
-                                        "",
-                                    ));
-                                }
-                            }
-                        }
-
-                        // Collect from reveals only if any option is selected
-                        if has_selection && !reveals.is_empty() {
-                            active_ids.extend(collect_active_elements(
-                                reveals,
-                                state,
-                                all_elements,
-                                "",
-                            ));
-                        }
-                    }
-                }
-            }
-            Element::Select {
-                id,
-                options,
-                option_children,
-                reveals,
-                when,
-                ..
-            } => {
-                if is_visible(when.as_deref()) {
-                    active_ids.push(id.clone());
-
-                    let has_selection = state
-                        .get_choice(id)
-                        .map(|opt| opt.is_some())
-                        .unwrap_or(false);
-
-                    // If there's a selected option with children, collect from it
-                    if let Some(Some(idx)) = state.get_choice(id) {
-                        if let Some(option_text) = options.get(idx) {
-                            if let Some(children) = option_children.get(option_text.value()) {
-                                active_ids.extend(collect_active_elements(
-                                    children,
-                                    state,
-                                    all_elements,
-                                    "",
-                                ));
-                            }
-                        }
-                    }
-
-                    // Collect from reveals only if an option is selected
-                    if has_selection && !reveals.is_empty() {
-                        active_ids.extend(collect_active_elements(
-                            reveals,
-                            state,
-                            all_elements,
-                            "",
-                        ));
-                    }
-                }
-            }
-            Element::Group { elements, when, .. } => {
-                if is_visible(when.as_deref()) {
-                    // Recursively collect from group
-                    active_ids.extend(collect_active_elements(elements, state, all_elements, ""));
-                }
-            }
-            Element::Text { id, when, .. } | Element::Markdown { id, when, .. } => {
-                // Static elements are included in active list if visible and identified
-                if is_visible(when.as_deref()) {
-                    if let Some(text_id) = id {
-                        active_ids.push(text_id.clone());
-                    }
-                }
-            }
+        Element::Page { .. } => {
+            // Pages are handled by the wizard chrome in update(); validation
+            // rejects nested pages, so this is unreachable in practice
+            log::warn!("Page element reached the element renderer - skipping");
         }
     }
-
-    active_ids
 }
 
 #[cfg(test)]
@@ -997,8 +928,8 @@ pub mod tests {
     pub fn collect_active_elements_for_test(
         elements: &[Element],
         state: &PopupState,
-        all_elements: &[Element],
+        _all_elements: &[Element],
     ) -> Vec<String> {
-        super::collect_active_elements(elements, state, all_elements, "")
+        popup_common::collect_active_ids(elements, state)
     }
 }

@@ -134,6 +134,7 @@ fn test_popupstate_init_multiselect() {
                 OptionValue::Simple("B".to_string()),
                 OptionValue::Simple("C".to_string()),
             ],
+            default: vec![],
             option_children: HashMap::new(),
             reveals: vec![],
             when: None,
@@ -144,6 +145,32 @@ fn test_popupstate_init_multiselect() {
     assert_eq!(
         state.values.get("features"),
         Some(&ElementValue::MultiChoice(vec![false, false, false]))
+    );
+}
+
+#[test]
+fn test_popupstate_init_multiselect_with_defaults() {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![Element::Multi {
+            multi: "Features".to_string(),
+            id: "features".to_string(),
+            options: vec![
+                OptionValue::Simple("A".to_string()),
+                OptionValue::Simple("B".to_string()),
+                OptionValue::Simple("C".to_string()),
+            ],
+            default: vec!["A".to_string(), "C".to_string()],
+            option_children: HashMap::new(),
+            reveals: vec![],
+            when: None,
+        }],
+    );
+
+    let state = PopupState::new(&def);
+    assert_eq!(
+        state.values.get("features"),
+        Some(&ElementValue::MultiChoice(vec![true, false, true]))
     );
 }
 
@@ -443,6 +470,31 @@ fn test_from_state_result_semantics() {
             assert_eq!(values.get("fraction").unwrap().as_f64(), Some(0.5));
             // no note was entered
             assert!(!values.contains_key("_notes"));
+        }
+        _ => panic!("Expected Completed result"),
+    }
+}
+
+#[test]
+fn test_from_state_includes_labels() {
+    let def = PopupDefinition::new(
+        "Test",
+        vec![
+            check("Enable retries", "retries", true, vec![]),
+            slider("Max attempts", "attempts", 1.0, 10.0, Some(3.0)),
+        ],
+    );
+
+    let mut state = PopupState::new(&def);
+    state.button_clicked = Some("submit".to_string());
+
+    let active = vec!["retries".to_string(), "attempts".to_string()];
+    let result = PopupResult::from_state(&state, &def, &active);
+    match result {
+        PopupResult::Completed { values, .. } => {
+            let labels = values.get("_labels").unwrap().as_object().unwrap();
+            assert_eq!(labels.get("retries").unwrap(), "Enable retries");
+            assert_eq!(labels.get("attempts").unwrap(), "Max attempts");
         }
         _ => panic!("Expected Completed result"),
     }

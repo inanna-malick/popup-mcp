@@ -22,7 +22,7 @@ pub fn get_popup_tool_schema() -> serde_json::Value {
 /// Use this if you want to customize the name or description
 /// but need the proper schema for the popup structure.
 pub fn get_input_schema() -> serde_json::Value {
-    let when_desc = "Visibility condition over other elements' ids. Syntax: bare id is a truthy check (\"advanced\"), selected(id, value) tests one option (value may be an unquoted phrase: selected(strategy, Regenerate from sandbox); quote it if it contains a closing paren), count(id) > N counts selections, any(...)/all(...) combine conditions, numbers may be negative, combine with && || ! and parentheses. Conditions see hidden elements' current values - when referencing an id inside a branch, AND in that branch's own condition.";
+    let when_desc = "Visibility condition over other elements' ids. Syntax: bare id is a truthy check (\"advanced\"), selected(id, value) tests one option (value may be an unquoted phrase: selected(strategy, Regenerate from sandbox); quote it if it contains a closing paren), count(id) > N counts selections, any(...)/all(...) combine conditions, numbers may be negative, combine with && || ! and parentheses. Conditions only see visible elements' values: an id hidden inside an untaken branch reads as unset (falsy, unselected, count 0), so referencing it is safe without repeating the branch's condition.";
 
     json!({
         "type": "object",
@@ -173,6 +173,11 @@ pub fn get_input_schema() -> serde_json::Value {
                                     },
                                     "description": "Options. 'Other (please specify)' is appended automatically."
                                 },
+                                "default": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Option texts pre-checked on open. Set to your recommendation."
+                                },
                                 "reveals": {
                                     "$ref": "#/properties/elements",
                                     "description": "Elements shown once any option is selected"
@@ -195,6 +200,18 @@ pub fn get_input_schema() -> serde_json::Value {
                                 "when": {"type": "string", "description": when_desc}
                             },
                             "required": ["group", "elements"],
+                            "additionalProperties": false
+                        },
+                        {
+                            "type": "object",
+                            "description": "Wizard step. TOP-LEVEL ONLY: when used, every top-level element must be a page. One page shows at a time with Back/Next; Submit appears on the last page. Use for long flows that would otherwise be a wall of form; when-clauses can reference ids on earlier pages, and a page's own `when` skips it dynamically.",
+                            "properties": {
+                                "page": {"type": "string", "description": "Step label shown as the page heading"},
+                                "id": {"type": "string"},
+                                "elements": {"$ref": "#/properties/elements"},
+                                "when": {"type": "string", "description": when_desc}
+                            },
+                            "required": ["page", "elements"],
                             "additionalProperties": false
                         }
                     ]
@@ -252,13 +269,15 @@ BRANCHING TOOLS (in order of preference):
    {\"check\": \"Enable retries\", \"id\": \"retries\", \"reveals\": [{\"slider\": \"Max attempts\", \"id\": \"attempts\", \"min\": 1, \"max\": 10}]}
 3. when - cross-element conditions anywhere:
    {\"text\": \"Heads up: slow\", \"when\": \"selected(db, SQLite) && count(features) > 2\"}
-   Caveat: when-clauses see hidden elements' current values (defaults persist while hidden). When referencing an id that lives inside a branch, AND in that branch's own condition.
+   Conditions only see visible elements' values: an id hidden inside an untaken branch reads as unset (falsy/unselected/count 0), even if it has a default, so cross-branch references are safe as-is.
 
-ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, group. The element type is the JSON key and its value is the label; ids are auto-derived from labels when omitted (\"Enable Feature\" -> enable_feature) but explicit ids are more reliable for when-clauses.
+ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, group, page. The element type is the JSON key and its value is the label; ids are auto-derived from labels when omitted (\"Enable Feature\" -> enable_feature) but explicit ids are more reliable for when-clauses.
+
+WIZARD: for flows too long for one screen, make every top-level element a page: {\"page\": \"Step label\", \"elements\": [...]}. One page shows at a time (Back/Next, Submit on the last); a page's own when-clause can skip it based on earlier answers. Prefer one screen when it fits - pages cost the user a click each.
 
 DO:
 - Give options a description (\"options\": [{\"value\": \"X\", \"description\": \"tradeoff...\"}]) - descriptions render under each option and help the user decide
-- Set select defaults to your recommendation so the user confirms instead of choosing from scratch; prefill inputs with your best guess (multi has no default - options start unchecked)
+- Set defaults to your recommendation so the user confirms instead of choosing from scratch: select takes an option text, multi takes an array of option texts, inputs take prefilled text
 - Name the submit button after the consequence (\"submit\": \"Deploy\")
 
 DON'T:
@@ -275,7 +294,8 @@ Value semantics:
 - select returns the option text; multi returns an array of option texts
 - slider returns a number (integer when whole)
 - 'Other' chosen -> selection contains \"Other (please specify)\" plus \"<id>_other_text\" with the custom text
-- \"_notes\" -> free-form note the user added; treat it as extra instructions"
+- \"_notes\" -> free-form note the user added; treat it as extra instructions
+- \"_labels\" -> map of returned ids to their human-facing labels (self-documenting results)"
 }
 
 #[cfg(test)]

@@ -219,6 +219,7 @@ Options may be plain strings or `{value, description}` objects; descriptions ren
   "multi": "Features",
   "id": "features",
   "options": ["Basic", "Advanced"],
+  "default": ["Basic"],                    // option texts pre-checked on open
   "Advanced": [                            // shown while "Advanced" is checked
     {"slider": "Level", "id": "level", "min": 1, "max": 5}
   ]
@@ -229,6 +230,23 @@ Options may be plain strings or `{value, description}` objects; descriptions ren
 ```json
 {"group": "Deployment", "elements": [ ... ]}
 ```
+
+#### Page (Wizard Mode)
+
+Top-level only; when used, every top-level element must be a page. One page shows at a time with Back/Next, and the submit button appears on the last page. A page's own `when` skips it dynamically based on earlier answers.
+
+```json
+{
+  "title": "Set up the new project",
+  "elements": [
+    {"page": "Basics", "elements": [ ... ]},
+    {"page": "Web details", "when": "selected(kind, Web service)", "elements": [ ... ]},
+    {"page": "Tooling", "elements": [ ... ]}
+  ]
+}
+```
+
+See `examples/project_setup_wizard.json`.
 
 ### Auto-Injected "Other" Option
 
@@ -251,7 +269,7 @@ Any element can have a `"when"` field:
 
 When clauses are validated up front: parse errors, references to unknown ids, `selected()` values that aren't options of the target, and `selected()` on non-select elements are all returned as errors before the popup renders.
 
-**Caveat:** conditions see hidden elements' current values (defaults persist while hidden). When referencing an id that lives inside a branch, AND in that branch's own condition: `"when": "selected(strategy, Regenerate from sandbox) && selected(creds, \"I'll provide fresh keys\")"`.
+**Visibility scoping:** conditions only see visible elements' values. An id hidden inside an untaken branch reads as unset (falsy, unselected, count 0) even if it has a default, so cross-branch references like `"when": "selected(creds, \"I'll provide fresh keys\")"` are safe without repeating the ancestor branch's condition.
 
 ### Result Format
 
@@ -266,7 +284,8 @@ Value semantics (deliberate signals, not noise):
 - select returns option text; multi returns an array of option texts
 - slider returns a number (integer when whole)
 - `"_notes"` — free-form note the user added via the always-available note field
-- Reserved ids (cannot be used by elements): `status`, `button`, `error`, `_notes`
+- `"_labels"` — map of returned ids to their human-facing labels (self-documenting results)
+- Reserved ids (cannot be used by elements): `status`, `button`, `error`, `_notes`, `_labels`
 
 ## Example Popups
 
