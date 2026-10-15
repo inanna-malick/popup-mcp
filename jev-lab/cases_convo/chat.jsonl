@@ -1,0 +1,10 @@
+{"node": "open", "typed": "didn't get to it, kept finding other things to do", "expect": "l0", "rationale": "avoidance"}
+{"node": "open", "typed": "got about two thousand words down, felt alright actually", "expect": "l1", "rationale": "wrote it, went well"}
+{"node": "open", "typed": "wrote the whole thing and read it back and it's dreadful", "expect": "l2", "rationale": "wrote, dislikes"}
+{"node": "open", "typed": "I opened the file every day and closed it again", "expect": "l0", "rationale": "indirect avoidance, no keyword"}
+{"node": "open", "typed": "three good days then nothing after Wednesday", "expect": "l1|l0", "rationale": "both true; must not hand back"}
+{"node": "open", "typed": "it's fine I guess", "expect": "l1|unclear", "rationale": "hedged, low information"}
+{"node": "open", "typed": "my landlord is selling the flat", "expect": "none_fit", "rationale": "real but off-tree"}
+{"node": "open", "typed": "", "expect": "unclear", "rationale": "nothing said"}
+{"node": "open", "typed": "wrote loads, hate all of it", "expect": "l2", "rationale": "both wrote and dislikes; doubt is the more specific line"}
+{"node": "open", "typed": "nothing this week, and what I did write before is rubbish anyway", "expect": "several", "rationale": "stuck and doubt both hold. The one the old design got wrong"}

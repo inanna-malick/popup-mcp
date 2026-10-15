@@ -36,6 +36,22 @@ Enum of widget types using element-as-key (de)serialization: the JSON key is the
 - `Multi { multi, id, options, option_children, reveals, when? }` - Multiple choice
 - `Select { select, id, options, default?, style?, option_children, reveals, when? }` - Single choice; `style` is `radio` or `dropdown`
 - `Group { group, id?, elements, when? }` - Labeled container
+- `Page { page, id?, elements, when?, next }` - Wizard step / decision-tree node (top level only). `next: Vec<Edge>` turns the pages into a graph; empty means linear wizard behaviour.
+
+### Edge (`Edge { to, r#if, when }`)
+One way out of a page. `to` is a page id or `"submit"`. Exactly one of `if` (a condition described in words, judged semantically) or `when` (ordinary condition syntax, evaluated in code) - deserialization rejects both or neither. `Element::page_id()` gives a page's routing id (explicit, else derived from the label).
+
+### Routing (`route.rs`)
+Pure, network-free decision logic, so routing is testable without a GUI or an API key:
+- `decide(elements, page, visible_values, path) -> RouteDecision` - `Mechanical` when a `when` edge holds, `Ask(packet)` when semantic edges exist, `Submit` otherwise
+- `route_packet(elements, page, path)` **compiles** the Jev request from the tree so the authoring model writes only `{"to", "if"}` per edge. What the compiler adds, and why (each follows a measured Jev practice):
+  - state is the current page's answers keyed by **label**, since the conditions are written in words and must match the state's language
+  - each option is the author's condition alone (condition-described beat action-described 0.95 vs 0.72 in the source research) plus `the branch then asks`, the destination page's question labels, so a branch is judged on where it leads rather than on its name (the taxonomy-walk pattern)
+  - two described exits, `none_fit` and `unclear`, because "no branch applies" and "not enough said to tell" mean different things to the caller
+  - `earlier_pages` capped to `EARLIER_PAGES_KEPT`; accuracy falls as state fills with detail the question does not need
+  - three companion question groups ride in the same packet, since extra questions are nearly free and extra calls are not: `holds:<edge>` Nouls (does this condition hold on its own), a `contradicts` Noul for the note, and `prefill:<element id>` Choices over a destination select's options with a `not_implied` exit
+- `RouteAnswer::outcome(edges) -> Outcome` is the decision surface: `Act` (open a page), `Several` (open the first, queue the rest), `HandBack`. Order: an exit that won hands back; else the gated Choice acts; else exactly one Noul at `HOLD_FLOOR` acts; else several queue; else hand back with `leaning`.
+- `suggestion()` gates on confidence, then mass, then `margin()`, which compares the leader against the better of the runner-up edge and **both exits summed** (they are separate options because they mean different things to the caller, but both mean "do not open a page"). Also `exit_mass()`, `exit_reason()`, `mass(key)`, `edge_key()` for duplicate targets.
 
 **Accessors:** `element.id()`, `element.when()`, `element.label()`, `element.kind()`, `element.child_lists()`. Free functions `find_element_by_id(elements, id)` and `walk_elements(elements, f)` traverse the whole tree (reveals, option children, groups) - use these instead of hand-rolled recursion.
 
@@ -48,7 +64,8 @@ Ids are auto-derived from labels at deserialization when omitted ("Enable Featur
 ### Validation (`validate.rs`)
 
 `validate_definition(&PopupDefinition) -> Vec<ValidationIssue>` runs pre-flight checks so structural mistakes surface as fixable errors instead of mis-rendered popups:
-- duplicate ids; reserved ids (`status`, `button`, `error`, `_notes`)
+- duplicate ids; reserved ids (`status`, `button`, `error`, `_notes`, `_labels`, `_route`)
+- edge targets must name a top-level page or `"submit"` (with closest-match suggestion)
 - slider `min < max`, default in range, positive step
 - select default must be one of the options (with closest-match suggestion)
 - when clauses must parse, and every referenced id must exist (with suggestion)
@@ -111,6 +128,7 @@ Value semantics (kept in sync with the MCP tool description in popup-gui/src/sch
 - select -> option text; multi -> array of option texts
 - slider -> integer when whole, float otherwise (no blanket integer truncation)
 - `_notes` = trimmed free-form note, present only when non-empty
+- `_route` = the hops taken in a decision tree (added by the GUI's `route_nav::with_route_log`)
 
 ## Example JSON (V2 Schema)
 

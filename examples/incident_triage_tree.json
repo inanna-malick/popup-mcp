@@ -1,0 +1,139 @@
+{
+  "title": "Triage the production alert",
+  "submit": "Start the fix",
+  "elements": [
+    {
+      "page": "What's happening",
+      "id": "symptom",
+      "elements": [
+        {
+          "markdown": "**Alert:** `payments-api` p99 latency crossed 4s at 14:02, still elevated."
+        },
+        {
+          "select": "What are users seeing",
+          "id": "user_impact",
+          "options": [
+            {
+              "value": "Checkout fails outright",
+              "description": "Requests error or time out; nobody can complete a payment"
+            },
+            {
+              "value": "Checkout works but crawls",
+              "description": "Payments succeed, just slowly"
+            },
+            {
+              "value": "Nothing user-visible yet",
+              "description": "Only the alert fired; no complaints"
+            }
+          ],
+          "default": "Checkout works but crawls"
+        },
+        {
+          "check": "A deploy went out in the last hour",
+          "id": "recent_deploy",
+          "default": false
+        }
+      ],
+      "next": [
+        {
+          "to": "rollback",
+          "when": "recent_deploy && selected(user_impact, Checkout fails outright)"
+        },
+        {
+          "to": "outage",
+          "if": "users cannot complete a payment at all"
+        },
+        {
+          "to": "degraded",
+          "if": "payments still go through but are slower than usual, or nothing user-visible has happened yet"
+        }
+      ]
+    },
+    {
+      "page": "Roll back first",
+      "id": "rollback",
+      "elements": [
+        {
+          "text": "A deploy landed within the hour and checkout is down, so rollback comes before diagnosis."
+        },
+        {
+          "check": "Roll back to the previous release now",
+          "id": "do_rollback",
+          "default": true,
+          "reveals": [
+            {
+              "check": "Page the deploy author",
+              "id": "page_author",
+              "default": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "page": "Full outage",
+      "id": "outage",
+      "elements": [
+        {
+          "select": "First move",
+          "id": "outage_move",
+          "options": [
+            {
+              "value": "Fail over to the standby region",
+              "description": "~5 min, drops in-flight requests"
+            },
+            {
+              "value": "Shed load at the edge",
+              "description": "Keeps the region, rejects a share of traffic"
+            },
+            {
+              "value": "Dig into traces first",
+              "description": "Slower, but avoids a blind change"
+            }
+          ],
+          "default": "Fail over to the standby region"
+        },
+        {
+          "check": "Open a public status page incident",
+          "id": "status_page",
+          "default": true
+        }
+      ]
+    },
+    {
+      "page": "Degraded, not down",
+      "id": "degraded",
+      "elements": [
+        {
+          "multi": "Where to look first",
+          "id": "suspects",
+          "options": [
+            "Database connection pool",
+            "Upstream card processor",
+            "Recent config change",
+            "Traffic spike"
+          ],
+          "default": ["Database connection pool"]
+        },
+        {
+          "slider": "How long before this becomes an outage (minutes)",
+          "id": "headroom",
+          "min": 5,
+          "max": 60,
+          "step": 5,
+          "default": 20
+        }
+      ],
+      "next": [
+        {
+          "to": "outage",
+          "if": "the answers say this is about to become, or already is, a full outage with very little time left"
+        },
+        {
+          "to": "submit",
+          "if": "there is enough headroom to investigate the suspects without emergency action"
+        }
+      ]
+    }
+  ]
+}

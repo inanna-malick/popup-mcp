@@ -1,0 +1,284 @@
+{
+  "title": "Let's work out what you want to build",
+  "submit": "That's it",
+  "elements": [
+    {
+      "page": "What are you making",
+      "id": "start",
+      "elements": [
+        {
+          "markdown": "Tell me roughly what you're after and I'll ask the right follow-ups."
+        },
+        {
+          "select": "Closest thing",
+          "id": "kind",
+          "options": [
+            {
+              "value": "something people use in a browser",
+              "description": "a site or a web app"
+            },
+            {
+              "value": "something that runs on a schedule",
+              "description": "a job, a bot, a pipeline"
+            },
+            {
+              "value": "something other programs call",
+              "description": "an API or a library"
+            },
+            {
+              "value": "something I run at the terminal",
+              "description": "a CLI"
+            },
+            {
+              "value": "I want to look at data I already have",
+              "description": "analysis, a dashboard"
+            }
+          ]
+        },
+        {
+          "input": "Or say it your way",
+          "id": "words",
+          "rows": 3
+        }
+      ],
+      "next": [
+        {
+          "to": "web",
+          "if": "the person is describing something a human opens in a browser and clicks around in"
+        },
+        {
+          "to": "sched",
+          "if": "the person is describing something that runs by itself on a timer or on an event, with nobody watching"
+        },
+        {
+          "to": "api",
+          "if": "the person is describing something other programs talk to rather than people"
+        },
+        {
+          "to": "cli",
+          "if": "the person is describing something they type at a terminal"
+        },
+        {
+          "to": "data",
+          "if": "the person is describing looking at, charting or making sense of data they already have"
+        }
+      ]
+    },
+    {
+      "page": "The web side",
+      "id": "web",
+      "elements": [
+        {
+          "select": "Who signs in",
+          "id": "web_who",
+          "options": [
+            {
+              "value": "nobody, it's public",
+              "description": "no accounts"
+            },
+            {
+              "value": "just me",
+              "description": "one login"
+            },
+            {
+              "value": "a team",
+              "description": "accounts and roles"
+            }
+          ]
+        },
+        {
+          "select": "How much does it need to look designed",
+          "id": "web_look",
+          "options": [
+            "rough is fine",
+            "tidy",
+            "it has to look good"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "web_auth",
+          "if": "the person says people other than themselves will sign in"
+        },
+        {
+          "to": "ship",
+          "if": "the person says nobody signs in, or only they do"
+        }
+      ]
+    },
+    {
+      "page": "Accounts",
+      "id": "web_auth",
+      "elements": [
+        {
+          "select": "Where do accounts live",
+          "id": "auth_where",
+          "options": [
+            "an existing provider",
+            "in my own database",
+            "no idea, you pick"
+          ]
+        },
+        {
+          "select": "What can a member do that a guest cannot",
+          "id": "auth_diff",
+          "options": [
+            "see anything at all",
+            "write as well as read",
+            "admin things only"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "ship",
+          "if": "the person has said enough about accounts to move on to shipping"
+        }
+      ]
+    },
+    {
+      "page": "Runs on its own",
+      "id": "sched",
+      "elements": [
+        {
+          "select": "How often",
+          "id": "sched_often",
+          "options": [
+            "a few times a day",
+            "hourly",
+            "constantly"
+          ]
+        },
+        {
+          "select": "What happens when it fails",
+          "id": "sched_fail",
+          "options": [
+            "retry quietly",
+            "tell me",
+            "stop and wait for me"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "ship",
+          "if": "the person has said how often it runs and what failure should do"
+        }
+      ]
+    },
+    {
+      "page": "What calls it",
+      "id": "api",
+      "elements": [
+        {
+          "select": "Who is calling",
+          "id": "api_who",
+          "options": [
+            "my own code",
+            "other people's code",
+            "both"
+          ]
+        },
+        {
+          "select": "Shape",
+          "id": "api_shape",
+          "options": [
+            "plain HTTP and JSON",
+            "something typed",
+            "a library, not a service"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "ship",
+          "if": "the person has said who calls it and what shape it takes"
+        }
+      ]
+    },
+    {
+      "page": "At the terminal",
+      "id": "cli",
+      "elements": [
+        {
+          "select": "Who runs it",
+          "id": "cli_who",
+          "options": [
+            "just me",
+            "my team",
+            "anyone who installs it"
+          ]
+        },
+        {
+          "select": "Does it need to be scriptable",
+          "id": "cli_script",
+          "options": [
+            "yes, machine readable output",
+            "no, I read it"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "ship",
+          "if": "the person has said who runs it and whether it must be scriptable"
+        }
+      ]
+    },
+    {
+      "page": "Looking at the data",
+      "id": "data",
+      "elements": [
+        {
+          "select": "Where is it now",
+          "id": "data_where",
+          "options": [
+            "a database",
+            "files",
+            "an API somewhere else"
+          ]
+        },
+        {
+          "select": "What do you want out",
+          "id": "data_out",
+          "options": [
+            "a number I can watch",
+            "charts",
+            "a one-off answer"
+          ]
+        }
+      ],
+      "next": [
+        {
+          "to": "ship",
+          "if": "the person has said where the data is and what they want out of it"
+        }
+      ]
+    },
+    {
+      "page": "Getting it out the door",
+      "id": "ship",
+      "elements": [
+        {
+          "select": "Where does it run",
+          "id": "ship_where",
+          "options": [
+            "my machine",
+            "a server I have",
+            "somewhere managed"
+          ]
+        },
+        {
+          "select": "When do you need it",
+          "id": "ship_when",
+          "options": [
+            "today",
+            "this week",
+            "no rush"
+          ]
+        }
+      ]
+    }
+  ]
+}

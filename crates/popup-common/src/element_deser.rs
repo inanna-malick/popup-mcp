@@ -23,7 +23,7 @@ use std::collections::HashMap;
 ///   "Enable Feature" -> "enable_feature"
 ///   "What's the cause?" -> "whats_the_cause"
 ///   "CPU Usage" -> "cpu_usage"
-fn label_to_snake_case(label: &str) -> String {
+pub fn label_to_snake_case(label: &str) -> String {
     let mut result = String::new();
     let mut prev_was_separator = true; // Start as true to not add underscore at beginning
     let mut prev_was_upper = false;
@@ -315,6 +315,7 @@ impl Serialize for Element {
                 id,
                 elements,
                 when,
+                next,
             } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("page", page)?;
@@ -324,6 +325,9 @@ impl Serialize for Element {
                 map.serialize_entry("elements", elements)?;
                 if let Some(w) = when {
                     map.serialize_entry("when", w)?;
+                }
+                if !next.is_empty() {
+                    map.serialize_entry("next", next)?;
                 }
                 map.end()
             }
@@ -775,7 +779,13 @@ fn deserialize_page<E: serde::de::Error>(
         .ok_or_else(|| serde::de::Error::custom("page field must be a string"))?
         .to_string();
 
-    check_unknown_keys(obj, "page", &page, &["page", "id", "elements", "when"], &[])?;
+    check_unknown_keys(
+        obj,
+        "page",
+        &page,
+        &["page", "id", "elements", "when", "next"],
+        &[],
+    )?;
 
     let id = obj
         .get("id")
@@ -788,11 +798,30 @@ fn deserialize_page<E: serde::de::Error>(
     let elements = serde_json::from_value::<Vec<Element>>(elements.clone())
         .map_err(serde::de::Error::custom)?;
 
+    let next = match obj.get("next") {
+        None => Vec::new(),
+        Some(v) => serde_json::from_value::<Vec<crate::Edge>>(v.clone()).map_err(|e| {
+            serde::de::Error::custom(format!(
+                "page \"{}\": next must be a list of {{to, if}} or {{to, when}} edges: {}",
+                page, e
+            ))
+        })?,
+    };
+    for edge in &next {
+        if edge.r#if.is_some() == edge.when.is_some() {
+            return Err(serde::de::Error::custom(format!(
+                "page \"{}\": edge to \"{}\" needs exactly one of `if` (described in words) or `when` (condition syntax)",
+                page, edge.to
+            )));
+        }
+    }
+
     Ok(Element::Page {
         page,
         id,
         elements,
         when: get_when(obj)?,
+        next,
     })
 }
 
@@ -1280,6 +1309,34 @@ mod tests {
         assert_eq!(label_to_snake_case("  Spaced  Out  "), "spaced_out"); // Multiple spaces
         assert_eq!(label_to_snake_case("getHTTPResponse"), "get_http_response");
         // Mixed
+    }
+
+    #[test]
+    fn test_page_next_edges() {
+        let json = r#"{"page": "Start", "elements": [], "next": [
+            {"to": "b", "if": "the user said yes"},
+            {"to": "submit", "when": "done"}
+        ]}"#;
+        let elem: Element = serde_json::from_str(json).unwrap();
+        let Element::Page { next, .. } = &elem else {
+            panic!()
+        };
+        assert_eq!(next.len(), 2);
+        assert_eq!(next[0].r#if.as_deref(), Some("the user said yes"));
+        assert_eq!(next[1].when.as_deref(), Some("done"));
+        assert_eq!(elem.page_id().as_deref(), Some("start"));
+        // round-trips
+        let back: Element = serde_json::from_value(serde_json::to_value(&elem).unwrap()).unwrap();
+        assert_eq!(back, elem);
+
+        let both =
+            r#"{"page": "S", "elements": [], "next": [{"to": "b", "if": "x", "when": "y"}]}"#;
+        let err = serde_json::from_str::<Element>(both)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("exactly one of"), "{}", err);
+        let unknown = r#"{"page": "S", "elements": [], "next": [{"to": "b", "iff": "x"}]}"#;
+        assert!(serde_json::from_str::<Element>(unknown).is_err());
     }
 
     #[test]

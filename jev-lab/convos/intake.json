@@ -1,0 +1,151 @@
+{
+  "title": "Let's work out what you want to build",
+  "start": "open",
+  "nodes": {
+    "open": {
+      "say": "Tell me roughly what you're after and I'll ask the right follow-ups.",
+      "lines": [
+        {
+          "line": "Something people open in a browser and click around in",
+          "goto": "web"
+        },
+        {
+          "line": "Something that runs by itself on a timer, with nobody watching",
+          "goto": "sched"
+        },
+        {
+          "line": "Something other programs call and get data back from",
+          "goto": "api"
+        },
+        {
+          "line": "Something I run at the terminal when I need it",
+          "goto": "cli"
+        },
+        {
+          "line": "I've got data already and want to make sense of it",
+          "goto": "data"
+        }
+      ],
+      "aside": "They have not told me anything yet; this is the opening question."
+    },
+    "web": {
+      "say": "Web it is. Who signs in?",
+      "lines": [
+        {
+          "line": "A team, with accounts and roles",
+          "goto": "auth"
+        },
+        {
+          "line": "Just me",
+          "goto": "ship"
+        },
+        {
+          "line": "Nobody, it's public",
+          "goto": "ship"
+        }
+      ],
+      "aside": "They have said it is a browser thing. Now I need to know about accounts, because that decides most of the rest."
+    },
+    "auth": {
+      "say": "Then accounts need somewhere to live.",
+      "lines": [
+        {
+          "line": "Use an existing provider",
+          "goto": "ship"
+        },
+        {
+          "line": "Keep them in my own database",
+          "goto": "ship"
+        },
+        {
+          "line": "No idea, you pick",
+          "goto": "ship"
+        }
+      ],
+      "aside": "They have a team signing in, so accounts need somewhere to live."
+    },
+    "sched": {
+      "say": "Running on its own. How often, and what should failure do?",
+      "lines": [
+        {
+          "line": "A few times a day, and tell me when it breaks",
+          "goto": "ship"
+        },
+        {
+          "line": "Constantly, and just retry quietly",
+          "goto": "ship"
+        },
+        {
+          "line": "Hourly, and stop and wait for me",
+          "goto": "ship"
+        }
+      ]
+    },
+    "api": {
+      "say": "Who's calling it?",
+      "lines": [
+        {
+          "line": "My own code, mostly",
+          "goto": "ship"
+        },
+        {
+          "line": "Other people's code",
+          "goto": "ship"
+        },
+        {
+          "line": "It's a library, not a service",
+          "goto": "ship"
+        }
+      ]
+    },
+    "cli": {
+      "say": "At the terminal. Does it need to be scriptable?",
+      "lines": [
+        {
+          "line": "Yes, machine readable output",
+          "goto": "ship"
+        },
+        {
+          "line": "No, I'm the one reading it",
+          "goto": "ship"
+        },
+        {
+          "line": "Other people will install it too",
+          "goto": "ship"
+        }
+      ]
+    },
+    "data": {
+      "say": "Where is it now, and what do you want out?",
+      "lines": [
+        {
+          "line": "In a database, and I want charts",
+          "goto": "ship"
+        },
+        {
+          "line": "In files, and I want a one-off answer",
+          "goto": "ship"
+        },
+        {
+          "line": "Behind someone else's API, and I want a number to watch",
+          "goto": "ship"
+        }
+      ]
+    },
+    "ship": {
+      "say": "Last thing: where does it run, and when do you need it?",
+      "lines": [
+        {
+          "line": "My machine, no rush"
+        },
+        {
+          "line": "A server I have, this week"
+        },
+        {
+          "line": "Somewhere managed, today"
+        }
+      ]
+    }
+  },
+  "context": "Someone is describing a piece of software they want built. I am trying to work out which kind of thing it is so I ask the right follow-ups rather than a generic form."
+}

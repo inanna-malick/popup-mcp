@@ -233,7 +233,7 @@ Options may be plain strings or `{value, description}` objects; descriptions ren
 
 #### Page (Wizard Mode)
 
-Top-level only; when used, every top-level element must be a page. One page shows at a time with Back/Next, and the submit button appears on the last page. A page's own `when` skips it dynamically based on earlier answers.
+Top-level only; when used, every top-level element must be a page. One page shows at a time with Back/Next, and the submit button appears on the last page. (Pages with `next` edges become a decision tree instead, which only goes forward and has no Back.) A page's own `when` skips it dynamically based on earlier answers.
 
 ```json
 {
@@ -247,6 +247,32 @@ Top-level only; when used, every top-level element must be a page. One page show
 ```
 
 See `examples/project_setup_wizard.json`.
+
+#### Decision trees (`next` edges on pages)
+
+Give a page `next` edges and the pages stop being a sequence and become a graph. Each edge names a target and the condition for taking it, described in words about that page's answers:
+
+```json
+{"page": "What's happening", "id": "symptom", "elements": [ ... ],
+ "next": [
+   {"to": "rollback", "when": "recent_deploy && selected(user_impact, Checkout fails outright)"},
+   {"to": "outage",   "if": "users cannot complete a payment at all"},
+   {"to": "degraded", "if": "payments still go through but are slower than usual"}
+ ]}
+```
+
+- `to` is another top-level page's id (auto-derived from its label when omitted) or `"submit"` to finish. A page with no `next` is terminal.
+- An edge carries exactly one of `if` (judged semantically from the answers and the page note) or `when` (the ordinary condition syntax). `when` edges are evaluated first, in code, and taken silently.
+- Write `if` as the **condition** that makes the branch apply, not the action it triggers. Condition-described options measure substantially better than action-described ones.
+- The rest of the judgment packet is **compiled from the tree**, so the authoring model writes only the one line: each option carries the destination page's questions (so the branch is judged on where it leads), the two exits are supplied, and earlier pages are capped to recent context. See `popup-common/src/route.rs`.
+- **Routing only goes forward.** One Jev call (TypeSafe System One) per hop decides the edge and the next page opens by itself: no chooser, no Back, no step counter. The page says why it opened. Every page carries a "None of these" button, and that plus the note field is the user's way out.
+- One packet carries four things over the same state: the route Choice, a Noul per edge ("does this condition hold on its own"), a contradiction Noul for the note, and prefill Choices for the destinations' selects. Extra questions in one packet are nearly free; extra calls are not.
+- The outcome order: an exit that won hands back; otherwise the Choice acts if it clears confidence, then mass, then margin against the exits **summed**; otherwise exactly one edge Noul at 0.7+ acts; several at 0.7+ open the first and queue the rest; nothing holding hands back with `leaning`.
+- An answer travels with its option's description, not just the text. Measured: the same pick went from 0.16 to 0.93 on the right branch once the description rode along, because the description is the part that says what the option means.
+- Routing needs a key in `TYPESAFE_API_KEY` or `~/.config/typesafe/jev-key.env`. Without one, or if the call fails, the popup hands back with `exit_reason: "unavailable"` rather than asking the user to route by hand. Calls are logged to `~/.config/popup-mcp/jev-ledger.jsonl`.
+- Only pages actually visited contribute values to the result.
+
+See `examples/incident_triage_tree.json`.
 
 ### Auto-Injected "Other" Option
 
@@ -285,7 +311,8 @@ Value semantics (deliberate signals, not noise):
 - slider returns a number (integer when whole)
 - `"_notes"` — free-form note the user added via the always-available note field
 - `"_labels"` — map of returned ids to their human-facing labels (self-documenting results)
-- Reserved ids (cannot be used by elements): `status`, `button`, `error`, `_notes`, `_labels`
+- `"_route"` (decision trees only) — the path taken, one entry per hop: `{"from", "to", "via", "matched", "confidence", "masses", "holds", "prefilled", "note_overrides_answers"}`. `via` is `when` (mechanical), `jev`/`noul` (judged), `queue` (a branch that also matched), `user` or `error`. `several` lists branches that matched alongside this one. A last hop with `"to": "none_of_these"` means the popup handed back; `exit_reason` is `none_fit`, `unclear`, `low_confidence` (with `leaning`) or `unavailable`.
+- Reserved ids (cannot be used by elements): `status`, `button`, `error`, `_notes`, `_labels`, `_route`
 
 ## Example Popups
 

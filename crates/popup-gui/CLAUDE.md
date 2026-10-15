@@ -54,6 +54,19 @@ The `popup` binary operates in three modes based on CLI flags:
 - Bottom panel: collapsed "Add a note" field (unless `notes: false`) + submit
   button labeled from `definition.submit_label()`
 - Escape -> `PopupResult::Cancelled`; submit -> `PopupResult::from_state(state, definition, active_ids)`
+- Three navigation modes: single screen, linear wizard (pages without `next`),
+  and decision tree (`GraphNav`: any page with `next`).
+- Graph mode is **forward-only**: no Back, no step counter, no chooser. Next
+  builds the packet (the user's commit point) and `resolve_route` runs the call
+  on a worker thread; `poll_route` folds the answer in and acts at once, so the
+  next page opens by itself. `arrived` is the dim line under the page heading
+  saying which condition was matched, and `inferred` marks widgets prefilled
+  from what the user wrote. `queue` holds branches that also matched, walked
+  when the current branch runs out. Every other path calls `hand_back`, which
+  logs why and finishes - including no key and a failed call.
+- `route_nav::with_descriptions` sends an option's description alongside its
+  text. Without it the state loses the words the user actually read, which is
+  worth a measured 0.16 vs 0.93 on the right branch.
 
 **templates.rs** - Dynamic template system
 - Loads from `~/.config/popup-mcp/popup.toml` config file
@@ -62,6 +75,20 @@ The `popup` binary operates in three modes based on CLI flags:
 - `load_templates()` - Discovers and loads all configured templates
 - `generate_tool_schema()` - Creates MCP tool schema from template config
 - Templates become first-class MCP tools with typed parameters
+
+**jev.rs** - Jev (TypeSafe System One) client for decision-tree routing
+- Blocking POST per routing decision, retries on 429/503/529
+- Key from `TYPESAFE_API_KEY` or `~/.config/typesafe/jev-key.env`; `from_env()`
+  returns `None` when unset so routing degrades to unaided user choice
+- Every call logged to `~/.config/popup-mcp/jev-ledger.jsonl`
+- `live_routing_picks_the_described_edge` is `#[ignore]`d; run with
+  `cargo test -p popup-gui -- --ignored` when a key is present
+
+**gui/route_nav.rs** - Graph-mode navigation helpers (pure, no window)
+- `is_graph`, `page_labels`, `page_index`, `ids_in_page`
+- `build_path` - the visited pages as Jev sees them (answers keyed by label)
+- `visited_active_ids` - unvisited pages' defaults never reach the result
+- `with_route_log` - attaches `_route` to a completed result
 
 **theme.rs** - Visual styling
 - Dark theme configuration

@@ -1,5 +1,10 @@
 pub mod condition;
+pub mod convo;
+pub mod convo_route;
+pub mod convo_validate;
+pub mod convo_walk;
 mod element_deser;
+pub mod route;
 pub mod validate;
 pub mod visibility;
 
@@ -12,11 +17,32 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 pub use condition::{collect_refs, evaluate_condition, parse_condition, ConditionExpr};
+pub use element_deser::label_to_snake_case;
+pub use route::{route_packet, RouteAnswer, RouteDecision, RoutePacket};
 pub use validate::{validate_definition, ValidationIssue};
 pub use visibility::{collect_active_ids, compute_visibility, visible_value_map, when_is_visible};
 
 /// IDs that would collide with keys in the result payload
-pub const RESERVED_IDS: &[&str] = &["status", "button", "error", "_notes", "_labels"];
+pub const RESERVED_IDS: &[&str] = &["status", "button", "error", "_notes", "_labels", "_route"];
+
+/// Edge target meaning "finish the popup" instead of another page
+pub const SUBMIT_TARGET: &str = "submit";
+
+/// A way out of a page in a decision tree. Either a mechanical `when`
+/// clause (evaluated in code) or a semantic `if` description (judged by
+/// Jev over the answers so far), never both.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Edge {
+    /// Target page id, or "submit" to finish
+    pub to: String,
+    /// Condition described in words, in terms of the page's answers
+    #[serde(default, rename = "if", skip_serializing_if = "Option::is_none")]
+    pub r#if: Option<String>,
+    /// Mechanical condition (same syntax as element `when`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<String>,
+}
 
 /// Option value for Choice/Multiselect - can be simple string or with description
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -206,6 +232,10 @@ pub enum Element {
         elements: Vec<Element>,
         /// Pages with a false condition are skipped entirely
         when: Option<String>,
+        /// Decision-tree edges out of this page. Any page with edges turns
+        /// the popup into a graph: Next resolves an edge instead of moving
+        /// to the following page, and a page without edges is terminal.
+        next: Vec<Edge>,
     },
 }
 
@@ -255,6 +285,16 @@ impl Element {
             Element::Rank { rank, .. } => rank,
             Element::Group { group, .. } => group,
             Element::Page { page, .. } => page,
+        }
+    }
+
+    /// A page's routing id: explicit id, else derived from its label
+    pub fn page_id(&self) -> Option<String> {
+        match self {
+            Element::Page { page, id, .. } => {
+                Some(id.clone().unwrap_or_else(|| label_to_snake_case(page)))
+            }
+            _ => None,
         }
     }
 

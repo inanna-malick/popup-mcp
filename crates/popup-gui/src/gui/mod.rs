@@ -6,9 +6,18 @@ use egui::{
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use std::sync::{Arc, Mutex};
 
+pub mod route_nav;
+
+use crate::jev::JevClient;
 use crate::theme::Theme;
+use popup_common::route::{self, RouteAnswer, RouteDecision, EXIT_KEY};
 use popup_common::SelectStyle;
-use popup_common::{Element, PopupDefinition, PopupResult, PopupState};
+use popup_common::{Edge, Element, PopupDefinition, PopupResult, PopupState};
+use route_nav::{
+    apply_prefill, build_path, is_graph, page_index, visited_active_ids, with_route_log,
+};
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
 /// Selects with at most this many options render as always-visible radio
 /// lists so users can see every branch of the conversation tree.
@@ -19,7 +28,7 @@ const RADIO_MAX_OPTIONS: usize = 7;
 /// Content width: single readable column
 const CONTENT_MAX_WIDTH: f32 = 560.0;
 
-fn setup_custom_fonts(ctx: &Context) {
+pub fn setup_custom_fonts(ctx: &Context) {
     // Install image loaders for egui-twemoji (required for emoji rendering)
     egui_extras::install_image_loaders(ctx);
 
@@ -90,6 +99,34 @@ pub fn render_popup(definition: PopupDefinition) -> Result<PopupResult> {
     Ok(result)
 }
 
+/// A judgment in flight. The packet was built when the user pressed
+/// Next, which is their commit: edits made while it runs are not seen.
+struct RouteInFlight {
+    /// Page the judgment is about, for the route log
+    from: Option<String>,
+    /// The page's semantic edges, in authored order
+    edges: Vec<Edge>,
+    rx: std::sync::mpsc::Receiver<Result<RouteAnswer, String>>,
+}
+
+/// Decision-tree navigation state (None for linear wizards and single
+/// screens, which keep their existing behaviour)
+struct GraphNav {
+    /// Indices of the top-level pages visited, in order; last is current
+    visited: Vec<usize>,
+    in_flight: Option<RouteInFlight>,
+    /// Pages still to open, from a judgment where several conditions held
+    /// at once. Forward-only: the queue is just more forward.
+    queue: Vec<String>,
+    /// Why the current page opened, shown under its heading
+    arrived: Option<String>,
+    /// Element id -> the option inferred for it from what the user wrote
+    inferred: HashMap<String, String>,
+    /// One entry per hop, returned to the model as `_route`
+    route_log: Vec<Value>,
+    jev: Option<Arc<JevClient>>,
+}
+
 struct PopupApp {
     definition: PopupDefinition,
     state: PopupState,
@@ -106,6 +143,8 @@ struct PopupApp {
     /// Wizard note text per top-level page index; composed into _notes as
     /// "[Page label] note" lines on submit
     page_notes: std::collections::HashMap<usize, String>,
+    /// Decision-tree navigation, when any page declares `next` edges
+    graph: Option<GraphNav>,
 }
 
 impl PopupApp {
@@ -114,6 +153,17 @@ impl PopupApp {
         result: Arc<Mutex<Option<PopupResult>>>,
     ) -> Self {
         let state = PopupState::new(&definition);
+        // Graph mode: the popup is a decision tree, navigated by resolved
+        // edges rather than by page order
+        let graph = is_graph(&definition.elements).then(|| GraphNav {
+            visited: vec![0],
+            in_flight: None,
+            queue: Vec::new(),
+            arrived: None,
+            inferred: HashMap::new(),
+            route_log: Vec::new(),
+            jev: JevClient::from_env().map(Arc::new),
+        });
         Self {
             definition,
             state,
@@ -126,6 +176,7 @@ impl PopupApp {
             current_page: 0,
             advance_requested: false,
             page_notes: std::collections::HashMap::new(),
+            graph,
         }
     }
 
@@ -165,15 +216,339 @@ impl PopupApp {
         }
     }
 
+    /// Index of the page currently shown in graph mode
+    fn graph_page(&self) -> usize {
+        self.graph
+            .as_ref()
+            .and_then(|g| g.visited.last().copied())
+            .unwrap_or(0)
+    }
+
+    /// Resolve the way out of the current page. Mechanical edges are
+    /// taken in code; semantic ones start one judgment off the UI thread.
+    /// The packet is built here, at the press, so a slow endpoint can
+    /// never freeze the window and later edits cannot change the question
+    /// that was asked.
+    fn resolve_route(&mut self, ctx: &Context) {
+        let idx = self.graph_page();
+        let Some(page) = self.definition.elements.get(idx).cloned() else {
+            self.finish(ctx);
+            return;
+        };
+        let values = popup_common::visible_value_map(&self.definition.elements, &self.state);
+        let visited = self
+            .graph
+            .as_ref()
+            .map(|g| g.visited.clone())
+            .unwrap_or_default();
+        let path = build_path(&self.definition, &self.state, &visited, &self.page_notes);
+
+        match route::decide(
+            &self.definition.title,
+            &self.definition.elements,
+            &page,
+            &values,
+            &path,
+        ) {
+            RouteDecision::Submit => self.leave_page(ctx),
+            RouteDecision::Mechanical { to } => {
+                self.log_hop(json!({"from": page.page_id(), "to": to, "via": "when"}));
+                self.navigate(&to, ctx);
+            }
+            RouteDecision::Ask(packet) => {
+                let Element::Page { next, .. } = &page else {
+                    return;
+                };
+                let edges = next.clone();
+                let Some(client) = self.graph.as_ref().and_then(|g| g.jev.clone()) else {
+                    // No key: there is nothing to judge with, so the
+                    // conversation goes back to the model rather than
+                    // asking the user to do the routing by hand
+                    self.hand_back(
+                        page.page_id(),
+                        "error",
+                        json!({"exit_reason": "unavailable",
+                               "error": "no Jev key (TYPESAFE_API_KEY or ~/.config/typesafe/jev-key.env)"}),
+                        ctx,
+                    );
+                    return;
+                };
+                let (tx, rx) = std::sync::mpsc::channel();
+                let name = format!("route/{}", page.page_id().unwrap_or_default());
+                let ctx_for_wake = ctx.clone();
+                std::thread::spawn(move || {
+                    let result = client
+                        .ask(&packet, &name)
+                        .and_then(|r| route::parse_route_answer(&r.body));
+                    let _ = tx.send(result);
+                    // Wake the event loop so the next page opens without
+                    // waiting for an input event
+                    ctx_for_wake.request_repaint();
+                });
+                if let Some(g) = self.graph.as_mut() {
+                    g.in_flight = Some(RouteInFlight {
+                        from: page.page_id(),
+                        edges,
+                        rx,
+                    });
+                }
+            }
+        }
+    }
+
+    /// Fold in a judgment that has landed and act on it at once. Returns
+    /// true while still waiting. Forward-only: every branch either opens
+    /// a page or ends the popup.
+    fn poll_route(&mut self, ctx: &Context) -> bool {
+        let Some(g) = self.graph.as_mut() else {
+            return false;
+        };
+        let Some(in_flight) = g.in_flight.as_ref() else {
+            return false;
+        };
+        let landed = match in_flight.rx.try_recv() {
+            Err(std::sync::mpsc::TryRecvError::Empty) => return true,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                Err("the routing call did not return".to_string())
+            }
+            Ok(result) => result,
+        };
+        let in_flight = g.in_flight.take().expect("checked above");
+        let from = in_flight.from.clone();
+
+        let answer = match landed {
+            Ok(a) => a,
+            Err(e) => {
+                log::warn!("routing unavailable: {}", e);
+                self.hand_back(
+                    from,
+                    "error",
+                    json!({"exit_reason": "unavailable", "error": e}),
+                    ctx,
+                );
+                return false;
+            }
+        };
+
+        let masses = json!(answer.probabilities);
+        let holds = json!(answer.holds);
+        // The note is the person's own words and outranks the widgets;
+        // this says when it did, so the model can see which answer it
+        // overrode rather than inferring it from the text
+        let overridden = answer.contradicts >= 0.5;
+
+        match answer.outcome(&in_flight.edges) {
+            route::Outcome::Act {
+                to,
+                via,
+                matched,
+                confidence,
+            } => {
+                let prefilled = self.take_prefill(&to, &answer);
+                self.log_hop(json!({
+                    "from": from, "to": to, "via": via,
+                    "matched": matched, "confidence": confidence,
+                    "masses": masses, "holds": holds,
+                    "prefilled": prefilled,
+                    "note_overrides_answers": overridden,
+                }));
+                self.arrive(&matched, confidence);
+                self.navigate(&to, ctx);
+            }
+            route::Outcome::Several { first, rest } => {
+                let prefilled = self.take_prefill(&first, &answer);
+                let matched = in_flight
+                    .edges
+                    .iter()
+                    .find(|e| e.to == first)
+                    .and_then(|e| e.r#if.clone())
+                    .unwrap_or_default();
+                self.log_hop(json!({
+                    "from": from, "to": first, "via": "noul",
+                    "matched": matched, "several": rest,
+                    "masses": masses, "holds": holds,
+                    "prefilled": prefilled,
+                    "note_overrides_answers": overridden,
+                }));
+                self.arrive(&matched, answer.holds.get(&first).copied().unwrap_or(0.0));
+                if let Some(g) = self.graph.as_mut() {
+                    g.queue.extend(rest);
+                }
+                self.navigate(&first, ctx);
+            }
+            route::Outcome::Undo => {
+                // They disowned what they filled in. Clearing the page and
+                // letting them redo it beats routing on a mis-click, which
+                // is what the edge-only packet did with this answer.
+                let cleared = self.clear_current_page();
+                self.log_hop(json!({
+                    "from": from, "to": from, "via": "undo",
+                    "cleared": cleared, "masses": masses, "holds": holds,
+                }));
+                if let Some(g) = self.graph.as_mut() {
+                    g.arrived = Some("Cleared that - say it again however you like".to_string());
+                    g.inferred.clear();
+                }
+                self.page_notes.remove(&self.graph_page());
+            }
+            route::Outcome::HandBack { reason, leaning } => {
+                self.hand_back(
+                    from,
+                    "jev",
+                    json!({
+                        "exit_reason": reason, "leaning": leaning,
+                        "confidence": answer.confidence,
+                        "masses": masses, "holds": holds,
+                        "note_overrides_answers": overridden,
+                    }),
+                    ctx,
+                );
+            }
+        }
+        false
+    }
+
+    /// Write the answers the judgment already read out of what the user
+    /// wrote into the destination page's widgets, and remember which, so
+    /// they can be marked as inferred rather than silently assumed
+    fn take_prefill(&mut self, to: &str, answer: &RouteAnswer) -> Value {
+        let Some(page) = page_index(&self.definition.elements, to)
+            .and_then(|i| self.definition.elements.get(i))
+            .cloned()
+        else {
+            return json!({});
+        };
+        let applied = apply_prefill(&self.definition, &mut self.state, &page, &answer.prefill);
+        if let Some(g) = self.graph.as_mut() {
+            g.inferred = applied.clone();
+        }
+        json!(applied)
+    }
+
+    /// Reset every answer on the current page to its default, and return
+    /// the ids cleared so the result says what happened
+    fn clear_current_page(&mut self) -> Vec<String> {
+        let Some(page) = self.definition.elements.get(self.graph_page()).cloned() else {
+            return Vec::new();
+        };
+        let fresh = PopupState::new(&self.definition);
+        let mut cleared = Vec::new();
+        for id in route_nav::ids_in_page(&page) {
+            if let Some(value) = fresh.values.get(&id) {
+                self.state.values.insert(id.clone(), value.clone());
+                cleared.push(id);
+            }
+        }
+        cleared
+    }
+
+    /// Record why the page about to open was chosen
+    fn arrive(&mut self, matched: &str, confidence: f64) {
+        if let Some(g) = self.graph.as_mut() {
+            g.arrived = Some(format!(
+                "Read your answers as \"{}\" ({:.0}%)",
+                matched,
+                confidence * 100.0
+            ));
+        }
+    }
+
+    fn log_hop(&mut self, entry: Value) {
+        if let Some(g) = self.graph.as_mut() {
+            if let Some(jev) = g.jev.as_ref() {
+                jev.log_decision(&entry);
+            }
+            g.route_log.push(entry);
+        }
+    }
+
+    /// End the popup and let the model continue the conversation. Every
+    /// way of not having a branch lands here; `extra` says which.
+    fn hand_back(&mut self, from: Option<String>, via: &str, extra: Value, ctx: &Context) {
+        let mut entry = json!({"from": from, "to": EXIT_KEY, "via": via});
+        if let (Some(entry), Some(extra)) = (entry.as_object_mut(), extra.as_object()) {
+            for (k, v) in extra {
+                entry.insert(k.clone(), v.clone());
+            }
+        }
+        self.log_hop(entry);
+        self.finish(ctx);
+    }
+
+    /// The current page has no way out: take the next queued page if a
+    /// judgment found several branches, otherwise finish
+    fn leave_page(&mut self, ctx: &Context) {
+        let from = self
+            .definition
+            .elements
+            .get(self.graph_page())
+            .and_then(|p| p.page_id());
+        let queued = self
+            .graph
+            .as_mut()
+            .and_then(|g| (!g.queue.is_empty()).then(|| g.queue.remove(0)));
+        match queued {
+            Some(to) => {
+                self.log_hop(json!({"from": from, "to": to, "via": "queue"}));
+                if let Some(g) = self.graph.as_mut() {
+                    g.arrived = Some("Also matched what you said".to_string());
+                    g.inferred.clear();
+                }
+                self.navigate(&to, ctx);
+            }
+            None => self.finish(ctx),
+        }
+    }
+
+    /// Move to a page by routing id, or finish
+    fn navigate(&mut self, to: &str, ctx: &Context) {
+        if to == popup_common::SUBMIT_TARGET {
+            // An edge to "submit" ends this branch, but a queued branch
+            // is still forward
+            self.leave_page(ctx);
+            return;
+        }
+        match page_index(&self.definition.elements, to) {
+            Some(idx) => {
+                if let Some(g) = self.graph.as_mut() {
+                    g.visited.push(idx);
+                    g.in_flight = None;
+                }
+            }
+            None => {
+                // Validation rejects unknown targets before rendering, so
+                // this only fires on a bug; finishing beats a dead end
+                log::error!("edge target \"{}\" has no page - finishing", to);
+                self.finish(ctx);
+            }
+        }
+    }
+
+    fn finish(&mut self, ctx: &Context) {
+        self.state.button_clicked = Some("submit".to_string());
+        self.send_result_and_close(ctx);
+    }
+
     fn send_result_and_close(&mut self, ctx: &Context) {
         let popup_result = if self.state.button_clicked.as_deref() == Some("cancel") {
             PopupResult::Cancelled
         } else {
             self.compose_page_notes();
-            // Collect only active element ids based on current state
-            let active_ids =
-                popup_common::collect_active_ids(&self.definition.elements, &self.state);
-            PopupResult::from_state(&self.state, &self.definition, &active_ids)
+            match &self.graph {
+                // Graph mode: only pages actually walked contributed
+                // answers, and the path taken rides along as `_route`
+                Some(g) => {
+                    let active_ids = visited_active_ids(&self.definition, &self.state, &g.visited);
+                    let result =
+                        PopupResult::from_state(&self.state, &self.definition, &active_ids);
+                    with_route_log(result, &g.route_log)
+                }
+                None => {
+                    let active_ids =
+                        popup_common::collect_active_ids(&self.definition.elements, &self.state);
+                    PopupResult::from_state(&self.state, &self.definition, &active_ids)
+                }
+            }
         };
         *self.result.lock().unwrap() = Some(popup_result);
         // Use ViewportCommand::Close to close the window
@@ -199,13 +574,51 @@ impl eframe::App for PopupApp {
 
         // --- Phase 1: Render UI and Measure Size ---
 
-        // Wizard state: which pages are visible, and where we are
-        let visible_pages = self.visible_pages();
+        // Navigation state. Graph mode walks resolved edges; the linear
+        // wizard walks visible pages in order; a single screen does neither.
+        let graph_mode = self.graph.is_some();
+        // A judgment that has landed acts now: the next page opens by
+        // itself, so this is where most navigation happens
+        let waiting_on_route = self.poll_route(ctx);
+        if self.state.button_clicked.is_some() {
+            self.send_result_and_close(ctx);
+            return;
+        }
+        let graph_page = self.graph_page();
+        if waiting_on_route {
+            // Keep frames coming so the spinner turns while we wait
+            ctx.request_repaint();
+        }
+        let graph_terminal = matches!(
+            self.definition.elements.get(graph_page),
+            Some(Element::Page { next, .. }) if next.is_empty()
+        );
+
+        let visible_pages = if graph_mode {
+            Vec::new()
+        } else {
+            self.visible_pages()
+        };
         let is_wizard = !visible_pages.is_empty();
         if is_wizard && self.current_page >= visible_pages.len() {
             self.current_page = visible_pages.len() - 1;
         }
-        let on_last_page = !is_wizard || self.current_page + 1 == visible_pages.len();
+        // In graph mode "last page" means the current page has no way out
+        // and no branch is queued behind it
+        let queue_empty = self.graph.as_ref().is_none_or(|g| g.queue.is_empty());
+        let on_last_page = if graph_mode {
+            graph_terminal && queue_empty
+        } else {
+            !is_wizard || self.current_page + 1 == visible_pages.len()
+        };
+        // The page whose elements and note field are shown this frame
+        let shown_page = if graph_mode {
+            Some(graph_page)
+        } else if is_wizard {
+            Some(visible_pages[self.current_page])
+        } else {
+            None
+        };
 
         // Keyboard flow: Cmd/Ctrl+Enter submits from anywhere; plain Enter
         // advances when no widget has focus, or when a single-line input
@@ -222,6 +635,21 @@ impl eframe::App for PopupApp {
         }
         if self.advance_requested || plain_enter_unfocused {
             self.advance_requested = false;
+            if graph_mode {
+                if waiting_on_route {
+                    // The question was asked; Enter does not ask it twice
+                } else if graph_terminal {
+                    self.leave_page(ctx);
+                } else {
+                    self.resolve_route(ctx);
+                }
+                if self.state.button_clicked.is_some() {
+                    self.send_result_and_close(ctx);
+                    return;
+                }
+                ctx.request_repaint();
+                return;
+            }
             if on_last_page {
                 self.state.button_clicked = Some("submit".to_string());
                 self.send_result_and_close(ctx);
@@ -234,6 +662,9 @@ impl eframe::App for PopupApp {
         // Render the bottom panel (note field + navigation/submit) and get its height
         let submit_label = self.definition.submit_label().to_string();
         let show_notes = self.definition.notes;
+        // Navigation requested by the button row, applied after the panel
+        // closes so the borrow of `self` inside the closure ends first
+        let mut pending_nav: Option<&'static str> = None;
         let bottom_panel_response = TopBottomPanel::bottom("submit_panel").show(ctx, |ui| {
             ui.add_space(6.0);
             ui.separator();
@@ -241,14 +672,12 @@ impl eframe::App for PopupApp {
             if show_notes {
                 // Wizards get one note per page (bound to the current page);
                 // single-screen popups get the global note
-                let (header, note_text): (&str, &mut String) = if is_wizard {
-                    let page_idx = visible_pages[self.current_page];
-                    (
+                let (header, note_text): (&str, &mut String) = match shown_page {
+                    Some(page_idx) => (
                         "Add a note for this page (optional)",
                         self.page_notes.entry(page_idx).or_default(),
-                    )
-                } else {
-                    ("Add a note (optional)", &mut self.state.notes)
+                    ),
+                    None => ("Add a note (optional)", &mut self.state.notes),
                 };
                 egui::CollapsingHeader::new(
                     RichText::new(header)
@@ -268,18 +697,33 @@ impl eframe::App for PopupApp {
             }
 
             ui.add_space(6.0);
+            let mut nav: Option<&'static str> = None;
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                 ui.horizontal(|ui| {
                     // Center the button row
-                    let row_width = if is_wizard { 340.0 } else { 140.0 };
+                    let stepped = is_wizard || graph_mode;
+                    let row_width = if stepped { 340.0 } else { 140.0 };
                     let pad = ((ui.available_width() - row_width) / 2.0).max(0.0);
                     ui.add_space(pad);
 
-                    if is_wizard {
+                    if graph_mode {
+                        // A decision tree only goes forward. The way out
+                        // of a branch that does not fit is to hand the
+                        // conversation back, not to walk backwards.
+                        let out = egui::Button::new(
+                            RichText::new("None of these")
+                                .size(15.0)
+                                .color(self.theme.text_secondary),
+                        )
+                        .min_size(egui::Vec2::new(150.0, 40.0));
+                        if ui.add(out).clicked() {
+                            nav = Some("handback");
+                        }
+                    } else if is_wizard {
                         let back = egui::Button::new(RichText::new("< Back").size(15.0))
                             .min_size(egui::Vec2::new(90.0, 40.0));
                         if ui.add_enabled(self.current_page > 0, back).clicked() {
-                            self.current_page -= 1;
+                            nav = Some("back");
                         }
                         ui.label(
                             RichText::new(format!(
@@ -291,30 +735,77 @@ impl eframe::App for PopupApp {
                         );
                     }
 
-                    let (label, action): (&str, &str) = if on_last_page {
-                        (&submit_label, "submit")
+                    if waiting_on_route {
+                        // The judgment is running: the next page opens by
+                        // itself, so there is nothing to press
+                        ui.spinner();
+                        ui.label(
+                            RichText::new("Reading your answers...")
+                                .color(self.theme.text_secondary)
+                                .size(14.0),
+                        );
                     } else {
-                        ("Next >", "next")
-                    };
-                    let button_text = RichText::new(label)
-                        .size(18.0)
-                        .strong()
-                        .color(self.theme.base2);
-                    let button = egui::Button::new(button_text)
-                        .min_size(egui::Vec2::new(140.0, 40.0))
-                        .fill(self.theme.neon_pink.linear_multiply(0.2));
-                    if ui.add(button).clicked() {
-                        if action == "submit" {
-                            self.state.button_clicked = Some("submit".to_string());
+                        let (label, action): (&str, &'static str) = if on_last_page {
+                            (submit_label.as_str(), "submit")
                         } else {
-                            self.current_page += 1;
+                            ("Next >", "next")
+                        };
+                        let button_text = RichText::new(label)
+                            .size(18.0)
+                            .strong()
+                            .color(self.theme.base2);
+                        let button = egui::Button::new(button_text)
+                            .min_size(egui::Vec2::new(140.0, 40.0))
+                            .fill(self.theme.neon_pink.linear_multiply(0.2));
+                        if ui.add(button).clicked() {
+                            nav = Some(action);
                         }
                     }
                 });
             });
+            if let Some(action) = nav {
+                pending_nav = Some(action);
+            }
             ui.add_space(8.0);
         });
         let bottom_panel_height = bottom_panel_response.response.rect.height();
+
+        // Apply navigation requested by the button row
+        match pending_nav {
+            Some("back") => {
+                self.current_page -= 1;
+                ctx.request_repaint();
+                return;
+            }
+            Some("handback") => {
+                let from = self
+                    .definition
+                    .elements
+                    .get(self.graph_page())
+                    .and_then(|p| p.page_id());
+                self.hand_back(from, "user", json!({"exit_reason": "none_fit"}), ctx);
+                return;
+            }
+            Some("next") => {
+                if graph_mode {
+                    self.resolve_route(ctx);
+                    if self.state.button_clicked.is_some() {
+                        self.send_result_and_close(ctx);
+                        return;
+                    }
+                } else {
+                    self.current_page += 1;
+                }
+                ctx.request_repaint();
+                return;
+            }
+            Some("submit") => {
+                self.state.button_clicked = Some("submit".to_string());
+                self.send_result_and_close(ctx);
+                return;
+            }
+            _ => {}
+        }
 
         // Render the main content and measure its size
         CentralPanel::default().show(ctx, |ui| {
@@ -338,11 +829,15 @@ impl eframe::App for PopupApp {
                             // Use a scope to measure the content rect
                             let content_response = ui.scope(|ui| {
                                 ui.set_max_width(CONTENT_MAX_WIDTH);
+                                let inferred = self
+                                    .graph
+                                    .as_ref()
+                                    .map(|g| g.inferred.clone())
+                                    .unwrap_or_default();
 
-                                // Wizard mode: render only the current page
-                                let (page_elements, path_prefix) = if is_wizard {
-                                    let page_idx = visible_pages[self.current_page];
-                                    match &self.definition.elements[page_idx] {
+                                // Wizard and graph modes render one page
+                                let (page_elements, path_prefix) = match shown_page {
+                                    Some(page_idx) => match &self.definition.elements[page_idx] {
                                         Element::Page { page, elements, .. } => {
                                             ui.label(
                                                 RichText::new(page)
@@ -350,13 +845,24 @@ impl eframe::App for PopupApp {
                                                     .strong()
                                                     .size(18.0),
                                             );
+                                            // Why this page opened. The
+                                            // routing is invisible unless
+                                            // it says what it read.
+                                            if let Some(why) =
+                                                self.graph.as_ref().and_then(|g| g.arrived.as_ref())
+                                            {
+                                                ui.label(
+                                                    RichText::new(why)
+                                                        .color(self.theme.text_secondary)
+                                                        .size(12.0),
+                                                );
+                                            }
                                             ui.add_space(6.0);
                                             (elements.as_slice(), format!("p{}", page_idx))
                                         }
                                         _ => (self.definition.elements.as_slice(), String::new()),
-                                    }
-                                } else {
-                                    (self.definition.elements.as_slice(), String::new())
+                                    },
+                                    None => (self.definition.elements.as_slice(), String::new()),
                                 };
 
                                 let mut render_ctx = RenderContext {
@@ -365,6 +871,7 @@ impl eframe::App for PopupApp {
                                     widget_focused: self.first_widget_focused,
                                     markdown_cache: &mut self.markdown_cache,
                                     advance_requested: &mut self.advance_requested,
+                                    inferred: &inferred,
                                 };
                                 render_elements(
                                     ui,
@@ -437,6 +944,22 @@ struct RenderContext<'a> {
     /// Set when a single-line input receives Enter: advance to the next
     /// page, or submit on the last one
     advance_requested: &'a mut bool,
+    /// Element ids answered in advance from what the user wrote. Marked,
+    /// never hidden: the widget opens ticked and one click changes it.
+    inferred: &'a HashMap<String, String>,
+}
+
+/// Says an answer was read from what the person already wrote, so a
+/// ticked box they did not tick is accounted for rather than surprising
+fn render_inferred_tag(ui: &mut egui::Ui, ctx: &RenderContext, id: &str) {
+    if let Some(option) = ctx.inferred.get(id) {
+        ui.label(
+            RichText::new(format!("filled in from what you wrote: {}", option))
+                .color(ctx.theme.text_secondary)
+                .size(12.0)
+                .italics(),
+        );
+    }
 }
 
 impl RenderContext<'_> {
@@ -607,6 +1130,7 @@ fn render_single_element(
                             }
                         }
                     });
+                    render_inferred_tag(ui, ctx, id);
 
                     ui.add_space(2.0);
 
@@ -711,6 +1235,7 @@ fn render_single_element(
                             .strong()
                             .size(15.0),
                     );
+                    render_inferred_tag(ui, ctx, id);
                     for (idx, option) in options.iter().enumerate() {
                         // Avoid holding a mutable borrow across the loop:
                         // branch children below also need `state`

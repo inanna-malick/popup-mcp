@@ -1,0 +1,13 @@
+{"page": "start", "answers": {"kind": "something people use in a browser"}, "note": null, "expect": "web", "rationale": "plain pick"}
+{"page": "start", "answers": {}, "note": "a little dashboard I can open and click around in", "expect": "web|data", "rationale": "browser wording but about data; genuinely between two"}
+{"page": "start", "answers": {}, "note": "a thing that checks a feed every morning and posts for me", "expect": "sched", "rationale": "timer plus nobody watching"}
+{"page": "start", "answers": {}, "note": "other services need to hit it and get JSON back", "expect": "api", "rationale": "programs not people"}
+{"page": "start", "answers": {}, "note": "honestly just a script I run when I need it", "expect": "cli", "rationale": "terminal, run by hand"}
+{"page": "start", "answers": {}, "note": "I've got a pile of CSVs and no idea what's in them", "expect": "data", "rationale": "data they already have"}
+{"page": "start", "answers": {}, "note": "a web thing, and it also needs to run a nightly job", "expect": "several", "rationale": "two branches genuinely"}
+{"page": "start", "answers": {}, "note": "I want someone to redesign my logo", "expect": "none_fit", "rationale": "off-tree"}
+{"page": "start", "answers": {}, "note": null, "expect": "unclear", "rationale": "nothing said"}
+{"page": "web", "answers": {"web_who": "a team", "web_look": "tidy"}, "note": null, "expect": "web_auth", "rationale": "hop 2, plain: a team signs in"}
+{"page": "web", "answers": {"web_who": "just me", "web_look": "rough is fine"}, "note": null, "expect": "ship", "rationale": "hop 2: only they sign in, so accounts are skipped"}
+{"page": "web_auth", "answers": {"auth_where": "an existing provider", "auth_diff": "write as well as read"}, "note": null, "expect": "ship", "rationale": "hop 3, with two earlier pages behind it"}
+{"page": "web", "answers": {}, "note": "just me for now but my co-founder joins next month", "expect": "web_auth", "rationale": "hop 2, future tense: others will sign in"}

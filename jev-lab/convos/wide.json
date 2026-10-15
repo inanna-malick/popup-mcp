@@ -1,0 +1,165 @@
+{
+  "title": "What's going on",
+  "start": "open",
+  "nodes": {
+    "open": {
+      "say": "Say what's happening in your own words, or pick the closest.",
+      "lines": [
+        {
+          "line": "It's too slow",
+          "means": "Pages take ages to come up or the job times out.",
+          "goto": "perf"
+        },
+        {
+          "line": "It does the wrong thing",
+          "means": "Wrong output, a crash, or behaviour that doesn't match what I expected.",
+          "goto": "bug"
+        },
+        {
+          "line": "I can't get it running at all",
+          "means": "Installing, configuring or starting it up the first time.",
+          "goto": "setup"
+        },
+        {
+          "line": "I can't tell how it's meant to work",
+          "means": "The explanation is missing or the naming is confusing.",
+          "goto": "docs"
+        },
+        {
+          "line": "The numbers it shows me are wrong",
+          "means": "The contents are wrong, missing or stale, not the program misbehaving.",
+          "goto": "data"
+        },
+        {
+          "line": "It costs more than it should",
+          "means": "Money, billing, quota or usage limits.",
+          "goto": "cost"
+        },
+        {
+          "line": "I can't get in",
+          "means": "Logging in, permissions, keys, being locked out.",
+          "goto": "access"
+        },
+        {
+          "line": "It just doesn't do the thing I need",
+          "means": "Something it doesn't do at all yet.",
+          "goto": "feature"
+        }
+      ],
+      "aside": "Eight kinds of problem, and people usually describe the symptom rather than the category."
+    },
+    "perf": {
+      "say": "Alright, it's too slow. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "bug": {
+      "say": "Alright, it does the wrong thing. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "setup": {
+      "say": "Alright, i can't get it running at all. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "docs": {
+      "say": "Alright, i can't tell how it's meant to work. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "data": {
+      "say": "Alright, the numbers it shows me are wrong. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "cost": {
+      "say": "Alright, it costs more than it should. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "access": {
+      "say": "Alright, i can't get in. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    },
+    "feature": {
+      "say": "Alright, it just doesn't do the thing i need. How long has it been like this?",
+      "lines": [
+        {
+          "line": "Just started"
+        },
+        {
+          "line": "A few days now"
+        },
+        {
+          "line": "As long as I can remember"
+        }
+      ]
+    }
+  },
+  "context": "Someone has come to me with a problem in a tool they use. I am trying to work out what kind of problem it is before digging in."
+}

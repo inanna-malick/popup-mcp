@@ -233,12 +233,26 @@ pub fn get_input_schema() -> serde_json::Value {
                         },
                         {
                             "type": "object",
-                            "description": "Wizard step. TOP-LEVEL ONLY: when used, every top-level element must be a page. One page shows at a time with Back/Next; Submit appears on the last page. Use for long flows that would otherwise be a wall of form; when-clauses can reference ids on earlier pages, and a page's own `when` skips it dynamically.",
+                            "description": "Wizard step. TOP-LEVEL ONLY: when used, every top-level element must be a page. Without `next`, pages run in order with Back/Next and Submit on the last. With `next`, pages form a decision tree: the edge out is resolved from the answers and the next page opens; there is no Back, and the user can opt out at any page.",
                             "properties": {
                                 "page": {"type": "string", "description": "Step label shown as the page heading"},
-                                "id": {"type": "string"},
+                                "id": {"type": "string", "description": "Page id used as an edge target (auto-derived from the label if omitted)"},
                                 "elements": {"$ref": "#/properties/elements"},
-                                "when": {"type": "string", "description": when_desc}
+                                "when": {"type": "string", "description": when_desc},
+                                "next": {
+                                    "type": "array",
+                                    "description": "Decision-tree edges out of this page. Omit for a terminal page (the popup submits there).",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "to": {"type": "string", "description": "Target page id, or \"submit\" to finish"},
+                                            "if": {"type": "string", "description": "The condition for taking this edge, described in plain words about THIS page's answers (e.g. \"the user reports something users cannot complete at all\"). Judged semantically, then shown to the user for confirmation."},
+                                            "when": {"type": "string", "description": "Mechanical alternative to `if`, same syntax as element when-clauses. Taken silently in code when true; checked before any `if` edge."}
+                                        },
+                                        "required": ["to"],
+                                        "additionalProperties": false
+                                    }
+                                }
                             },
                             "required": ["page", "elements"],
                             "additionalProperties": false
@@ -304,6 +318,13 @@ ELEMENTS: text, markdown, slider (min/max/step/default), check, input (placehold
 
 WIZARD: for flows too long for one screen, make every top-level element a page: {\"page\": \"Step label\", \"elements\": [...]}. One page shows at a time (Back/Next, Submit on the last); a page's own when-clause can skip it based on earlier answers. Prefer one screen when it fits - pages cost the user a click each.
 
+DECISION TREE: give a page \"next\" edges and the pages become a graph instead of a sequence. Each edge names where it goes and the condition for going there, described in words about that page's answers:
+  {\"page\": \"Symptom\", \"elements\": [...], \"next\": [
+     {\"to\": \"outage\", \"if\": \"the user reports something users cannot complete at all\"},
+     {\"to\": \"slowness\", \"if\": \"the user reports something that works but is degraded\"}]}
+The condition is judged semantically from what the user actually answered, including their free-text note, so it handles answers a when-clause cannot express. Rules: \"to\" is another page's id or \"submit\" to finish; a page with no \"next\" is terminal; use \"when\" instead of \"if\" for a purely mechanical edge (it is checked first and taken silently). Write the 2-4 branches you actually expect. Routing only goes forward: the branch that matches opens by itself, and every page carries a \"None of these\" button. Do not try to cover every case - a case you miss, or one that matches two branches at once, comes straight back to you with what the user answered.
+Write each \"if\" as the CONDITION that makes the branch apply (\"the person is describing being blocked rather than a problem with the text\"), never as the action it triggers (\"go to the stuck page\"). Word it in the CONCRETE terms the person would use, not your summary of their intent: \"the person is talking about branches that overlap, and wanting that caught before a user hits it\" routes correctly where \"the person wants authoring mistakes caught\" does not. Nothing else is needed: the questions on the destination page are sent automatically so the branch is judged on where it leads, and the two ways of having no answer are supplied for you. A destination's select/multi may open already answered when the user's note implies it, marked as filled in from what they wrote.
+
 DO:
 - Give options a description (\"options\": [{\"value\": \"X\", \"description\": \"tradeoff...\"}]) - descriptions render under each option and help the user decide
 - Set defaults to your recommendation so the user confirms instead of choosing from scratch: select takes an option text, multi takes an array of option texts, inputs take prefilled text
@@ -327,7 +348,9 @@ Value semantics:
 - slider returns a number (integer when whole)
 - 'Other' chosen -> selection contains \"Other (please specify)\" plus \"<id>_other_text\" with the custom text
 - \"_notes\" -> free-form note the user added; treat it as extra instructions
-- \"_labels\" -> map of returned ids to their human-facing labels (self-documenting results)"
+- \"_labels\" -> map of returned ids to their human-facing labels (self-documenting results)
+- \"_route\" (decision trees only) -> the path taken, one entry per hop: {\"from\", \"to\", \"via\", \"matched\", \"confidence\", \"prefilled\", \"note_overrides_answers\"}. \"via\" is \"when\" (a mechanical edge), \"jev\" or \"noul\" (judged from the answers), \"queue\" (a branch that also matched, walked after the first), \"user\" or \"error\". \"several\" lists branches that matched alongside this one. \"note_overrides_answers\" means their note corrected a widget - read the note. A final hop with \"to\": \"none_of_these\" handed back to you: continue in chat. Its \"exit_reason\" says why - \"none_fit\" (answers clear, no branch covers them), \"unclear\" (too little said), \"low_confidence\" (no branch was safe to open; \"leaning\" says which was closest) or \"unavailable\" (routing could not run).
+- only pages the user actually visited contribute values; unvisited pages' ids are absent"
 }
 
 #[cfg(test)]

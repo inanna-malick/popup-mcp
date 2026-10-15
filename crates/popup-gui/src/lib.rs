@@ -1,4 +1,6 @@
+pub mod convo_gui;
 pub mod gui;
+pub mod jev;
 pub mod json_parser;
 pub mod mcp_server;
 pub mod schema;

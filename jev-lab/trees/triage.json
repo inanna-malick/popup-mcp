@@ -1,0 +1,147 @@
+{
+  "title": "My read on the routing, for you to correct",
+  "submit": "Go with that",
+  "elements": [
+    {
+      "page": "What I hit building it",
+      "id": "start",
+      "elements": [
+        {
+          "markdown": "Three things went wrong while building the forward-only routing.\n\n- **The tree I write is guesswork.** I wrote an interview you answered with \"all of these\" twice, because my branches did not cover it.\n- **I cannot see a bad branch until a user hits it.** Two conditions that overlap look fine in JSON.\n- **Authoring eats tokens.** A 20-node tree is slow to emit, which is the latency the tool exists to remove."
+        },
+        {
+          "select": "Which one",
+          "id": "which",
+          "options": [
+            {
+              "value": "my branches miss the real answer",
+              "description": "coverage: the 'all of these' problem"
+            },
+            {
+              "value": "overlapping branches I can't see",
+              "description": "the offline lint the Jev specialist suggested"
+            },
+            {
+              "value": "authoring costs too many tokens",
+              "description": "compact node notation"
+            }
+          ]
+        },
+        {
+          "input": "Or put it your way",
+          "id": "words",
+          "rows": 3
+        }
+      ],
+      "next": [
+        {
+          "to": "coverage",
+          "if": "the person is talking about branches that miss what someone actually answers, or an answer that fits more than one branch"
+        },
+        {
+          "to": "lint",
+          "if": "the person is talking about branches that overlap or a tree that is wrong, and wanting that caught before a user hits it"
+        },
+        {
+          "to": "compact",
+          "if": "the person is talking about how much there is to write, the typing, the tokens, or wanting a terser format"
+        }
+      ]
+    },
+    {
+      "page": "Covering what people actually answer",
+      "id": "coverage",
+      "elements": [
+        {
+          "select": "What would help most",
+          "id": "cov_what",
+          "options": [
+            {
+              "value": "let the note alone route, with no options at all",
+              "description": "a page that is just a text box and edges"
+            },
+            {
+              "value": "let an edge cover several answers explicitly",
+              "description": "authoring change"
+            },
+            {
+              "value": "log the misses and show me them later",
+              "description": "learn from the ledger"
+            }
+          ]
+        },
+        {
+          "select": "How far to take it",
+          "id": "cov_size",
+          "options": [
+            "smallest thing that works",
+            "a proper pass",
+            "rethink the tree format"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "Catching bad trees before users do",
+      "id": "lint",
+      "elements": [
+        {
+          "select": "When should it run",
+          "id": "lint_when",
+          "options": [
+            {
+              "value": "at validation, before the window opens",
+              "description": "costs a call per popup, catches everything"
+            },
+            {
+              "value": "only when I ask for it",
+              "description": "a flag or a separate command"
+            },
+            {
+              "value": "in the test suite against the examples",
+              "description": "free, but only covers what is checked in"
+            }
+          ]
+        },
+        {
+          "select": "What it does on a bad pair",
+          "id": "lint_do",
+          "options": [
+            {
+              "value": "refuse the popup like any validation error",
+              "description": "matches the fail-fast contract"
+            },
+            {
+              "value": "warn and run anyway",
+              "description": "overlap is not always wrong"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "page": "Writing trees for less",
+      "id": "compact",
+      "elements": [
+        {
+          "select": "What shape",
+          "id": "comp_shape",
+          "options": [
+            {
+              "value": "a node is one string, the compiler fills the rest",
+              "description": "turn plus or, with ids derived"
+            },
+            {
+              "value": "an outline notation compiled to the tree",
+              "description": "indentation instead of braces"
+            },
+            {
+              "value": "leave it alone, the JSON is fine",
+              "description": "no change"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
