@@ -8,6 +8,7 @@ import {
   type Expr,
 } from "./types";
 export * from "./types";
+export * from "./summary";
 const kinds = [
   "text",
   "markdown",
@@ -36,6 +37,7 @@ const reserved = new Set([
   "_notes",
   "_labels",
   "_option_labels",
+  "_defaulted",
   "_route",
   "__proto__",
   "constructor",
@@ -599,6 +601,8 @@ export function serializeResult(
   answers: Answers,
   notes: string,
   visitedPages?: Set<string>,
+  /** Ids the user changed. Without it, any id present in `answers` counts as changed. */
+  touched?: ReadonlySet<string>,
 ): PopupResult {
   validateAnswers(form, answers);
   string(notes, "notes");
@@ -611,6 +615,7 @@ export function serializeResult(
     status: "completed",
     button: "submit",
   };
+  const defaulted: string[] = [];
   for (const n of form.all)
     if (
       n.id &&
@@ -621,6 +626,10 @@ export function serializeResult(
       result[n.id] = Object.hasOwn(answers, n.id)
         ? answers[n.id]
         : form.defaults[n.id];
+      const changed = touched
+        ? touched.has(n.id)
+        : Object.hasOwn(answers, n.id);
+      if (!changed) defaulted.push(n.id);
       labels[n.id] = n.label;
       if (n.options.some((option) => option.stable)) {
         const value = result[n.id];
@@ -641,6 +650,7 @@ export function serializeResult(
     }
   result._labels = labels;
   if (Object.keys(optionLabels).length) result._option_labels = optionLabels;
+  if (defaulted.length) result._defaulted = defaulted;
   if (form.notes && notes.trim()) result._notes = notes.trim();
   return result as PopupResult;
 }
