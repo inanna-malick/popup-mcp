@@ -1,4 +1,4 @@
-import type { PopupResult } from "../core";
+import { summaryText, type PopupResult } from "../core";
 export interface Envelope {
   type: "popup_result";
   formId: string;
@@ -10,11 +10,20 @@ export interface MessageSender {
     role: "user";
     content: { type: "text"; text: string }[];
   }): Promise<{ isError?: boolean }>;
+  /**
+   * Present when the host accepts model context. The envelope then travels there, and the user's
+   * turn carries a readable summary instead of raw JSON.
+   */
+  updateModelContext?(params: {
+    content: { type: "text"; text: string }[];
+    structuredContent: Record<string, unknown>;
+  }): Promise<unknown>;
 }
 export function createDelivery(
   formId: string,
   sender: MessageSender,
   storage?: Pick<Storage, "getItem" | "setItem">,
+  options: { title?: string } = {},
 ) {
   const key = `popup:receipt:${formId}`;
   let acknowledged = false;
@@ -26,6 +35,23 @@ export function createDelivery(
   }
   let envelope: Envelope | undefined;
   let inflight: Promise<void> | undefined;
+  /** The message text: a summary when the envelope reached model context, otherwise the envelope itself. */
+  async function messageText(envelope: Envelope): Promise<string> {
+    const json = JSON.stringify(envelope);
+    try {
+      // Failure is reported by rejection; fall back to carrying the envelope in the message.
+      await sender.updateModelContext!({
+        content: [{ type: "text", text: json }],
+        structuredContent: envelope as unknown as Record<string, unknown>,
+      });
+    } catch {
+      return json;
+    }
+    return summaryText(envelope.result, {
+      title: options.title,
+      submissionId: envelope.submissionId,
+    });
+  }
   return {
     get completed() {
       return acknowledged;
@@ -40,8 +66,11 @@ export function createDelivery(
           submissionId: crypto.randomUUID(),
           result: JSON.parse(JSON.stringify(result)) as PopupResult,
         };
-      const text = JSON.stringify(envelope);
       inflight = (async () => {
+        // Without model context the message goes out synchronously, as it always has.
+        const text = sender.updateModelContext
+          ? await messageText(envelope!)
+          : JSON.stringify(envelope);
         const reply = await sender.sendMessage({
           role: "user",
           content: [{ type: "text", text }],

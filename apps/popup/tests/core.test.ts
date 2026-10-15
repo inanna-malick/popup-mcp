@@ -3,6 +3,7 @@ import {
   compileDefinition,
   computeVisibility,
   serializeResult,
+  summaryRows,
   DefinitionError,
   createVisibilityEvaluator,
   labelToId,
@@ -716,5 +717,41 @@ describe("stable option identities and disclosures", () => {
         { disclosure: "Cycle", when: "child", elements: [{ check: "Child" }] },
       ]),
     ).toThrow(/cycle/);
+  });
+});
+
+describe("defaults and the readable summary", () => {
+  const f = compileDefinition({
+    elements: [
+      { check: "Keep tree", id: "keep", default: true },
+      { slider: "Runs", id: "runs", min: 1, max: 9, default: 3 },
+      { select: "Step", id: "step", options: ["a", "b"] },
+      { input: "Command", id: "cmd" },
+    ],
+  });
+  it("lists the fields the user never changed", () => {
+    const r = serializeResult(
+      f,
+      { ...f.defaults, runs: 5 },
+      "",
+      undefined,
+      new Set(["runs"]),
+    );
+    expect(r).toMatchObject({ _defaulted: ["keep", "step", "cmd"] });
+  });
+  it("leaves unanswered fields out of the summary and marks defaults", () => {
+    const r = serializeResult(
+      f,
+      { ...f.defaults, runs: 5 },
+      "",
+      undefined,
+      new Set(["runs"]),
+    );
+    expect(
+      summaryRows(r).map((row) => [row.label, row.value, row.defaulted]),
+    ).toEqual([
+      ["Keep tree", "Yes", true],
+      ["Runs", "5", false],
+    ]);
   });
 });

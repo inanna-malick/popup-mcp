@@ -15,6 +15,7 @@ import {
   createVisibilityEvaluator,
   serializeResult,
   snapSliderValue,
+  summaryRows,
 } from "../core";
 import type { Answers, CompiledForm, Node, PopupResult } from "../core";
 import "./popup.css";
@@ -25,18 +26,8 @@ export interface PopupFormProps {
   onCancel: () => Promise<void>;
   initiallyCompleted?: boolean;
   onOpenLink?: (url: string) => Promise<void>;
-}
-
-function formatAnswer(
-  value: unknown,
-  labels: Record<string, string> = {},
-): string {
-  const display = (item: unknown) =>
-    Object.hasOwn(labels, String(item)) ? labels[String(item)] : String(item);
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value))
-    return value.length ? value.map(display).join(", ") : "None selected";
-  return value == null || value === "" ? "No answer" : display(value);
+  /** The answers so far, after each change the user makes and before they submit. */
+  onDraft?: (draft: PopupResult) => void;
 }
 
 function isVisibleControl(element: HTMLElement): boolean {
@@ -106,6 +97,8 @@ export function PopupForm(props: PopupFormProps) {
   }
   const compiled = form;
   const [answers, setAnswers] = createStore<Answers>({ ...compiled.defaults });
+  /** Fields the user changed; the rest are submitted as the author's defaults. */
+  const touched = new Set<string>();
   const [numericDrafts, setNumericDrafts] = createStore<
     Record<string, string | undefined>
   >({});
@@ -124,6 +117,24 @@ export function PopupForm(props: PopupFormProps) {
   const resultData = () => snapshot() as Record<string, unknown> | undefined;
   const [pageIndex, setPageIndex] = createSignal(0);
   const visited = new Set<string>();
+  const publishDraft = () => {
+    if (
+      !props.onDraft ||
+      state() !== "editing" ||
+      (!touched.size && !notes().trim())
+    )
+      return;
+    try {
+      // Detached like a submission: store proxies cannot cross postMessage.
+      props.onDraft(
+        freezeResult(
+          serializeResult(compiled, answers, notes(), visited, touched),
+        ),
+      );
+    } catch {
+      /* A half-typed value that does not validate yet is simply not published. */
+    }
+  };
   const evaluator = createVisibilityEvaluator(compiled);
   const [visible, setVisible] = createSignal(evaluator.update(answers));
   const pages = createMemo(() =>
@@ -158,7 +169,14 @@ export function PopupForm(props: PopupFormProps) {
     );
   });
   const firstControl = () => visibleControl(main);
-  onMount(() => (firstControl() || main)?.focus({ preventScroll: true }));
+  // Keyboard users start in the form, but nobody has acted yet, so don't draw a focus ring
+  // around the first control; on a recommended option it reads as a selection.
+  onMount(() =>
+    (firstControl() || main)?.focus({
+      preventScroll: true,
+      focusVisible: false,
+    } as FocusOptions),
+  );
   createEffect(() => {
     if (state() === "done" || state() === "error")
       queueMicrotask(() => status?.focus());
@@ -188,7 +206,7 @@ export function PopupForm(props: PopupFormProps) {
       let result = snapshot();
       if (!result) {
         result = freezeResult(
-          serializeResult(compiled, answers, notes(), visited),
+          serializeResult(compiled, answers, notes(), visited, touched),
         );
         setSnapshot(result);
       }
@@ -226,6 +244,8 @@ export function PopupForm(props: PopupFormProps) {
         setNumericErrors(node.key, undefined);
       }
       setAnswers(node.id!, next);
+      touched.add(node.id!);
+      queueMicrotask(publishDraft);
       setVisible(evaluator.update(answers, [node.id!]));
     });
     queueMicrotask(() => {
@@ -916,10 +936,10 @@ export function PopupForm(props: PopupFormProps) {
                             }
                           }}
                         >
-                          <span class="rank-number">
+                          <span class="rank-number" aria-hidden="true">
                             {selected().includes(item.value)
                               ? selected().indexOf(item.value) + 1
-                              : "–"}
+                              : "+"}
                           </span>
                           {item.label ?? item.value}
                         </button>
@@ -1052,7 +1072,10 @@ export function PopupForm(props: PopupFormProps) {
                 rows={1}
                 value={notes()}
                 disabled={locked()}
-                onInput={(event) => setNotes(event.currentTarget.value)}
+                onInput={(event) => {
+                  setNotes(event.currentTarget.value);
+                  publishDraft();
+                }}
               />
             </div>
           </Show>
@@ -1174,22 +1197,15 @@ export function PopupForm(props: PopupFormProps) {
               fallback={<p>Cancellation requested.</p>}
             >
               <dl class="summary">
-                <For
-                  each={Object.entries(
-                    (resultData()?._labels as Record<string, string>) || {},
-                  )}
-                >
-                  {([id, label]) => (
+                <For each={summaryRows(snapshot()!)}>
+                  {(row) => (
                     <>
-                      <dt>{label}</dt>
+                      <dt>{row.label}</dt>
                       <dd>
-                        {formatAnswer(
-                          resultData()?.[id],
-                          (
-                            resultData()?._option_labels as
-                              Record<string, Record<string, string>> | undefined
-                          )?.[id],
-                        )}
+                        {row.value}
+                        <Show when={row.defaulted}>
+                          <span class="default-tag"> (default)</span>
+                        </Show>
                       </dd>
                     </>
                   )}

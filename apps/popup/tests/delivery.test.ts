@@ -74,4 +74,46 @@ describe("terminal response delivery", () => {
     await delivery.send({ status: "cancelled" });
     expect(delivery.completed).toBe(true);
   });
+  it("puts the envelope in model context and sends a readable turn when the host allows", async () => {
+    const sender = {
+      sendMessage: vi.fn().mockResolvedValue({}),
+      updateModelContext: vi.fn().mockResolvedValue({}),
+    };
+    await createDelivery("form-5", sender, undefined, {
+      title: "Pick one",
+    }).send({
+      status: "completed",
+      button: "submit",
+      choice: "a",
+      flag: true,
+      _labels: { choice: "Choice", flag: "Flag" },
+      _option_labels: { choice: { a: "Option A" } },
+      _defaulted: ["flag"],
+    });
+    const context = sender.updateModelContext.mock.calls[0][0];
+    expect(context.structuredContent).toMatchObject({
+      type: "popup_result",
+      formId: "form-5",
+    });
+    const text: string = sender.sendMessage.mock.calls[0][0].content[0].text;
+    expect(text).toBe(
+      `Popup response · Pick one\n- Choice: Option A\n- Flag: Yes (default)\n(response ${context.structuredContent.submissionId})`,
+    );
+    expect(sender.updateModelContext.mock.invocationCallOrder[0]).toBeLessThan(
+      sender.sendMessage.mock.invocationCallOrder[0],
+    );
+  });
+  it("falls back to the JSON envelope when model context fails", async () => {
+    const sender = {
+      sendMessage: vi.fn().mockResolvedValue({}),
+      updateModelContext: vi.fn().mockRejectedValue(new Error("no")),
+    };
+    await createDelivery("form-6", sender).send({ status: "cancelled" });
+    expect(
+      JSON.parse(sender.sendMessage.mock.calls[0][0].content[0].text),
+    ).toMatchObject({
+      type: "popup_result",
+      result: { status: "cancelled" },
+    });
+  });
 });
