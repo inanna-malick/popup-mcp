@@ -1,0 +1,93 @@
+{
+  "title": "Explore dashboard performance improvements",
+  "submit": "Set the next performance step",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The trace shows **900 ms on the server**, including **620 ms in repeated per-account queries**, followed by **350 ms rendering 2,000 rows**. We can work on SQL and the frontend together. Billing must stay fresh after edits, search must cover every row, and adding infrastructure is outside the current scope."
+    },
+    {
+      "multi": "Which improvements should we explore together?",
+      "id": "improvements",
+      "options": [
+        {
+          "value": "Batch account queries",
+          "description": "Targets the largest measured cost; query plans will help identify a safe SQL change."
+        },
+        {
+          "value": "Render fewer table rows",
+          "description": "Targets the 350 ms browser cost; changes navigation or rendering behavior."
+        },
+        {
+          "value": "Reuse summary results briefly",
+          "description": "Summary reporting may lag up to 30 seconds; introduces invalidation and stale-data tradeoffs."
+        }
+      ],
+      "default": ["Batch account queries", "Render fewer table rows"],
+      "Batch account queries": [
+        {
+          "text": "Proposed approach: inspect the query plan, replace repeated per-account reads with a batched query where appropriate, and compare timing and returned data. Keep the billing edit/read path immediately fresh."
+        }
+      ],
+      "Render fewer table rows": [
+        {
+          "select": "Which table approach should we investigate?",
+          "id": "table_approach",
+          "options": [
+            {
+              "value": "Compare approaches first",
+              "description": "Check keyboard navigation and full-data search before choosing a rendering change."
+            },
+            {
+              "value": "Pagination",
+              "description": "Renders one page at a time; users navigate between pages and search still covers all rows."
+            },
+            {
+              "value": "Virtual scrolling",
+              "description": "Renders visible rows while scrolling; needs care for keyboard navigation and accessibility."
+            }
+          ],
+          "default": "Compare approaches first",
+          "Virtual scrolling": [
+            {
+              "input": "Any table interactions we must preserve?",
+              "id": "table_interactions",
+              "placeholder": "For example: keyboard navigation, browser find, selection, or copying rows"
+            }
+          ]
+        }
+      ],
+      "Reuse summary results briefly": [
+        {
+          "slider": "Maximum summary lag (seconds)",
+          "id": "summary_lag",
+          "min": 0,
+          "max": 30,
+          "default": 30
+        },
+        {
+          "text": "Investigate reuse within the existing application. Billing reads after edits must bypass stale results or invalidate them; no new infrastructure is proposed."
+        }
+      ]
+    },
+    {
+      "select": "What should I do next?",
+      "id": "next_step",
+      "options": [
+        {
+          "value": "Investigate and propose changes",
+          "description": "Inspect query plans and relevant frontend behavior, then propose changes for the selected areas."
+        },
+        {
+          "value": "Implement after investigation",
+          "description": "Inspect first, then change SQL/frontend in the selected areas and verify correctness and timings."
+        },
+        {
+          "value": "Discuss the tradeoffs further",
+          "description": "Continue exploring before choosing implementation work."
+        }
+      ],
+      "default": "Investigate and propose changes"
+    }
+  ]
+}

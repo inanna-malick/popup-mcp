@@ -1,0 +1,117 @@
+{
+  "candidates": [
+    {
+      "file": "f-ci.json",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Accurately distinguishes eight runner-minutes of repeated installs from elapsed time, identifies shared Postgres state as the parallelism prerequisite, and preserves supported-platform release coverage.",
+        "Cache invalidation, isolation investigation versus drafting, and cost estimation versus a concrete cap lead to materially different next work. The isolation proposal is editable rather than assumed safe.",
+        "Caching and isolated integration tests can be selected together with both followups visible; the combined experiment measures each independently and together. The docs/platform combination also explicitly avoids double-counting savings.",
+        "The combined intent maps directly to ci_paths, isolation_step, isolation_proposal and parallel_budget. No smaller platform matrix needs to be selected to preserve coverage.",
+        "The three-PR baseline correction is expressible through notes and editable experiment text while deselecting execution-oriented branches; retained hidden drafts will not be submitted. There is no dedicated baseline-only top option, so notes must clarify that even cache experiments wait and no extra paid runs are scheduled.",
+        "High reading cost: the introduction, general reveal, branch prose, editable plans and combined paragraph repeat baseline measurement, uncertainty and coverage/spend safeguards. Cache invalidation is a relatively fine implementation decision before inspecting the package manager. The four top paths remain meaningfully distinct."
+      ],
+      "combined_answers": {
+        "ci_paths": ["Cache dependency downloads", "Isolate and parallelize integration tests"],
+        "isolation_step": "Draft a two-worker experiment",
+        "isolation_proposal": "Propose two workers with a disposable Postgres database per worker, separate connection URLs, isolated fixtures and cleanup. First inspect migrations, global fixtures and external shared resources for collisions. Compare serial and parallel integration tests, then caching alone and the combination, using elapsed time, billed runner-minutes and failures. Preserve Linux/macOS/Windows coverage. Prepare the design before running additional paid experiments.",
+        "parallel_budget": "Estimate costs before choosing a limit"
+      },
+      "other_answers": {
+        "ci_paths": ["Other (please specify)"],
+        "ci_paths_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits."
+      }
+    },
+    {
+      "file": "f-performance.json",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Uses the actual 620/900 ms query and 350 ms render evidence, recognizes the missing query plan, restricts work to existing infrastructure, and distinguishes immediate billing freshness from the summary lag allowance.",
+        "Query-plan investigation versus a batching draft changes the SQL deliverable; interaction investigation, pagination and virtualization expose distinct costs and editable proposals. Summary separation has its own conditional investigation rather than assuming a cache exists.",
+        "Both top improvements can coexist, with separate branch controls and a joint validation plan checking full-data search, immediate billing edits, result equivalence and keyboard behavior.",
+        "Defaults support investigating before implementing. The correction can keep sql_next on query-plan investigation and select Inspect table interactions first, or deselect row reduction and use notes to record the full-table requirement. Hidden virtualization drafts do not authorize implementation.",
+        "Repeated correctness/freshness requirements appear in introductory prose, SQL branch prose and text fields, table branches, the combined paragraph and joint validation. The editable investigation scope largely repeats the preceding paragraph.",
+        "The combined paragraph says pursuing both targets should improve the wait before either design is justified; the joint validation field describes benchmarking changes even when both branches currently choose investigation. These are minor premature framings, softened by the explicit investigation defaults and checks."
+      ],
+      "combined_answers": {
+        "improvements": ["Batch the account queries", "Render fewer table rows"],
+        "sql_next": "Investigate the query plan first",
+        "table_approach": "Inspect table interactions first",
+        "joint_validation": "Explore batching the repeated queries and reducing mounted rows together, using current infrastructure. First inspect the query plans and table interactions, then compare justified SQL-only and table-only proposals and their combination. Search and sorting must cover every row; billing edits must appear immediately. Preserve keyboard navigation, screen-reader behavior, selection and editing. Implement only after the investigations support a design."
+      },
+      "other_answers": {
+        "improvements": ["Other (please specify)"],
+        "improvements_other_text": "Explore batching the repeated queries and reducing rendered rows together; keep search across the full data set and fresh billing edits."
+      }
+    },
+    {
+      "file": "f-exploration.json",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Contributes concrete, intimate possibilities: a rescue-credit dispute, a daughter's grief, shared supper rituals and a kitchen lease. The archive remains public and good-faith; political disagreement emerges without an evil organization or chosen protagonist.",
+        "Competing versions versus official revision changes civic influence and previous borrowers' emotional loyalties. Knowing versus later discovering a common source changes the relationship question. Reversal has a specific consequence: a chosen boundary can feel like rejection.",
+        "Both interests are selected by default with independently editable branches. The joint situation connects correction and intimacy while explicitly leaving convergence and outcomes optional.",
+        "The correction fits the existing explore_reversal checkbox and reversal_rule field directly: a voluntary public ritual can be made explicitly benevolent and used to explore chosen intimacy. Notes and joint_situation can carry that rule into the shared scene without a final plot commitment.",
+        "Strong exploratory progress: the text supplies situations and morally defensible desires to bend instead of asking the user to invent the setting or pick a finished plot.",
+        "The default combined view is long: multiple developed scenes, policy inputs, relationship inputs and another shared-scene input. Repeated assurances that possibilities remain open add prose. The combined paragraph switches the borrowed supper's source from the ferry cook to the captain's daughter; it is clearly labeled an optional alternative but asks the reader to reconcile a new premise."
+      ],
+      "combined_answers": {
+        "threads": ["Correcting official memories", "Relationships through borrowing"],
+        "joint_situation": "Explore the rescue-memory dispute and intimacy between borrowers together. At a neighborhood supper, the dockworker asks the captain's daughter to introduce the competing account, while two borrowers wonder whether experiencing it first would help them listen or reshape their affection for her. Keep the archive public and acting in good faith. Give each person defensible hopes and small personal stakes, and explore several consequences without choosing a final plot or requiring the threads to converge."
+      },
+      "other_answers": {
+        "threads": ["Other (please specify)"],
+        "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment."
+      }
+    },
+    {
+      "file": "f-evidence.json",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Treats the alert and deployment timing as correlation, explicitly refuses to treat the prior downstream incident as evidence, and proposes gathering the missing telemetry rather than requesting facts the operator can inspect.",
+        "The checkpoint changes how far read-only work proceeds before reporting. Conditional rollback, scaling and fallback options are qualified by distinct evidence, readiness, risk and cost requirements; submitting does not authorize a production change.",
+        "Investigation and mitigation preparation are compatible and selected together by default. Their combined continuation connects workload comparison to the evidence required for each action rather than making them competing choices.",
+        "Provides an actionable initial investigation and a useful mitigation brief while accepting that traces or a reliable baseline may be unavailable. Next work includes a discriminating read-only check instead of premature cause selection.",
+        "The load-test correction can be made directly in telemetry_plan: separate test traffic from ordinary workloads before any deployment attribution. Notes can also correct scope, and the mitigation criteria can carry the corrected comparison forward.",
+        "Attention cost is elevated by four long prose blocks plus editable plans that restate them. The introduction, telemetry plan, mitigation prose and mitigation field repeatedly state evidence and authorization boundaries. Choosing a reporting checkpoint is a legitimate pacing preference, but adds a decision before already-authorized telemetry inspection."
+      ],
+      "combined_answers": {
+        "incident_work": ["Identify where time is being spent", "Prepare conditional mitigation choices"],
+        "telemetry_plan": "Inspect dashboards and logs read-only around the deployment. Separate routes, workload sources and traffic changes, compare equivalent requests before and after where possible, and inspect available traces, errors, database waits, downstream timing and resource saturation. Return observations, competing explanations, evidence gaps and the next discriminating check. In parallel, prepare mitigation options conditional on these findings. Do not execute any production change.",
+        "mitigation_criteria": "Prepare conditional mitigation choices supported by the investigation: rollback only after checking deployment-linked regression and prior-version compatibility; scaling only after checking saturation and dependency headroom; downstream alternatives only with evidence and a safe fallback. Include risks, known costs, readiness gaps and recovery checks. Present the exact proposed production action for separate explicit authorization; this submission authorizes only read-only investigation and preparation."
+      },
+      "other_answers": {
+        "incident_work": ["Other (please specify)"],
+        "incident_work_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly."
+      }
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "id": "5de1f42c",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Explicitly separates established public access and gradual change from proposed additions; correction and intimacy have humane, politically ambiguous consequences.",
+        "Both interests are selected by default and receive a joint scene seed, so combined intent is directly expressible with no overrides.",
+        "Specific downstream rules, scenes, boundaries, automatic Other, notes, and an open borrowing-rule field support revision and productive exploration.",
+        "Long branch prose plus repeated editable scene summaries makes the default view costly to read; several bend fields ask for overlapping contributions."
+      ],
+      "combined_answers": {},
+      "other_answers": {
+        "threads": [
+          "Other (please specify)"
+        ],
+        "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment."
+      }
+    },
+    {
+      "id": "8845449d",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 2
+      },
+      "observations": [
+        "Compact options contribute concrete civic and intimate tradeoffs while treating the archive generously and keeping plot commitment open.",
+        "Independent possibilities can coexist and a connection selector joins them; choose the shared-afternoon option to target intimacy between borrowers directly.",
+        "Voluntary amendments versus annotations anticipate consequential replies, with Other, notes, and setting_bends supporting a reversible public ritual correction.",
+        "Descriptions carry substantive exploration without requiring long prose or repeated seed editing; combined intent is directly expressible."
+      ],
+      "combined_answers": {
+        "intimacy_tension": "Friends borrow the same afternoon",
+        "thread_connection": "The contested memory created the bond"
+      },
+      "other_answers": {
+        "possibilities": [
+          "Other (please specify)"
+        ],
+        "possibilities_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment."
+      }
+    },
+    {
+      "id": "9d5441e6",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Known setting facts are explicit and proposed correction procedures and borrowing rules remain provisional; examples preserve ordinary care and institutional good faith.",
+        "Correction procedures lead to distinct civic and intimate consequences; relationship branches offer meaningful gestures and negotiated boundaries.",
+        "Defaults open both interests and supply a joint consequence, so combined intent is directly expressible without overrides; world_rule, Other, and notes allow the requested reversal ritual.",
+        "Numerous editable seed/consequence fields repeat adjacent prose, increasing attention cost even though the material is productive."
+      ],
+      "combined_answers": {},
+      "other_answers": {
+        "threads": [
+          "Other (please specify)"
+        ],
+        "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment."
+      }
+    },
+    {
+      "id": "d8324d5f",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 2
+      },
+      "observations": [
+        "Public access and provisional exploration are explicit; the choices supply ordinary households, civic recognition disputes, and ambiguous loyalties.",
+        "Nested multi selections allow compatible complications together, and a separate connection choice anticipates borrowed bonds, conflicts of interest, or parallel exploration.",
+        "Combined intent is directly expressible by selecting civic standing, borrower affection, and their conflict of interest; defaults leave these specific consequences unselected.",
+        "Concise consequence descriptions provide useful exploration; bend fields, automatic Other, and notes allow the public ritual correction without demanding a final plot."
+      ],
+      "combined_answers": {
+        "correction_tensions": [
+          "Borrowers help judge corrections"
+        ],
+        "intimacy_tensions": [
+          "An affection arrives before its explanation"
+        ],
+        "thread_connection": "Intimacy creates a conflict of interest"
+      },
+      "other_answers": {
+        "threads": [
+          "Other (please specify)"
+        ],
+        "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment."
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f482a987",
+  "submissionId": "eval-f482a987-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "investigation": [
+      "Other (please specify)"
+    ],
+    "investigation_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "prepare_mitigations": true,
+    "mitigation_candidates": [
+      "Rollback",
+      "Scaling"
+    ],
+    "_labels": {
+      "investigation": "What should the read-only investigation cover?",
+      "investigation_other_text": "Please specify",
+      "prepare_mitigations": "Also prepare conditional mitigation recommendations",
+      "mitigation_candidates": "Which possibilities should I assess against the evidence?"
+    }
+  }
+}

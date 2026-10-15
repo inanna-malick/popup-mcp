@@ -1,0 +1,24 @@
+{
+  "type": "popup_result",
+  "formId": "eval-8845449d",
+  "submissionId": "eval-8845449d-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "possibilities": [
+      "Correcting a shared memory",
+      "Borrowing someone into a relationship"
+    ],
+    "correction_tension": "Both accounts stay available",
+    "intimacy_tension": "Friends borrow the same afternoon",
+    "thread_connection": "The contested memory created the bond",
+    "setting_bends": "",
+    "_labels": {
+      "possibilities": "Which possibilities should we follow?",
+      "correction_tension": "What makes correction difficult?",
+      "intimacy_tension": "Which intimate consequence interests you?",
+      "thread_connection": "How should the two threads meet?",
+      "setting_bends": "What would you bend, add, or leave unresolved?"
+    }
+  }
+}

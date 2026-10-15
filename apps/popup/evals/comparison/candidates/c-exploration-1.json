@@ -1,0 +1,140 @@
+{
+  "submit": "Keep exploring these possibilities",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The archive is public and open to everyone; borrowing gradually changes people. That makes a correction more than a dispute over a record: someone may already have built a relationship or a sense of self around the version being corrected. Here are two threads we can explore together, with proposed rules you can bend. Nothing here commits us to a plot."
+    },
+    {
+      "multi": "Which consequences shall we follow?",
+      "id": "threads",
+      "options": [
+        {
+          "value": "Who can correct a public memory?",
+          "description": "A fair correction can restore someone's dignity while unsettling people who borrowed the old version."
+        },
+        {
+          "value": "What intimacy grows through borrowing?",
+          "description": "Shared memories can create real tenderness while making it difficult to tell recognition from projection."
+        }
+      ],
+      "default": ["Who can correct a public memory?", "What intimacy grows through borrowing?"],
+      "Who can correct a public memory?": [
+        {
+          "markdown": "Possibility: a retired ferry worker asks to correct an official memory of a storm rescue. The celebrated rescuer did save lives, but the memory leaves out a colleague who stayed behind to help. The omission need not be deliberate: the remembered scene may simply stop before that act. The correction matters first to the colleague's surviving partner, who wants their ordinary care recognized without turning them into a civic symbol."
+        },
+        {
+          "input": "Bend the correction dispute",
+          "id": "correction_seed",
+          "default": "A ferry worker seeks to add an overlooked colleague's care to a storm-rescue memory. The surviving partner wants recognition but fears public borrowing will turn private tenderness into a performance.",
+          "rows": 3
+        },
+        {
+          "select": "What could a fair correction mean?",
+          "id": "correction_rule",
+          "options": [
+            {
+              "value": "Add another account alongside it",
+              "description": "Preserve disagreement, but ask borrowers to carry the burden of interpreting incompatible experiences."
+            },
+            {
+              "value": "Replace it after a public hearing",
+              "description": "Give an omission a clear remedy, but let a civic procedure determine which experience gets official standing."
+            }
+          ],
+          "default": "Add another account alongside it",
+          "Add another account alongside it": [
+            {
+              "markdown": "Now the archive offers two memories of the same night. A borrower may feel both the rescuer's sincere certainty and the partner's quiet anger. Access expands, yet people with time to borrow both accounts gain a richer civic voice than those who can manage only one. A well-intentioned public institution still has to decide how to make that access practical."
+            },
+            {
+              "input": "An everyday consequence worth following",
+              "id": "parallel_consequence",
+              "default": "Two neighbors volunteer to compare the accounts for a local discussion. Their disagreement becomes an awkward friendship, and they worry that their summary will erase someone all over again.",
+              "rows": 3
+            }
+          ],
+          "Replace it after a public hearing": [
+            {
+              "markdown": "A hearing could fairly amend the official memory without changing what earlier borrowers already carry. The city recognizes the missing colleague, but someone who borrowed the old account still feels grateful to the rescuer. Must they publicly revise that gratitude to show they accept the correction? This makes civic repair and private feeling diverge without requiring a villain."
+            },
+            {
+              "input": "Bend the hearing's intimate cost",
+              "id": "hearing_consequence",
+              "default": "The surviving partner wins the correction, then finds that an old friend can repeat the amended facts but still feels the old memory. They must decide what acknowledgment would actually help.",
+              "rows": 3
+            }
+          ]
+        }
+      ],
+      "What intimacy grows through borrowing?": [
+        {
+          "markdown": "Possibility: two strangers borrow the same memory of preparing a meal during a storm. Both acquire a small habit—warming a cup before pouring—and notice it in one another. Their recognition feels intimate before they know anything about each other's lives. The affection can be real even if its starting point was borrowed."
+        },
+        {
+          "input": "Bend the relationship seed",
+          "id": "relationship_seed",
+          "default": "Two ordinary borrowers recognize the same borrowed household habit in each other. They begin sharing tea, then wonder whether they are getting to know each other or returning to someone else's kitchen.",
+          "rows": 3
+        },
+        {
+          "select": "Which tension feels worth staying with?",
+          "id": "intimacy_tension",
+          "options": [
+            {
+              "value": "Shared feeling, different meanings",
+              "description": "One borrower experiences the habit as comfort; the other experiences it as a loss they cannot explain."
+            },
+            {
+              "value": "Borrowing to understand someone",
+              "description": "A caring attempt at understanding can become an expectation that intimacy requires changing yourself."
+            }
+          ],
+          "default": "Shared feeling, different meanings",
+          "Shared feeling, different meanings": [
+            {
+              "markdown": "They agree on what happened in the kitchen but disagree about what the remembered gesture means. Neither has privileged access to its meaning. A small scene could be one person stopping the tea ritual because it hurts, while the other hears that as withdrawing affection. Their next conversation is about permission to differ, rather than discovering the one true interpretation."
+            },
+            {
+              "input": "A gesture that could repair or deepen the misunderstanding",
+              "id": "different_meanings_gesture",
+              "default": "They try making tea a new way together. One finds that freeing; the other misses the inherited ritual and is embarrassed to admit it.",
+              "rows": 3
+            }
+          ],
+          "Borrowing to understand someone": [
+            {
+              "markdown": "One offers to borrow a memory that matters to the other. The offer is generous, but accepting it may make future refusal feel like a lack of love. Public access to a memory does not settle what either person owes a partner. The archive could help people discuss those effects while leaving the choice with the borrower."
+            },
+            {
+              "input": "A boundary they might negotiate",
+              "id": "borrowing_boundary",
+              "default": "We can offer memories to each other, but declining a loan is not declining the relationship. We will also make room for experiences we cannot share this way.",
+              "rows": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "markdown": "Together, the threads suggest a quiet collision: the kitchen memory receives a correction after the two borrowers have formed their tea ritual. Perhaps the remembered warmth was care performed during an unresolved argument. The correction adds complexity without proving their affection false. One wants to borrow the new account; the other wants to preserve the relationship they have made since. Their disagreement brings the public right to amend a memory into a private question: must we change together?",
+      "when": "selected(threads, Who can correct a public memory?) && selected(threads, What intimacy grows through borrowing?)"
+    },
+    {
+      "input": "Bend the shared consequence, or leave the threads separate",
+      "id": "shared_consequence",
+      "default": "A correction to their shared kitchen memory reveals an unresolved argument beneath the tenderness. They disagree about borrowing the revised account, while trying to protect the affection they have built themselves.",
+      "rows": 3,
+      "when": "selected(threads, Who can correct a public memory?) && selected(threads, What intimacy grows through borrowing?)"
+    },
+    {
+      "input": "A rule of memory borrowing you want to change or leave open",
+      "id": "world_rule",
+      "placeholder": "For example: whether changes fade, can be reversed, or persist after returning a memory. We have not established this yet.",
+      "rows": 2
+    },
+    {
+      "markdown": "We can continue with a small encounter, compare the two correction procedures, or explore a changed borrowing rule from your edits. These are lenses for finding consequences; the archive's rules and the characters' next choices remain open."
+    }
+  ]
+}

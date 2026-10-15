@@ -1,0 +1,23 @@
+{
+  "type": "popup_result",
+  "formId": "eval-905e2410",
+  "submissionId": "eval-905e2410-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Inspect the query plan",
+      "Batch per-account queries",
+      "Render fewer table rows"
+    ],
+    "summary_reuse": false,
+    "table_approach": "Compare both first",
+    "next_step": "Investigation and recommendation",
+    "_labels": {
+      "improvements": "Which improvements should we explore together?",
+      "summary_reuse": "Also explore reusing summary results for up to 30 seconds",
+      "table_approach": "Which table approach should we compare?",
+      "next_step": "What should the next step produce?"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "type": "popup_result",
+  "formId": "eval-69b2d1b1",
+  "submissionId": "eval-69b2d1b1-contradiction",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Batch the account queries",
+      "Render fewer table rows"
+    ],
+    "sql_scope": "Inspect the repeated account-query call sites and query plans using representative data. Compare the current path with a batched read, preserving account permissions, filters, row counts and ordering. Check join fan-out and payload size before proposing SQL or index changes. Report the plan and measured costs first.",
+    "sql_next": "Review the findings first",
+    "table_approach": "Pagination",
+    "pagination_plan": "Start with a prototype displaying 50 matching rows per page. Search and sort across all rows before slicing a page, show total matches, and reset to the first page when the search changes. Preserve table headers, keyboard navigation and focus after paging or editing; refresh edited billing values immediately.",
+    "_labels": {
+      "improvements": "Which improvements should we work through?",
+      "sql_scope": "Proposed SQL investigation — edit the scope",
+      "sql_next": "What should follow the query investigation?",
+      "table_approach": "Which table approach should we investigate?",
+      "pagination_plan": "Proposed pagination behavior — edit it"
+    },
+    "_notes": "Do the query-plan investigation first. We learned that keyboard users rely on the full table, so don't implement virtualization yet."
+  }
+}

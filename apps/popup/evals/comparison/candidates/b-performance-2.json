@@ -1,0 +1,89 @@
+{
+  "title": "Explore dashboard performance improvements",
+  "submit": "Prepare the next steps",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The server takes **900 ms**, including **620 ms in repeated per-account queries**. Rendering the **2,000-row table takes another 350 ms**. We can work on SQL and the frontend together. Billing must be fresh after edits, search must cover every row, and the proposals below use existing infrastructure."
+    },
+    {
+      "multi": "Which improvements should we explore together?",
+      "id": "improvements",
+      "options": [
+        {
+          "value": "Inspect the query plan",
+          "description": "Establish how the database executes the queries before choosing a SQL change."
+        },
+        {
+          "value": "Batch per-account queries",
+          "description": "Replace repeated queries with set-based SQL; promising for the 620 ms hotspot, but verify the plan and results."
+        },
+        {
+          "value": "Render fewer table rows",
+          "description": "Reduce browser work while retaining all rows in search; changes how users navigate the table."
+        }
+      ],
+      "default": [
+        "Inspect the query plan",
+        "Batch per-account queries",
+        "Render fewer table rows"
+      ],
+      "Batch per-account queries": [
+        {
+          "text": "Compare the current queries with a batched version and check billing correctness after edits. No delayed billing cache."
+        },
+        {
+          "check": "Also explore reusing summary results for up to 30 seconds",
+          "id": "summary_reuse",
+          "default": false,
+          "reveals": [
+            {
+              "text": "This can reduce repeated summary work using existing infrastructure, at the cost of briefly stale reporting. Keep it separate from billing reads and check refresh behavior after edits."
+            }
+          ]
+        }
+      ],
+      "Render fewer table rows": [
+        {
+          "select": "Which table approach should we compare?",
+          "id": "table_approach",
+          "options": [
+            {
+              "value": "Pagination",
+              "description": "Render one page at a time; simpler navigation, but users must move between pages."
+            },
+            {
+              "value": "Virtual scrolling",
+              "description": "Render the visible window while preserving continuous scrolling; requires careful keyboard and accessibility checks."
+            },
+            {
+              "value": "Compare both first",
+              "description": "Assess navigation and rendering costs before committing to a table design."
+            }
+          ],
+          "default": "Compare both first",
+          "reveals": [
+            {
+              "text": "Search will run across the full dataset before pagination or virtualization. Compare keyboard navigation and access to all rows as well as rendering time."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "select": "What should the next step produce?",
+      "id": "next_step",
+      "options": [
+        {
+          "value": "Investigation and recommendation",
+          "description": "Inspect the selected areas and compare options before changing behavior."
+        },
+        {
+          "value": "A measured prototype",
+          "description": "Try the selected SQL and frontend changes after baseline and query-plan checks; verify freshness, full-data search, and navigation."
+        }
+      ],
+      "default": "Investigation and recommendation"
+    }
+  ]
+}

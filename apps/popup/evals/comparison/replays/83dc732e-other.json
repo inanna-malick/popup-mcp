@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-83dc732e",
+  "submissionId": "eval-83dc732e-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_steps": [
+      "Other (please specify)"
+    ],
+    "ci_steps_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "platform_policy": "Keep Linux, macOS, and Windows on every code PR",
+    "_labels": {
+      "ci_steps": "What should we work on?",
+      "ci_steps_other_text": "Please specify",
+      "platform_policy": "Platform coverage for code PRs"
+    }
+  }
+}

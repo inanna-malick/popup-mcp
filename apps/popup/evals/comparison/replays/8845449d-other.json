@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-8845449d",
+  "submissionId": "eval-8845449d-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "possibilities": [
+      "Other (please specify)"
+    ],
+    "possibilities_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment.",
+    "setting_bends": "",
+    "_labels": {
+      "possibilities": "Which possibilities should we follow?",
+      "possibilities_other_text": "Please specify",
+      "setting_bends": "What would you bend, add, or leave unresolved?"
+    }
+  }
+}

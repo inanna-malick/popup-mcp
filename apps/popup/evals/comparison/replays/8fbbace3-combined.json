@@ -1,0 +1,24 @@
+{
+  "type": "popup_result",
+  "formId": "eval-8fbbace3",
+  "submissionId": "eval-8fbbace3-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Batch the account queries",
+      "Render fewer table rows"
+    ],
+    "sql_step": "Investigate plans first",
+    "sql_investigation": "Capture the repeated SQL and its query count; inspect execution plans using an appropriate safe environment; identify whether round trips, scans or joins dominate; return a batching proposal with correctness risks and a benchmark design. Stop before implementation if representative data or safe execution is unavailable.",
+    "table_approach": "Inspect usage before changing the table",
+    "table_investigation": "Profile which table work accounts for the 350 ms and inspect search, sorting, keyboard navigation and accessibility behavior. Determine whether pagination or virtualization can preserve required workflows. Return a measured proposal before changing the table.",
+    "_labels": {
+      "improvements": "Which improvements should we work through together?",
+      "sql_step": "How far should the SQL work go next?",
+      "sql_investigation": "Proposed investigation deliverable — edit it",
+      "table_approach": "Which table approach should we investigate?",
+      "table_investigation": "Proposed table investigation — edit it"
+    }
+  }
+}

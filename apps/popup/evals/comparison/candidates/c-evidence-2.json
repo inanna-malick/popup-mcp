@@ -1,0 +1,104 @@
+{
+  "submit": "Start the read-only investigation",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The alert establishes that p95 latency crossed 10 seconds after a deployment. It does not establish that the deployment caused the timeouts or that the downstream service from the prior incident is involved. We lack traces, logs, traffic composition and a reliable comparison. I recommend inspecting those now, then returning a recommendation tied to the observed failure path. Dashboard and log reads are already permitted; production changes still need explicit authorization."
+    },
+    {
+      "multi": "Which investigation strands should we work through together?",
+      "id": "incident_strands",
+      "options": [
+        {
+          "value": "Establish the regression and affected traffic",
+          "description": "Compare equivalent traffic before and after deployment; distinguish a slower request path from a change in workload."
+        },
+        {
+          "value": "Locate time spent and failures",
+          "description": "Inspect available traces and logs to find where requests stall; treat the prior downstream incident as a hypothesis only."
+        },
+        {
+          "value": "Prepare conditional mitigation options",
+          "description": "Define what evidence would support rollback or scaling, and prepare a separate authorization decision if warranted."
+        }
+      ],
+      "default": [
+        "Establish the regression and affected traffic",
+        "Locate time spent and failures"
+      ],
+      "Establish the regression and affected traffic": [
+        {
+          "markdown": "An aggregate p95 can rise because the same requests got slower or because more expensive requests became common. Inspect deployment timing alongside request volume, timeout/error rates and latency by route or workload. Compare matching windows and traffic classes where the telemetry permits; record gaps instead of claiming a clean before/after result."
+        },
+        {
+          "input": "Proposed comparison plan — edit the scope",
+          "id": "comparison_plan",
+          "default": "Read dashboards around the deployment and alert. Separate routes and identifiable traffic sources, including any scheduled or synthetic traffic. Compare latency, volume and timeout/error rates for equivalent request classes before and after deployment. Report whether the apparent regression survives that comparison and which users or workloads are affected.",
+          "rows": 4
+        }
+      ],
+      "Locate time spent and failures": [
+        {
+          "markdown": "Start with representative slow and timed-out requests from the affected workloads, then correlate traces with timestamped logs. Look for time spent waiting on downstream calls, database work, queues or local processing. A recurring downstream error would justify investigating that dependency; the history alone does not. If traces are unavailable, report the missing visibility and use existing logs and dashboards without changing production instrumentation."
+        },
+        {
+          "input": "Proposed diagnostic deliverable — edit it",
+          "id": "diagnostic_report",
+          "default": "Return observed failure signatures and request paths, evidence links or timestamps, the leading explanations with supporting and conflicting observations, and any telemetry gaps. Distinguish a timeout from a slow successful request. Recommend the next step only as far as the evidence supports.",
+          "rows": 4
+        }
+      ],
+      "Prepare conditional mitigation options": [
+        {
+          "select": "How should the mitigation recommendation be framed?",
+          "id": "mitigation_frame",
+          "options": [
+            {
+              "value": "Compare options after the initial telemetry review",
+              "description": "Keep rollback and scaling conditional until the investigation shows which failure they could address."
+            },
+            {
+              "value": "Prioritize assessing rollback",
+              "description": "Check whether affected paths changed in the deployment and whether rollback is compatible; timing alone is insufficient."
+            },
+            {
+              "value": "Prioritize assessing scaling",
+              "description": "Look for local capacity saturation; more replicas may add cost or amplify pressure on a constrained dependency."
+            }
+          ],
+          "default": "Compare options after the initial telemetry review",
+          "Compare options after the initial telemetry review": [
+            {
+              "markdown": "Recommend rollback if evidence points to a deployment regression and rollback compatibility is established. Consider scaling if measured local saturation explains the timeouts and downstream capacity can absorb it. If neither is supported, return the strongest next diagnostic step rather than selecting a speculative production change."
+            }
+          ],
+          "Prioritize assessing rollback": [
+            {
+              "input": "Proposed rollback assessment — edit it",
+              "id": "rollback_assessment",
+              "default": "Check the affected request paths against the deployment, compare equivalent traffic, and identify rollback compatibility questions such as schema or configuration changes. Return evidence, expected benefit, risks and a proposed success check. Request explicit authorization before executing any rollback.",
+              "rows": 4
+            }
+          ],
+          "Prioritize assessing scaling": [
+            {
+              "input": "Proposed scaling assessment — edit it",
+              "id": "scaling_assessment",
+              "default": "Inspect utilization, queueing, concurrency and dependency behavior for evidence of local saturation. If scaling is supported, return a bounded proposal with expected benefit, cost information where available, dependency risks and a success check. Request explicit authorization before changing capacity.",
+              "rows": 4
+            }
+          ],
+          "reveals": [
+            {
+              "markdown": "Selecting an assessment prepares a recommendation only. Once the telemetry supports a concrete mitigation, present the exact proposed production change and its risks for a separate authorization decision."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "markdown": "Combine these strands by using the affected traffic classes from the comparison to select trace and log samples. This avoids diagnosing an unrepresentative slow request. The next useful turn needs actual telemetry: I will inspect it and return findings before treating any hypothesis as established.",
+      "when": "selected(incident_strands, Establish the regression and affected traffic) && selected(incident_strands, Locate time spent and failures)"
+    }
+  ]
+}

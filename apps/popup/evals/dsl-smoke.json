@@ -1,0 +1,185 @@
+{
+  "submit": "Choose these investigations",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "You observed recommended directions already selected and expanded before you chose anything. We have not run the tests below. A useful hypothesis is that recommendation, selection and expansion have become coupled; the tests separate those states and then trace their effect on submission."
+    },
+    {
+      "disclosure": "Inspect the proposed behavior without choosing an investigation",
+      "open": false,
+      "elements": [
+        {
+          "markdown": "Proposed behavior: recommendations show their reasons while exploratory directions start unselected. Selecting a direction exposes its follow-ups, and several selected directions can stay visible together. Opening this preview changes only its expansion; it does not select a direction. Closing a disclosure preserves its child answers. Deselecting a direction hides its branch, whose answers should then be omitted from submission. Whether answers are restored when that direction is selected again needs a test; it is not an observed result."
+        }
+      ]
+    },
+    {
+      "multi": "Which interaction issues should we investigate together?",
+      "id": "investigations",
+      "default": [],
+      "options": [
+        {
+          "id": "initial",
+          "label": "Initial selection and expansion",
+          "recommendation": "Directly reproduces the unexpected selection you reported.",
+          "children": [
+            {
+              "markdown": "Open a fresh form before touching any controls. Compare recommended and ordinary directions with no selection defaults. Expected proposal: neither starts selected; their option branches stay hidden, and recommendation reasons remain visible. Then select one direction and check that only its branch appears."
+            },
+            {
+              "multi": "Choose initial-state tests",
+              "id": "initial_tests",
+              "options": [
+                {
+                  "id": "fresh",
+                  "label": "Fresh form with recommendations and no defaults",
+                  "description": "Record selected indicators and visible branches before any interaction."
+                },
+                {
+                  "id": "recommendation_only",
+                  "label": "Compare otherwise identical options with and without a recommendation",
+                  "description": "Check whether adding a recommendation changes selection or expansion."
+                },
+                {
+                  "id": "explicit_default",
+                  "label": "Compare empty defaults with one explicit default",
+                  "description": "Separate intentional initial selection from recommendation-driven selection."
+                }
+              ]
+            },
+            {
+              "multi": "Choose initial-state observations to capture",
+              "id": "initial_evidence",
+              "options": [
+                {
+                  "id": "before_click",
+                  "label": "Selected indicators and expanded branches before the first click"
+                },
+                {
+                  "id": "after_click",
+                  "label": "Selection and branch visibility after choosing one direction"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "visibility",
+          "label": "Hide and reopen branches",
+          "recommendation": "Distinguishes visual collapse from removing a selected direction.",
+          "children": [
+            {
+              "markdown": "Select a direction and answer one child control. Compare closing and reopening a disclosure with deselecting and reselecting the direction. Disclosure collapse should preserve the answer and selection. Deselecting should hide the branch and make its values unavailable to visibility conditions. Record whether reselecting restores or resets the answer; that behavior is still unknown."
+            },
+            {
+              "multi": "Choose hide/reopen tests",
+              "id": "visibility_tests",
+              "options": [
+                {
+                  "id": "collapse",
+                  "label": "Answer a child, close its disclosure, then reopen it",
+                  "description": "Check that visual collapse preserves both the answer and direction selection."
+                },
+                {
+                  "id": "deselect",
+                  "label": "Answer a child, deselect its direction, then reselect it",
+                  "description": "Observe hidden state, dependent visibility and answer restoration."
+                },
+                {
+                  "id": "siblings",
+                  "label": "Select two directions and hide only one",
+                  "description": "Check that the other direction and its answers remain visible and selected."
+                }
+              ]
+            },
+            {
+              "multi": "Choose hide/reopen observations to capture",
+              "id": "visibility_evidence",
+              "options": [
+                {
+                  "id": "state_trace",
+                  "label": "Selection, visibility and child answer at each step"
+                },
+                {
+                  "id": "dependent_trace",
+                  "label": "Whether follow-ups conditioned on a hidden answer disappear"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "submission",
+          "label": "Inspect what gets submitted",
+          "recommendation": "Checks whether unexpected UI state becomes an unintended submitted choice.",
+          "children": [
+            {
+              "markdown": "Capture the actual submitted result for each case and compare it with the visible selections immediately before Submit. Expected contract: an empty multi returns [], an unanswered visible select returns null, hidden branch fields are absent, and answers inside a closed disclosure remain included. Opening the form alone is not a submission. These are expectations to test, not results we have obtained."
+            },
+            {
+              "multi": "Choose submission tests",
+              "id": "submission_tests",
+              "options": [
+                {
+                  "id": "untouched",
+                  "label": "Submit an untouched form with recommended directions",
+                  "description": "Expect no chosen directions and no hidden branch answers."
+                },
+                {
+                  "id": "hidden_child",
+                  "label": "Answer a child, deselect its direction, then submit",
+                  "description": "Expect that direction and its hidden child fields to be omitted."
+                },
+                {
+                  "id": "closed_disclosure",
+                  "label": "Answer a disclosure child, close the disclosure, then submit",
+                  "description": "Expect the answer to remain included while its direction stays selected."
+                },
+                {
+                  "id": "two_directions",
+                  "label": "Choose two directions and submit both",
+                  "description": "Expect both selected identities and their visible child answers."
+                }
+              ]
+            },
+            {
+              "multi": "Choose submission observations to capture",
+              "id": "submission_evidence",
+              "options": [
+                {
+                  "id": "payload",
+                  "label": "Returned direction IDs and child-field presence or absence"
+                },
+                {
+                  "id": "ui_comparison",
+                  "label": "Visible state immediately before Submit compared with the returned result"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "reveals": [
+        {
+          "markdown": "Your selections define tests and evidence to collect. Submitting this form chooses the investigation scope; it does not report that any test has passed or failed. The next step is to run the selected cases and collect the selected observations."
+        }
+      ]
+    },
+    {
+      "group": "Trace visibility into submission",
+      "when": "selected(investigations, visibility) && selected(investigations, submission)",
+      "elements": [
+        {
+          "check": "Include a paired comparison of closed disclosure versus deselected branch",
+          "id": "paired_trace",
+          "reveals": [
+            {
+              "markdown": "Use the same child answer in two fresh runs. In one run close only the disclosure; in the other deselect the direction. Capture the final UI and submitted result in both. This isolates visual collapse from semantic hiding: the closed disclosure should retain the field in the result, while the deselected branch should omit it."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

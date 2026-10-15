@@ -1,0 +1,38 @@
+[
+  {
+    "file": "f-ci.json",
+    "compilerValid": true,
+    "schemaValid": true,
+    "initialWords": 314,
+    "allWords": 1001,
+    "initialControls": 3,
+    "allControls": 15
+  },
+  {
+    "file": "f-evidence.json",
+    "compilerValid": true,
+    "schemaValid": true,
+    "initialWords": 492,
+    "allWords": 530,
+    "initialControls": 4,
+    "allControls": 6
+  },
+  {
+    "file": "f-exploration.json",
+    "compilerValid": true,
+    "schemaValid": true,
+    "initialWords": 699,
+    "allWords": 976,
+    "initialControls": 7,
+    "allControls": 13
+  },
+  {
+    "file": "f-performance.json",
+    "compilerValid": true,
+    "schemaValid": true,
+    "initialWords": 312,
+    "allWords": 798,
+    "initialControls": 3,
+    "allControls": 14
+  }
+]

@@ -1,0 +1,130 @@
+{
+  "submit": "Keep exploring these possibilities",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "Your city already has a useful tension: everyone can access the archive, but access changes the person doing the remembering. Public funding makes correction a civic question; gradual change makes it a relationship question. We can explore both without settling on a protagonist or plot. Everything below is a proposed addition to the setting, open to revision."
+    },
+    {
+      "multi": "Which consequences shall we unfold together?",
+      "id": "threads",
+      "options": [
+        {
+          "value": "Correcting an official memory",
+          "description": "A correction can restore someone's dignity while disturbing people whose identities grew around the old version."
+        },
+        {
+          "value": "Relationships formed through borrowing",
+          "description": "Shared memories can create real tenderness, while leaving unclear whose feelings the relationship rests on."
+        }
+      ],
+      "default": ["Correcting an official memory", "Relationships formed through borrowing"],
+      "Correcting an official memory": [
+        {
+          "markdown": "Possibility: the archive's memory of a winter flood celebrates a ferry captain rescuing a stranded street. A laundry worker asks to add her recollection of neighbors keeping the rescue boat afloat. The captain remembers terror and has never meant to claim sole credit. A public correction could recognize overlooked labor, yet feel to his daughter like strangers rewriting the father she knows. No one needs to be lying."
+        },
+        {
+          "select": "What does a correction do to the available memory?",
+          "id": "correction_rule",
+          "options": [
+            {
+              "value": "Keep versions side by side",
+              "description": "Protects conflicting experiences, but borrowers still need a way to navigate unequal attention and credibility."
+            },
+            {
+              "value": "Change the public edition",
+              "description": "Makes recognition consequential, but raises whether a public verdict can fairly become a felt experience."
+            }
+          ],
+          "default": "Keep versions side by side",
+          "Keep versions side by side": [
+            {
+              "markdown": "Then the politics move into the catalog: the old account may remain the first result because generations borrowed it. Even a conscientious archivist must choose whether to promote the overlooked account. Intimate consequence: the daughter borrows both and discovers she can feel proud of her father and angry on the worker's behalf. Does that enlarge her love, or make it harder to tell which anger is hers?"
+            },
+            {
+              "input": "Bend the proposed catalog rule",
+              "id": "catalog_rule",
+              "default": "Anyone may propose an accompanying memory. Archive staff explain the relationship between accounts in public, and let borrowers choose which versions to experience rather than silently merging them.",
+              "rows": 3
+            }
+          ],
+          "Change the public edition": [
+            {
+              "markdown": "A civic hearing might establish whose contribution gets named, while still failing to reproduce how the night felt to everyone. The worker could win recognition and dislike the official edition's tidy sense of solidarity. A small stake: she asks her closest friend to borrow her original account before attending the dedication, because she wants one person there who remembers her fear."
+            },
+            {
+              "input": "Bend the proposed correction process",
+              "id": "edition_rule",
+              "default": "A public hearing decides the wording and selection of the current edition. Original recollections remain available, and the edition identifies what is disputed rather than claiming a single uncontested experience.",
+              "rows": 3
+            }
+          ]
+        }
+      ],
+      "Relationships formed through borrowing": [
+        {
+          "markdown": "Possibility: two neighbors separately borrow the memory of preparing a meal for someone returning from sea. They begin leaving each other portions in the same chipped bowls. The care is real, but each wonders whether they have found one another or inherited someone else's habit of waiting. The original donor is still alive and pleased that the memory helps people, yet unsettled when a stranger knows exactly how she folds a napkin."
+        },
+        {
+          "select": "Where does the tenderness become difficult?",
+          "id": "intimacy_tension",
+          "options": [
+            {
+              "value": "Borrowers grow closer to each other",
+              "description": "They share an emotional starting point but may change at different speeds and want different futures."
+            },
+            {
+              "value": "A borrower seeks out the donor",
+              "description": "An openly shared memory offers familiarity without necessarily offering a personal relationship."
+            }
+          ],
+          "default": "Borrowers grow closer to each other",
+          "Borrowers grow closer to each other": [
+            {
+              "markdown": "One neighbor keeps renewing the loan because the borrowed patience makes them kinder; the other misses their former impatience because it helped them say no. Their disagreement need not expose the relationship as false. It asks whether love can include permission to become less alike. Try a supper where one stops using the chipped bowls and the other quietly notices."
+            },
+            {
+              "input": "Bend this intimate consequence",
+              "id": "borrower_scene",
+              "default": "At supper, one neighbor asks to make a meal neither of them remembers. The other hears a wish for a shared future, and also a possible rejection of the memory that brought them together.",
+              "rows": 3
+            }
+          ],
+          "A borrower seeks out the donor": [
+            {
+              "markdown": "The donor could welcome a conversation and still decline being called by the pet name preserved in the memory. A public archive can help by offering optional introductions; it cannot make intimacy part of the loan. The borrower now has a useful, uncomfortable task: express gratitude without asking the donor to resume an old role."
+            },
+            {
+              "input": "Bend the proposed boundary",
+              "id": "donor_boundary",
+              "default": "Donors can opt into introductions separately from donating memories. This donor agrees to tea, asks for her present-day name, and wants to hear something about the borrower's own life.",
+              "rows": 3
+            }
+          ]
+        }
+      ],
+      "reveals": [
+        {
+          "input": "An unresolved rule you want to test, rather than settle yet",
+          "id": "open_rule",
+          "placeholder": "For example: do borrowed changes fade, persist, or become reversible? Leave blank and we can keep several versions alive.",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "markdown": "With both threads open, correction becomes personal: suppose the neighbors bonded through the captain's flood memory, and one later borrows the laundry worker's account. A civic correction now changes what their shared evening means. Neither has to oppose justice; one may simply grieve losing an uncomplicated memory that helped them become gentle. A benevolent public archive could host conversations between borrowers without deciding what their relationships ought to be.",
+      "when": "selected(threads, Correcting an official memory) && selected(threads, Relationships formed through borrowing)"
+    },
+    {
+      "input": "Bend the shared experiment — this is a scene seed, not a plot commitment",
+      "id": "joint_seed",
+      "default": "After a public discussion of the flood accounts, two neighbors cook together. One wants to borrow the newly added memory together; the other asks for time. Explore how both requests can be acts of care, and what the archive can offer without deciding for them.",
+      "rows": 3,
+      "when": "selected(threads, Correcting an official memory) && selected(threads, Relationships formed through borrowing)"
+    },
+    {
+      "markdown": "The next useful move is to follow one ordinary encounter under the rules you bend here and see what it reveals. We can keep incompatible versions as experiments; no final plot needs to be chosen. Notes can replace any premise above."
+    }
+  ]
+}

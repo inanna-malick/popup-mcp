@@ -1,0 +1,24 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f482a987",
+  "submissionId": "eval-f482a987-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "investigation": [
+      "Compare deployment and latency",
+      "Inspect errors and request paths",
+      "Break down workload and saturation"
+    ],
+    "prepare_mitigations": true,
+    "mitigation_candidates": [
+      "Rollback",
+      "Scaling"
+    ],
+    "_labels": {
+      "investigation": "What should the read-only investigation cover?",
+      "prepare_mitigations": "Also prepare conditional mitigation recommendations",
+      "mitigation_candidates": "Which possibilities should I assess against the evidence?"
+    }
+  }
+}

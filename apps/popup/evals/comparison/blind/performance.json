@@ -1,0 +1,1094 @@
+{
+  "task": {
+    "id": "performance",
+    "request": "The dashboard feels slow. Use popup to explore what to improve and the tradeoffs with me.",
+    "context": "A trace already shows a 900 ms server response, including 620 ms spent in repeated per-account database queries. The browser then spends 350 ms rendering a 2,000-row table. Billing data must be fresh immediately after an edit; summary reporting may lag by 30 seconds. Search must still cover all rows. We have no query plan yet. There is no approval to add infrastructure. The team can change the SQL and frontend.",
+    "combined_intent": "Explore batching the repeated queries and reducing rendered rows together; keep search across the full data set and fresh billing edits.",
+    "correction": "Do the query-plan investigation first. We learned that keyboard users rely on the full table, so don't implement virtualization yet."
+  },
+  "candidates": [
+    {
+      "id": "69b2d1b1",
+      "definition": {
+        "submit": "Set the next performance step",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "The trace gives us two concrete targets: repeated per-account queries consume 620 ms of the 900 ms server response, and rendering the 2,000-row table takes another 350 ms. Query work is the larger measured opportunity, but eliminating all 620 ms is not a realistic promise. We still need a query plan to distinguish repeated round trips from expensive scans or joins. The remaining server work also needs to stay visible in measurements."
+          },
+          {
+            "markdown": "I propose investigating a batched SQL read and a smaller rendered table together. They address separate costs and fit the team's ability to change SQL and frontend. Billing must remain fresh immediately after edits, and search must cover the entire data set even when fewer rows are displayed. A 30-second reporting cache is a separate possibility only for summaries; no new infrastructure is assumed."
+          },
+          {
+            "multi": "Which improvements should we work through?",
+            "id": "improvements",
+            "options": [
+              {
+                "value": "Batch the account queries",
+                "description": "Address the measured 620 ms query component; inspect the plan before choosing SQL or indexes."
+              },
+              {
+                "value": "Render fewer table rows",
+                "description": "Address the measured 350 ms rendering component while keeping full-data search and usable table navigation."
+              },
+              {
+                "value": "Allow brief summary staleness",
+                "description": "Explore up to 30 seconds of lag for reporting only; the trace has not established that summary caching would help."
+              }
+            ],
+            "default": [
+              "Batch the account queries",
+              "Render fewer table rows"
+            ],
+            "Batch the account queries": [
+              {
+                "input": "Proposed SQL investigation — edit the scope",
+                "id": "sql_scope",
+                "default": "Inspect the repeated account-query call sites and query plans using representative data. Compare the current path with a batched read, preserving account permissions, filters, row counts and ordering. Check join fan-out and payload size before proposing SQL or index changes. Report the plan and measured costs first.",
+                "rows": 4
+              },
+              {
+                "select": "What should follow the query investigation?",
+                "id": "sql_next",
+                "options": [
+                  {
+                    "value": "Review the findings first",
+                    "description": "Keep the next step focused on evidence; choose the SQL change once we know why the queries are slow."
+                  },
+                  {
+                    "value": "Try a local batching prototype",
+                    "description": "Compare a candidate with the existing path after inspecting the plan; extra complexity must earn a measured gain."
+                  }
+                ],
+                "default": "Review the findings first",
+                "Review the findings first": [
+                  {
+                    "markdown": "The investigation should return the dominant cost, a concrete SQL proposal, and its correctness risks. If repeated round trips dominate, batching is a strong candidate; if scans or join expansion dominate, the plan may point elsewhere. We cannot select an index or predict a speedup from this trace alone."
+                  }
+                ],
+                "Try a local batching prototype": [
+                  {
+                    "input": "Proposed freshness and correctness checks",
+                    "id": "sql_checks",
+                    "default": "Compare results against the existing query path across representative accounts and filters. After a billing edit, refetch authoritative billing data and verify the updated value appears immediately; do not route billing reads through a stale summary cache. Measure query count, database time and total server response on the same workload.",
+                    "rows": 4
+                  }
+                ]
+              }
+            ],
+            "Render fewer table rows": [
+              {
+                "select": "Which table approach should we investigate?",
+                "id": "table_approach",
+                "options": [
+                  {
+                    "value": "Pagination",
+                    "description": "Render one page of matching rows; introduce page navigation and verify keyboard focus and result counts."
+                  },
+                  {
+                    "value": "Virtualization",
+                    "description": "Render a moving window; preserves scrolling but needs evidence about keyboard, assistive-technology and browser-find behavior."
+                  },
+                  {
+                    "value": "Keep the full table and profile rendering",
+                    "description": "Preserve full-table interaction while checking expensive cells and unnecessary rerenders; savings are uncertain."
+                  }
+                ],
+                "default": "Pagination",
+                "Pagination": [
+                  {
+                    "input": "Proposed pagination behavior — edit it",
+                    "id": "pagination_plan",
+                    "default": "Start with a prototype displaying 50 matching rows per page. Search and sort across all rows before slicing a page, show total matches, and reset to the first page when the search changes. Preserve table headers, keyboard navigation and focus after paging or editing; refresh edited billing values immediately.",
+                    "rows": 4
+                  },
+                  {
+                    "markdown": "Searching only the displayed page would violate your requirement. We need to inspect whether search currently runs over all loaded rows or on the server before choosing where pagination belongs. The proposed page size is a benchmark starting point, not an established optimum."
+                  }
+                ],
+                "Virtualization": [
+                  {
+                    "markdown": "Virtualization removes off-screen rows from the rendered table. Search must still run over the full data set. Before implementing it, inspect keyboard and assistive-technology workflows, including finding and focusing an off-screen result; browser find may no longer cover every row. If users depend on the complete rendered table, preserve that workflow and investigate another rendering change."
+                  },
+                  {
+                    "input": "Proposed virtualization investigation",
+                    "id": "virtualization_scope",
+                    "default": "Inspect existing keyboard navigation, screen-reader semantics, browser-find expectations and row-edit behavior. Prototype only after those requirements are understood, with full-data search and explicit focus handling for off-screen results.",
+                    "rows": 3
+                  }
+                ],
+                "Keep the full table and profile rendering": [
+                  {
+                    "input": "Proposed rendering investigation",
+                    "id": "render_scope",
+                    "default": "Profile initial rendering and a billing edit with all 2,000 rows present. Identify expensive cells, layout work and rows rerendered unnecessarily. Propose targeted changes that preserve search, table semantics, navigation and immediate billing updates.",
+                    "rows": 3
+                  }
+                ]
+              }
+            ],
+            "Allow brief summary staleness": [
+              {
+                "markdown": "A 30-second allowance creates room to reuse summary results, but it does not prove caching will reduce this request's cost. First identify which query work belongs to summaries and whether existing application facilities can reuse those results. Billing edit responses and authoritative billing reads must remain fresh. Infrastructure additions require a separate decision."
+              },
+              {
+                "input": "Proposed summary boundary — edit assumptions",
+                "id": "summary_boundary",
+                "default": "Investigate reuse only for summary reporting, with a maximum age of 30 seconds. Keep billing edit results and billing reads authoritative and fresh. Verify permissions and tenant boundaries in any reuse key, and use existing application facilities only. If safe reuse is unavailable, report that constraint before proposing infrastructure.",
+                "rows": 4
+              }
+            ],
+            "reveals": [
+              {
+                "markdown": "These defaults are editable proposals. The next step should establish missing evidence before committing to an implementation: query plans for SQL, current search and navigation behavior for the table, and a clear reporting boundary for any stale summaries."
+              }
+            ]
+          },
+          {
+            "markdown": "With batching and table work selected, measure each separately and then together on the same representative account set and search. Record database time, total server response and browser rendering time independently so one improvement does not conceal a regression in the other. In every comparison, verify full-data search and immediate billing updates.",
+            "when": "selected(improvements, Batch the account queries) && selected(improvements, Render fewer table rows)"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "improvements",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Batch the account queries",
+              "description": "Address the measured 620 ms query component; inspect the plan before choosing SQL or indexes."
+            },
+            {
+              "value": "Render fewer table rows",
+              "description": "Address the measured 350 ms rendering component while keeping full-data search and usable table navigation."
+            },
+            {
+              "value": "Allow brief summary staleness",
+              "description": "Explore up to 30 seconds of lag for reporting only; the trace has not established that summary caching would help."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "sql_scope",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "improvements",
+            "option": "Batch the account queries"
+          }
+        },
+        {
+          "id": "sql_next",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Review the findings first",
+              "description": "Keep the next step focused on evidence; choose the SQL change once we know why the queries are slow."
+            },
+            {
+              "value": "Try a local batching prototype",
+              "description": "Compare a candidate with the existing path after inspecting the plan; extra complexity must earn a measured gain."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "improvements",
+            "option": "Batch the account queries"
+          }
+        },
+        {
+          "id": "sql_checks",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Batch the account queries[1]",
+          "gate": {
+            "id": "sql_next",
+            "option": "Try a local batching prototype"
+          }
+        },
+        {
+          "id": "sql_next_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Batch the account queries[1]",
+          "gate": {
+            "id": "sql_next",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "table_approach",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Pagination",
+              "description": "Render one page of matching rows; introduce page navigation and verify keyboard focus and result counts."
+            },
+            {
+              "value": "Virtualization",
+              "description": "Render a moving window; preserves scrolling but needs evidence about keyboard, assistive-technology and browser-find behavior."
+            },
+            {
+              "value": "Keep the full table and profile rendering",
+              "description": "Preserve full-table interaction while checking expensive cells and unnecessary rerenders; savings are uncertain."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "improvements",
+            "option": "Render fewer table rows"
+          }
+        },
+        {
+          "id": "pagination_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Pagination"
+          }
+        },
+        {
+          "id": "virtualization_scope",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Virtualization"
+          }
+        },
+        {
+          "id": "render_scope",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Keep the full table and profile rendering"
+          }
+        },
+        {
+          "id": "table_approach_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "summary_boundary",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "improvements",
+            "option": "Allow brief summary staleness"
+          }
+        },
+        {
+          "id": "improvements_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "improvements",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "sql_scope": "Inspect the repeated account-query call sites and query plans using representative data. Compare the current path with a batched read, preserving account permissions, filters, row counts and ordering. Check join fan-out and payload size before proposing SQL or index changes. Report the plan and measured costs first.",
+        "sql_checks": "Compare results against the existing query path across representative accounts and filters. After a billing edit, refetch authoritative billing data and verify the updated value appears immediately; do not route billing reads through a stale summary cache. Measure query count, database time and total server response on the same workload.",
+        "sql_next_other_text": "",
+        "sql_next": "Review the findings first",
+        "pagination_plan": "Start with a prototype displaying 50 matching rows per page. Search and sort across all rows before slicing a page, show total matches, and reset to the first page when the search changes. Preserve table headers, keyboard navigation and focus after paging or editing; refresh edited billing values immediately.",
+        "virtualization_scope": "Inspect existing keyboard navigation, screen-reader semantics, browser-find expectations and row-edit behavior. Prototype only after those requirements are understood, with full-data search and explicit focus handling for off-screen results.",
+        "render_scope": "Profile initial rendering and a billing edit with all 2,000 rows present. Identify expensive cells, layout work and rows rerendered unnecessarily. Propose targeted changes that preserve search, table semantics, navigation and immediate billing updates.",
+        "table_approach_other_text": "",
+        "table_approach": "Pagination",
+        "summary_boundary": "Investigate reuse only for summary reporting, with a maximum age of 30 seconds. Keep billing edit results and billing reads authoritative and fresh. Verify permissions and tenant boundaries in any reuse key, and use existing application facilities only. If safe reuse is unavailable, report that constraint before proposing infrastructure.",
+        "improvements_other_text": "",
+        "improvements": [
+          "Batch the account queries",
+          "Render fewer table rows"
+        ]
+      }
+    },
+    {
+      "id": "8fbbace3",
+      "definition": {
+        "submit": "Use this performance plan",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "The trace identifies two separate costs: **900 ms on the server**, including **620 ms in repeated per-account queries**, followed by **350 ms rendering 2,000 rows**. I would investigate batching first and explore rendering improvements alongside it. The timings identify useful targets, but do not establish the savings: we have no query plan, and a combined query could still scan or join too much data. SQL and frontend changes are available; adding infrastructure is outside the current scope."
+          },
+          {
+            "multi": "Which improvements should we work through together?",
+            "id": "improvements",
+            "options": [
+              {
+                "value": "Batch the account queries",
+                "description": "Targets the measured 620 ms; inspect plans and preserve account boundaries and billing correctness before rewriting SQL."
+              },
+              {
+                "value": "Render fewer table rows",
+                "description": "Targets the measured 350 ms; pagination or virtualization must preserve search across all rows and usable navigation."
+              },
+              {
+                "value": "Allow summary reporting to lag",
+                "description": "Up to 30 seconds is acceptable for summaries; benefit is unmeasured and billing edits must still appear immediately."
+              }
+            ],
+            "default": [
+              "Batch the account queries",
+              "Render fewer table rows"
+            ],
+            "Batch the account queries": [
+              {
+                "markdown": "Batching is a hypothesis, not yet a proven fix. Inspect the repeated query shape, query count, parameters and execution plans on a representative workload. Compare a set-based or bulk-fetch alternative, checking row counts and per-account results; reducing round trips can help while a large join can introduce duplication or extra work."
+              },
+              {
+                "select": "How far should the SQL work go next?",
+                "id": "sql_step",
+                "options": [
+                  {
+                    "value": "Investigate plans first",
+                    "description": "Return evidence and a concrete SQL proposal before implementing; the missing plan is the next uncertainty to resolve."
+                  },
+                  {
+                    "value": "Investigate and benchmark a prototype",
+                    "description": "Compare a local or test SQL rewrite with the baseline, subject to finding a safe representative workload."
+                  }
+                ],
+                "default": "Investigate plans first",
+                "Investigate plans first": [
+                  {
+                    "input": "Proposed investigation deliverable — edit it",
+                    "id": "sql_investigation",
+                    "default": "Capture the repeated SQL and its query count; inspect execution plans using an appropriate safe environment; identify whether round trips, scans or joins dominate; return a batching proposal with correctness risks and a benchmark design. Stop before implementation if representative data or safe execution is unavailable.",
+                    "rows": 4
+                  }
+                ],
+                "Investigate and benchmark a prototype": [
+                  {
+                    "input": "Proposed prototype guardrails — edit them",
+                    "id": "sql_prototype",
+                    "default": "After inspecting plans, prototype one batched SQL path in a test environment. Compare identical account sets, result values, query count and response timings with the baseline. Preserve account access boundaries and immediate post-edit billing reads. Report findings before adopting the rewrite.",
+                    "rows": 4
+                  }
+                ]
+              }
+            ],
+            "Render fewer table rows": [
+              {
+                "markdown": "Fewer mounted rows should reduce browser work, but changing what is displayed must not narrow what can be searched. Pagination is explicit and easier to reason about; virtualization keeps scrolling continuous but needs careful keyboard, focus and assistive-technology handling. We have not established how users navigate the full table."
+              },
+              {
+                "select": "Which table approach should we investigate?",
+                "id": "table_approach",
+                "options": [
+                  {
+                    "value": "Pagination",
+                    "description": "Display a bounded page; apply search and sorting to the full dataset before selecting that page. Users must move between pages."
+                  },
+                  {
+                    "value": "Virtualized scrolling",
+                    "description": "Mount visible rows plus a buffer; preserve full-data search and test keyboard navigation and focus across unmounted rows."
+                  },
+                  {
+                    "value": "Inspect usage before changing the table",
+                    "description": "Keep the current table while checking browser costs and navigation needs; propose an approach from that evidence."
+                  }
+                ],
+                "default": "Inspect usage before changing the table",
+                "Pagination": [
+                  {
+                    "input": "Proposed pagination experiment — edit it",
+                    "id": "pagination_plan",
+                    "default": "Prototype 50 rows per page as a starting point. Search and sort the full dataset before paging, show total matches, and reset to the first page on a new search. Verify an off-page account is found and that a billing edit is immediately visible. Compare rendering time and keyboard navigation with the current table.",
+                    "rows": 4
+                  }
+                ],
+                "Virtualized scrolling": [
+                  {
+                    "input": "Proposed virtualization experiment — edit it",
+                    "id": "virtualization_plan",
+                    "default": "Prototype viewport-based row mounting with a small buffer. Keep search over the full dataset. Test keyboard traversal, focus retention, screen-reader access and locating off-screen results before choosing a library or adopting the change. Benchmark rendering on the same 2,000-row workload; retain the current table if navigation cannot be preserved.",
+                    "rows": 4
+                  }
+                ],
+                "Inspect usage before changing the table": [
+                  {
+                    "input": "Proposed table investigation — edit it",
+                    "id": "table_investigation",
+                    "default": "Profile which table work accounts for the 350 ms and inspect search, sorting, keyboard navigation and accessibility behavior. Determine whether pagination or virtualization can preserve required workflows. Return a measured proposal before changing the table.",
+                    "rows": 3
+                  }
+                ]
+              }
+            ],
+            "Allow summary reporting to lag": [
+              {
+                "markdown": "A separate summary freshness policy could avoid repeated computation, but we do not know how much summary work contributes to this trace. First inspect the existing data path and any existing cache. A 30-second allowance is a maximum age, not permission to return stale billing data after an edit or to add a new service."
+              },
+              {
+                "input": "Proposed summary policy — edit it",
+                "id": "summary_policy",
+                "default": "Investigate whether summaries can reuse results for at most 30 seconds using the existing application architecture. Keep billing reads separate and fresh immediately after edits. Check account scoping and stale-result behavior. If the approach requires new infrastructure or contributes little measured savings, report that before proceeding.",
+                "rows": 4
+              }
+            ]
+          },
+          {
+            "markdown": "With SQL and rendering work selected, measure each separately before combining them. Use the same account set and 2,000-row workload to compare server response time, repeated-query time and browser rendering. Include a search for an initially undisplayed row and an immediate read after a billing edit. This distinguishes faster SQL from fewer mounted rows and catches a fast result that is stale or incomplete.",
+            "when": "selected(improvements, Batch the account queries) && selected(improvements, Render fewer table rows)"
+          },
+          {
+            "markdown": "If batching and summary reuse are explored together, retain a fresh billing path while measuring summary behavior independently. A cached response could otherwise conceal the cost of the SQL rewrite; a faster response cannot establish correct freshness.",
+            "when": "selected(improvements, Batch the account queries) && selected(improvements, Allow summary reporting to lag)"
+          },
+          {
+            "markdown": "These defaults are editable proposals. Submission chooses the next investigation or experiment; unknown query plans, table usage and summary costs still need evidence before we can promise an improvement. Add a note for constraints or corrections that change the plan."
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "improvements",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Batch the account queries",
+              "description": "Targets the measured 620 ms; inspect plans and preserve account boundaries and billing correctness before rewriting SQL."
+            },
+            {
+              "value": "Render fewer table rows",
+              "description": "Targets the measured 350 ms; pagination or virtualization must preserve search across all rows and usable navigation."
+            },
+            {
+              "value": "Allow summary reporting to lag",
+              "description": "Up to 30 seconds is acceptable for summaries; benefit is unmeasured and billing edits must still appear immediately."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "sql_step",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Investigate plans first",
+              "description": "Return evidence and a concrete SQL proposal before implementing; the missing plan is the next uncertainty to resolve."
+            },
+            {
+              "value": "Investigate and benchmark a prototype",
+              "description": "Compare a local or test SQL rewrite with the baseline, subject to finding a safe representative workload."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Batch the account queries"
+          }
+        },
+        {
+          "id": "sql_investigation",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Batch the account queries[1]",
+          "gate": {
+            "id": "sql_step",
+            "option": "Investigate plans first"
+          }
+        },
+        {
+          "id": "sql_prototype",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Batch the account queries[1]",
+          "gate": {
+            "id": "sql_step",
+            "option": "Investigate and benchmark a prototype"
+          }
+        },
+        {
+          "id": "sql_step_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Batch the account queries[1]",
+          "gate": {
+            "id": "sql_step",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "table_approach",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Pagination",
+              "description": "Display a bounded page; apply search and sorting to the full dataset before selecting that page. Users must move between pages."
+            },
+            {
+              "value": "Virtualized scrolling",
+              "description": "Mount visible rows plus a buffer; preserve full-data search and test keyboard navigation and focus across unmounted rows."
+            },
+            {
+              "value": "Inspect usage before changing the table",
+              "description": "Keep the current table while checking browser costs and navigation needs; propose an approach from that evidence."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Render fewer table rows"
+          }
+        },
+        {
+          "id": "pagination_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[1]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Pagination"
+          }
+        },
+        {
+          "id": "virtualization_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[1]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Virtualized scrolling"
+          }
+        },
+        {
+          "id": "table_investigation",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[1]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Inspect usage before changing the table"
+          }
+        },
+        {
+          "id": "table_approach_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[1]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "summary_policy",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Allow summary reporting to lag"
+          }
+        },
+        {
+          "id": "improvements_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "sql_investigation": "Capture the repeated SQL and its query count; inspect execution plans using an appropriate safe environment; identify whether round trips, scans or joins dominate; return a batching proposal with correctness risks and a benchmark design. Stop before implementation if representative data or safe execution is unavailable.",
+        "sql_prototype": "After inspecting plans, prototype one batched SQL path in a test environment. Compare identical account sets, result values, query count and response timings with the baseline. Preserve account access boundaries and immediate post-edit billing reads. Report findings before adopting the rewrite.",
+        "sql_step_other_text": "",
+        "sql_step": "Investigate plans first",
+        "pagination_plan": "Prototype 50 rows per page as a starting point. Search and sort the full dataset before paging, show total matches, and reset to the first page on a new search. Verify an off-page account is found and that a billing edit is immediately visible. Compare rendering time and keyboard navigation with the current table.",
+        "virtualization_plan": "Prototype viewport-based row mounting with a small buffer. Keep search over the full dataset. Test keyboard traversal, focus retention, screen-reader access and locating off-screen results before choosing a library or adopting the change. Benchmark rendering on the same 2,000-row workload; retain the current table if navigation cannot be preserved.",
+        "table_investigation": "Profile which table work accounts for the 350 ms and inspect search, sorting, keyboard navigation and accessibility behavior. Determine whether pagination or virtualization can preserve required workflows. Return a measured proposal before changing the table.",
+        "table_approach_other_text": "",
+        "table_approach": "Inspect usage before changing the table",
+        "summary_policy": "Investigate whether summaries can reuse results for at most 30 seconds using the existing application architecture. Keep billing reads separate and fresh immediately after edits. Check account scoping and stale-result behavior. If the approach requires new infrastructure or contributes little measured savings, report that before proceeding.",
+        "improvements_other_text": "",
+        "improvements": [
+          "Batch the account queries",
+          "Render fewer table rows"
+        ]
+      }
+    },
+    {
+      "id": "905e2410",
+      "definition": {
+        "title": "Explore dashboard performance improvements",
+        "submit": "Prepare the next steps",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "The server takes **900 ms**, including **620 ms in repeated per-account queries**. Rendering the **2,000-row table takes another 350 ms**. We can work on SQL and the frontend together. Billing must be fresh after edits, search must cover every row, and the proposals below use existing infrastructure."
+          },
+          {
+            "multi": "Which improvements should we explore together?",
+            "id": "improvements",
+            "options": [
+              {
+                "value": "Inspect the query plan",
+                "description": "Establish how the database executes the queries before choosing a SQL change."
+              },
+              {
+                "value": "Batch per-account queries",
+                "description": "Replace repeated queries with set-based SQL; promising for the 620 ms hotspot, but verify the plan and results."
+              },
+              {
+                "value": "Render fewer table rows",
+                "description": "Reduce browser work while retaining all rows in search; changes how users navigate the table."
+              }
+            ],
+            "default": [
+              "Inspect the query plan",
+              "Batch per-account queries",
+              "Render fewer table rows"
+            ],
+            "Batch per-account queries": [
+              {
+                "text": "Compare the current queries with a batched version and check billing correctness after edits. No delayed billing cache."
+              },
+              {
+                "check": "Also explore reusing summary results for up to 30 seconds",
+                "id": "summary_reuse",
+                "default": false,
+                "reveals": [
+                  {
+                    "text": "This can reduce repeated summary work using existing infrastructure, at the cost of briefly stale reporting. Keep it separate from billing reads and check refresh behavior after edits."
+                  }
+                ]
+              }
+            ],
+            "Render fewer table rows": [
+              {
+                "select": "Which table approach should we compare?",
+                "id": "table_approach",
+                "options": [
+                  {
+                    "value": "Pagination",
+                    "description": "Render one page at a time; simpler navigation, but users must move between pages."
+                  },
+                  {
+                    "value": "Virtual scrolling",
+                    "description": "Render the visible window while preserving continuous scrolling; requires careful keyboard and accessibility checks."
+                  },
+                  {
+                    "value": "Compare both first",
+                    "description": "Assess navigation and rendering costs before committing to a table design."
+                  }
+                ],
+                "default": "Compare both first",
+                "reveals": [
+                  {
+                    "text": "Search will run across the full dataset before pagination or virtualization. Compare keyboard navigation and access to all rows as well as rendering time."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "select": "What should the next step produce?",
+            "id": "next_step",
+            "options": [
+              {
+                "value": "Investigation and recommendation",
+                "description": "Inspect the selected areas and compare options before changing behavior."
+              },
+              {
+                "value": "A measured prototype",
+                "description": "Try the selected SQL and frontend changes after baseline and query-plan checks; verify freshness, full-data search, and navigation."
+              }
+            ],
+            "default": "Investigation and recommendation"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "improvements",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Inspect the query plan",
+              "description": "Establish how the database executes the queries before choosing a SQL change."
+            },
+            {
+              "value": "Batch per-account queries",
+              "description": "Replace repeated queries with set-based SQL; promising for the 620 ms hotspot, but verify the plan and results."
+            },
+            {
+              "value": "Render fewer table rows",
+              "description": "Reduce browser work while retaining all rows in search; changes how users navigate the table."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "summary_reuse",
+          "kind": "check",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Batch per-account queries"
+          }
+        },
+        {
+          "id": "table_approach",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Pagination",
+              "description": "Render one page at a time; simpler navigation, but users must move between pages."
+            },
+            {
+              "value": "Virtual scrolling",
+              "description": "Render the visible window while preserving continuous scrolling; requires careful keyboard and accessibility checks."
+            },
+            {
+              "value": "Compare both first",
+              "description": "Assess navigation and rendering costs before committing to a table design."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Render fewer table rows"
+          }
+        },
+        {
+          "id": "table_approach_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "improvements_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "next_step",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Investigation and recommendation",
+              "description": "Inspect the selected areas and compare options before changing behavior."
+            },
+            {
+              "value": "A measured prototype",
+              "description": "Try the selected SQL and frontend changes after baseline and query-plan checks; verify freshness, full-data search, and navigation."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "next_step_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "next_step",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "summary_reuse": false,
+        "table_approach_other_text": "",
+        "table_approach": "Compare both first",
+        "improvements_other_text": "",
+        "improvements": [
+          "Inspect the query plan",
+          "Batch per-account queries",
+          "Render fewer table rows"
+        ],
+        "next_step_other_text": "",
+        "next_step": "Investigation and recommendation"
+      }
+    },
+    {
+      "id": "bd3b6af4",
+      "definition": {
+        "title": "Explore dashboard performance improvements",
+        "submit": "Set the next performance step",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "The trace shows **900 ms on the server**, including **620 ms in repeated per-account queries**, followed by **350 ms rendering 2,000 rows**. We can work on SQL and the frontend together. Billing must stay fresh after edits, search must cover every row, and adding infrastructure is outside the current scope."
+          },
+          {
+            "multi": "Which improvements should we explore together?",
+            "id": "improvements",
+            "options": [
+              {
+                "value": "Batch account queries",
+                "description": "Targets the largest measured cost; query plans will help identify a safe SQL change."
+              },
+              {
+                "value": "Render fewer table rows",
+                "description": "Targets the 350 ms browser cost; changes navigation or rendering behavior."
+              },
+              {
+                "value": "Reuse summary results briefly",
+                "description": "Summary reporting may lag up to 30 seconds; introduces invalidation and stale-data tradeoffs."
+              }
+            ],
+            "default": [
+              "Batch account queries",
+              "Render fewer table rows"
+            ],
+            "Batch account queries": [
+              {
+                "text": "Proposed approach: inspect the query plan, replace repeated per-account reads with a batched query where appropriate, and compare timing and returned data. Keep the billing edit/read path immediately fresh."
+              }
+            ],
+            "Render fewer table rows": [
+              {
+                "select": "Which table approach should we investigate?",
+                "id": "table_approach",
+                "options": [
+                  {
+                    "value": "Compare approaches first",
+                    "description": "Check keyboard navigation and full-data search before choosing a rendering change."
+                  },
+                  {
+                    "value": "Pagination",
+                    "description": "Renders one page at a time; users navigate between pages and search still covers all rows."
+                  },
+                  {
+                    "value": "Virtual scrolling",
+                    "description": "Renders visible rows while scrolling; needs care for keyboard navigation and accessibility."
+                  }
+                ],
+                "default": "Compare approaches first",
+                "Virtual scrolling": [
+                  {
+                    "input": "Any table interactions we must preserve?",
+                    "id": "table_interactions",
+                    "placeholder": "For example: keyboard navigation, browser find, selection, or copying rows"
+                  }
+                ]
+              }
+            ],
+            "Reuse summary results briefly": [
+              {
+                "slider": "Maximum summary lag (seconds)",
+                "id": "summary_lag",
+                "min": 0,
+                "max": 30,
+                "default": 30
+              },
+              {
+                "text": "Investigate reuse within the existing application. Billing reads after edits must bypass stale results or invalidate them; no new infrastructure is proposed."
+              }
+            ]
+          },
+          {
+            "select": "What should I do next?",
+            "id": "next_step",
+            "options": [
+              {
+                "value": "Investigate and propose changes",
+                "description": "Inspect query plans and relevant frontend behavior, then propose changes for the selected areas."
+              },
+              {
+                "value": "Implement after investigation",
+                "description": "Inspect first, then change SQL/frontend in the selected areas and verify correctness and timings."
+              },
+              {
+                "value": "Discuss the tradeoffs further",
+                "description": "Continue exploring before choosing implementation work."
+              }
+            ],
+            "default": "Investigate and propose changes"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "improvements",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Batch account queries",
+              "description": "Targets the largest measured cost; query plans will help identify a safe SQL change."
+            },
+            {
+              "value": "Render fewer table rows",
+              "description": "Targets the 350 ms browser cost; changes navigation or rendering behavior."
+            },
+            {
+              "value": "Reuse summary results briefly",
+              "description": "Summary reporting may lag up to 30 seconds; introduces invalidation and stale-data tradeoffs."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "table_approach",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Compare approaches first",
+              "description": "Check keyboard navigation and full-data search before choosing a rendering change."
+            },
+            {
+              "value": "Pagination",
+              "description": "Renders one page at a time; users navigate between pages and search still covers all rows."
+            },
+            {
+              "value": "Virtual scrolling",
+              "description": "Renders visible rows while scrolling; needs care for keyboard navigation and accessibility."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Render fewer table rows"
+          }
+        },
+        {
+          "id": "table_interactions",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Virtual scrolling"
+          }
+        },
+        {
+          "id": "table_approach_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Render fewer table rows[0]",
+          "gate": {
+            "id": "table_approach",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "summary_lag",
+          "kind": "slider",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Reuse summary results briefly"
+          }
+        },
+        {
+          "id": "improvements_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "next_step",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Investigate and propose changes",
+              "description": "Inspect query plans and relevant frontend behavior, then propose changes for the selected areas."
+            },
+            {
+              "value": "Implement after investigation",
+              "description": "Inspect first, then change SQL/frontend in the selected areas and verify correctness and timings."
+            },
+            {
+              "value": "Discuss the tradeoffs further",
+              "description": "Continue exploring before choosing implementation work."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "next_step_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "next_step",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "table_interactions": "",
+        "table_approach_other_text": "",
+        "table_approach": "Compare approaches first",
+        "summary_lag": 30,
+        "improvements_other_text": "",
+        "improvements": [
+          "Batch account queries",
+          "Render fewer table rows"
+        ],
+        "next_step_other_text": "",
+        "next_step": "Investigate and propose changes"
+      }
+    }
+  ]
+}

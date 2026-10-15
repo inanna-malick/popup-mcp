@@ -1,0 +1,75 @@
+{
+  "submit": "Start read-only investigation",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The alert establishes that p95 latency crossed 10 seconds after a deployment; it does not establish why. We lack traces, logs, workload detail and a reliable comparison. The prior downstream incident is a hypothesis to test, not evidence for this incident. I recommend inspecting telemetry now and separating a deployment regression from traffic changes, saturation or downstream delay. Reading dashboards and logs is already permitted; any rollback, scaling or production setting change will need a separate explicit authorization."
+    },
+    {
+      "multi": "What should the read-only investigation produce?",
+      "id": "incident_work",
+      "options": [
+        {
+          "value": "Identify where time is being spent",
+          "description": "Inspect available telemetry and build a comparable before/after picture before attributing the timeout."
+        },
+        {
+          "value": "Prepare conditional mitigation choices",
+          "description": "Alongside the investigation, prepare evidence requirements and tradeoffs for a later production decision."
+        }
+      ],
+      "default": ["Identify where time is being spent", "Prepare conditional mitigation choices"],
+      "Identify where time is being spent": [
+        {
+          "markdown": "I'll inspect the deployment timeline, latency distributions, request volume and errors by route and workload. I'll compare equivalent windows and inspect available slow-request traces and logs for application work, database waits, downstream calls and resource saturation. If traces or a baseline are unavailable, I'll report that gap and the strongest conclusion the existing telemetry supports rather than assign a cause."
+        },
+        {
+          "input": "Investigation plan — edit the scope if needed",
+          "id": "telemetry_plan",
+          "default": "Read dashboards and logs around the deployment. Separate routes, workload sources and traffic changes; compare like-for-like requests before and after where data permits. Correlate slow requests with errors, resource pressure and dependency timings. Return observations, competing explanations, missing evidence and the next discriminating read-only check. Make no production changes.",
+          "rows": 4
+        },
+        {
+          "select": "When should I bring back the first findings?",
+          "id": "findings_checkpoint",
+          "options": [
+            {
+              "value": "After the initial telemetry pass",
+              "description": "Get an early evidence summary and choose the next investigation from what it reveals."
+            },
+            {
+              "value": "After following the strongest lead",
+              "description": "Continue read-only checks until the leading explanation is supported or further progress needs new evidence."
+            }
+          ],
+          "default": "After the initial telemetry pass",
+          "After the initial telemetry pass": [
+            {
+              "markdown": "The first report will distinguish affected workloads and observed bottlenecks from untested explanations, then propose the most useful next check. A timing correlation alone will remain inconclusive."
+            }
+          ],
+          "After following the strongest lead": [
+            {
+              "markdown": "I'll pursue the leading explanation using available telemetry and test a competing explanation where possible. I'll stop if the next useful step requires unavailable data or a production change, and return a concrete proposal."
+            }
+          ]
+        }
+      ],
+      "Prepare conditional mitigation choices": [
+        {
+          "markdown": "A rollback could help if comparable traffic shows a deployment-linked regression and the previous version is safe to restore. Scaling could help if resource saturation explains the delay; it could add cost without helping a dependency bottleneck. A downstream workaround needs evidence of downstream delay and a safe, understood fallback. None of these conditions is established yet. I'll inspect readiness where available and prepare choices without executing them."
+        },
+        {
+          "input": "Mitigation brief — edit the decision criteria",
+          "id": "mitigation_criteria",
+          "default": "For each supported mitigation, report the observed bottleneck, why the action is expected to help, operational risks, cost implications where known, readiness gaps and how recovery would be checked. For rollback, verify the prior version and compatibility constraints. For scaling, verify saturation and dependency headroom. Present the exact proposed production action for separate explicit authorization; do not execute it from this submission.",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "markdown": "I'll use the workload comparison to qualify the mitigation brief: an aggregate p95 increase can reflect a changed request mix, so mitigation proposals should identify which requests are affected and what evidence connects them to the proposed action.",
+      "when": "selected(incident_work, Identify where time is being spent) && selected(incident_work, Prepare conditional mitigation choices)"
+    }
+  ]
+}

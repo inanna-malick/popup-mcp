@@ -1,0 +1,17 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c3d34165",
+  "submissionId": "eval-c3d34165-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_work": [
+      "Other (please specify)"
+    ],
+    "ci_work_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "_labels": {
+      "ci_work": "What should we work on next?",
+      "ci_work_other_text": "Please specify"
+    }
+  }
+}

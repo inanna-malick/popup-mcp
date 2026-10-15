@@ -1,0 +1,26 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-performance.json",
+  "submissionId": "eval-f-performance.json-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Batch the account queries",
+      "Render fewer table rows"
+    ],
+    "sql_next": "Investigate the query plan first",
+    "sql_investigation": "Inspect the per-account queries and their execution plans using representative dashboard parameters. Identify repeated round trips, scans, row counts and join fan-out. Compare candidate set-based SQL with the current query results, including billing immediately after an edit. Report the evidence and proposed SQL change before implementation.",
+    "table_approach": "Inspect table interactions first",
+    "table_investigation": "Inspect how the table implements search, keyboard navigation, focus, screen-reader semantics, inline edits and selection across rows. Identify which interactions require the full table. Recommend pagination, virtualization or another rendering change only after reviewing those constraints.",
+    "joint_validation": "Explore batching the repeated queries and reducing mounted rows together, using current infrastructure. First inspect the query plans and table interactions, then compare justified SQL-only and table-only proposals and their combination. Search and sorting must cover every row; billing edits must appear immediately. Preserve keyboard navigation, screen-reader behavior, selection and editing. Implement only after the investigations support a design.",
+    "_labels": {
+      "improvements": "Which improvements should we explore together?",
+      "sql_next": "What should the SQL work produce next?",
+      "sql_investigation": "Investigation scope — edit if needed",
+      "table_approach": "Which table approach should we investigate or prototype?",
+      "table_investigation": "Interaction investigation",
+      "joint_validation": "Joint validation proposal — edit if needed"
+    }
+  }
+}

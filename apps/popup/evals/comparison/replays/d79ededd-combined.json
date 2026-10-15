@@ -1,0 +1,23 @@
+{
+  "type": "popup_result",
+  "formId": "eval-d79ededd",
+  "submissionId": "eval-d79ededd-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "incident_strands": [
+      "Establish the regression and affected traffic",
+      "Locate time spent and failures",
+      "Prepare conditional mitigation options"
+    ],
+    "comparison_plan": "Read dashboards around the deployment and alert. Separate routes and identifiable traffic sources, including any scheduled or synthetic traffic. Compare latency, volume and timeout/error rates for equivalent request classes before and after deployment. Report whether the apparent regression survives that comparison and which users or workloads are affected.",
+    "diagnostic_report": "Return observed failure signatures and request paths, evidence links or timestamps, the leading explanations with supporting and conflicting observations, and any telemetry gaps. Distinguish a timeout from a slow successful request. Recommend the next step only as far as the evidence supports.",
+    "mitigation_frame": "Compare options after the initial telemetry review",
+    "_labels": {
+      "incident_strands": "Which investigation strands should we work through together?",
+      "comparison_plan": "Proposed comparison plan — edit the scope",
+      "diagnostic_report": "Proposed diagnostic deliverable — edit it",
+      "mitigation_frame": "How should the mitigation recommendation be framed?"
+    }
+  }
+}

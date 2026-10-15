@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-905e2410",
+  "submissionId": "eval-905e2410-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Other (please specify)"
+    ],
+    "improvements_other_text": "Explore batching the repeated queries and reducing rendered rows together; keep search across the full data set and fresh billing edits.",
+    "next_step": "Investigation and recommendation",
+    "_labels": {
+      "improvements": "Which improvements should we explore together?",
+      "improvements_other_text": "Please specify",
+      "next_step": "What should the next step produce?"
+    }
+  }
+}

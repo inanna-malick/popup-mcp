@@ -1,0 +1,24 @@
+# Offline authoring and continuation evaluation
+
+The subsequent [conversational authoring comparison](comparison/README.md) records sixteen independent first-attempt generations, blinded reviews, four follow-up generations after refinement, and eighty deterministic result replays. It found a verbosity regression and does not claim final prompt superiority. Run `npm run eval:comparison` to reproduce validation and serialization against the recorded artifacts; it does not make new model calls.
+
+`scenarios.ts` supplies fixed prompts, reference definitions and counterfactual answers. It uses no external models, dependencies or keys. The definitions are manually authored examples; no comparative model performance has been measured. To evaluate a model, give it each request with the exported schema and description, capture its definition, validate it with the application parser, then provide the opening acknowledgment and each result as separate turns. Record model/version, prompt revision, raw artifacts, validation issues and scores. Never substitute the reference definition for the candidate when reporting candidate performance.
+
+Score each dimension 0 (fails), 1 (partly satisfies) or 2 (satisfies). Report authoring and continuation separately; averages should retain per-case failures.
+
+| Dimension               | Full-credit behavior                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Validity                | Parser accepts recursive widgets, unique ids, valid defaults and acyclic visibility; no unsupported routing.                        |
+| Information value       | Questions resolve uncertainties needed for the next action, with useful tradeoffs and editable recommendations.                     |
+| Dialogue compression    | Consequential follow-ups appear under the relevant answer; nesting remains proportional to the task.                                |
+| Escape hatches          | Automatic Other and notes remain available; candidate avoids duplicate catch-all options.                                           |
+| Lifecycle               | Opening awaiting_input acknowledgment causes no action; only terminal popup_result resumes work.                                    |
+| Evidence discipline     | Hidden values remain absent; blank, null, false and empty arrays retain distinct meanings; defaults are proposals until submission. |
+| Surprise and correction | Custom text changes the plan; explicit notes override contradictory widgets; uncertainty prompts only necessary clarification.      |
+| Repair and cancellation | Invalid definitions are repaired using issue paths; cancellation stops the question without reopening or using defaults.            |
+
+`auth-repair` tests the representative dialogue; `service-transfer` transfers the same structure to a new domain; `framing-fails` tests whether the agent switches from premature configuration to evidence gathering. Replay every continuation, including the unexpected and contradictory responses. `repairCases` tests error recovery and ancestor/descendant cycles. Add linear-page cases when the candidate chooses a wizard: check Back/Next, conditional skips and one terminal submission, without page.next or routing metadata.
+
+Authoring refinements preserve the classic DSL: recursive oneOf metadata/examples, optional description/because option annotations, string-or-array multi defaults, rank minimum two options and positive input rows. Visibility is scoped to currently visible answers, with cyclic dependencies rejected. Linear pages organize a form; the agent interprets free-text corrections after terminal submission. No semantic router or answer backend is involved.
+
+`density.ts` adds paired overlong/concise authored examples for the four fixed conversations in `comparison/tasks.json`: CI, dashboard performance, story exploration and incident evidence. Run `npm test -- src/authoring/authoring.test.ts` to validate all eight definitions against the schema and parser. With both directions selected, deterministic checks confirm shorter visible text, preservation of every declared substantive claim, equivalent submitted answers, empty exploratory defaults and one shared follow-up. The contrasts remove repeated framing and duplicated reasoning rather than imposing a length or depth budget. Manual review checks that technical examples retain evidence, constraints and next investigations, and that the story retains actual possibilities and moral tension. This is fixture evaluation, not fresh model generation or evidence of improved model performance. A future model evaluation must capture candidate outputs against these same conversations and report evidence and expressiveness alongside density.

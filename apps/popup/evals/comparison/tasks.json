@@ -1,0 +1,30 @@
+[
+  {
+    "id": "ci",
+    "request": "Help me cut CI time. Use popup to work through the useful options with me.",
+    "context": "We have already inspected the workflow. Four jobs each run the same 2-minute dependency install. The integration suite runs serially for 11 minutes because tests share a Postgres database. There is a Linux/macOS/Windows matrix; production runs Linux, but the CLI has supported users on all three. PRs currently run the complete matrix even for docs-only edits. Runner usage is billed by the minute. No flaky-test investigation or cache experiment has been run yet. I can accept some additional spend, but I haven't set a limit. Preserve release coverage unless I explicitly choose otherwise.",
+    "combined_intent": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "correction": "Actually, start by measuring the install and integration timings on three representative PRs. Don't change coverage or spend yet."
+  },
+  {
+    "id": "performance",
+    "request": "The dashboard feels slow. Use popup to explore what to improve and the tradeoffs with me.",
+    "context": "A trace already shows a 900 ms server response, including 620 ms spent in repeated per-account database queries. The browser then spends 350 ms rendering a 2,000-row table. Billing data must be fresh immediately after an edit; summary reporting may lag by 30 seconds. Search must still cover all rows. We have no query plan yet. There is no approval to add infrastructure. The team can change the SQL and frontend.",
+    "combined_intent": "Explore batching the repeated queries and reducing rendered rows together; keep search across the full data set and fresh billing edits.",
+    "correction": "Do the query-plan investigation first. We learned that keyboard users rely on the full table, so don't implement virtualization yet."
+  },
+  {
+    "id": "exploration",
+    "request": "Help me explore this story setting using popup. I want to find interesting consequences, not choose a final plot yet.",
+    "context": "The setting is a coastal city whose public archive stores memories rather than documents. Borrowed memories gradually change the borrower. The archive is publicly funded and open to everyone. I like political ambiguity and small intimate stakes; I do not want an evil secret organization or a chosen-one protagonist. Two interests already emerged: who gets to correct an official memory, and the relationships formed through borrowing. Both can coexist. Please contribute actual possibilities and let me bend them.",
+    "combined_intent": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment.",
+    "correction": "Make memory changes reversible through a public ritual, and explore how that changes intimacy. Keep the archive genuinely public and benevolent."
+  },
+  {
+    "id": "evidence",
+    "request": "Our API is timing out. Use popup to help decide what we should do next.",
+    "context": "The only evidence is an alert that p95 latency crossed 10 seconds after a deployment. We do not yet have traces, error logs, a workload breakdown, or a reliable before/after comparison. A prior incident involved a downstream service, but there is no evidence this one does. The current operator can inspect dashboards and read logs without approval. Rolling back, scaling, or changing production settings needs explicit authorization. Don't ask me for facts you can obtain by inspecting the available telemetry.",
+    "combined_intent": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "correction": "There is a scheduled load test in progress; inspect its traffic separately before attributing the regression to the deployment."
+  }
+]

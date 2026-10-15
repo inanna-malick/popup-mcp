@@ -1,0 +1,22 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c88079f8",
+  "submissionId": "eval-c88079f8-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "investigation_scope": "Other (please specify)",
+    "investigation_scope_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "prepare_mitigations": true,
+    "mitigation_candidates": [
+      "Rollback",
+      "Scaling"
+    ],
+    "_labels": {
+      "investigation_scope": "How should I investigate?",
+      "investigation_scope_other_text": "Please specify",
+      "prepare_mitigations": "Prepare mitigation options alongside the investigation",
+      "mitigation_candidates": "Which options should I assess, without executing them?"
+    }
+  }
+}

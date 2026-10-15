@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f5e9039c",
+  "submissionId": "eval-f5e9039c-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Other (please specify)"
+    ],
+    "improvements_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "spend_boundary": "Measure and propose before increasing spend",
+    "_labels": {
+      "improvements": "Which improvements should we develop together?",
+      "improvements_other_text": "Please specify",
+      "spend_boundary": "What spend boundary should govern experiments?"
+    }
+  }
+}

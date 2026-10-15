@@ -1,0 +1,68 @@
+{
+  "title": "Choose the next incident investigation",
+  "submit": "Start read-only investigation",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "We know p95 crossed 10 seconds after a deployment. That timing does not establish the cause, and the prior downstream incident is only a lead. I can inspect dashboards and logs now; rollback, scaling, and production setting changes require explicit authorization after we identify a concrete action."
+    },
+    {
+      "multi": "What should the read-only investigation cover?",
+      "id": "investigation",
+      "options": [
+        {
+          "value": "Compare deployment and latency",
+          "description": "Build a reliable before/after comparison, including traffic changes; test whether the deployment explains the regression."
+        },
+        {
+          "value": "Inspect errors and request paths",
+          "description": "Read logs and any available traces to locate where requests stall; report missing instrumentation."
+        },
+        {
+          "value": "Break down workload and saturation",
+          "description": "Separate slow endpoints and traffic classes, then inspect resource pressure before considering capacity changes."
+        },
+        {
+          "value": "Check downstream health",
+          "description": "Look for current dependency failures without assuming the previous incident has recurred."
+        }
+      ],
+      "default": [
+        "Compare deployment and latency",
+        "Inspect errors and request paths",
+        "Break down workload and saturation"
+      ]
+    },
+    {
+      "check": "Also prepare conditional mitigation recommendations",
+      "id": "prepare_mitigations",
+      "default": true,
+      "reveals": [
+        {
+          "multi": "Which possibilities should I assess against the evidence?",
+          "id": "mitigation_candidates",
+          "options": [
+            {
+              "value": "Rollback",
+              "description": "Assess whether the deployed change caused the regression and whether reverting it is viable."
+            },
+            {
+              "value": "Scaling",
+              "description": "Assess only if saturation explains the delay; identify expected benefit and added cost."
+            },
+            {
+              "value": "Production setting change",
+              "description": "Consider a specific setting only if telemetry supports it; describe the risk and reversal."
+            }
+          ],
+          "default": ["Rollback", "Scaling"],
+          "reveals": [
+            {
+              "text": "These selections request recommendations only. I will bring back the supporting evidence and exact proposed action for explicit authorization before changing production."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

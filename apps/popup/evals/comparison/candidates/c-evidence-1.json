@@ -1,0 +1,79 @@
+{
+  "submit": "Use this investigation plan",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The alert establishes that p95 latency exceeded 10 seconds after the deployment. It does not establish the cause, which requests are affected, or whether the deployment changed comparable traffic. The earlier downstream incident is a hypothesis to check, not evidence for this one. I recommend a read-only investigation now, followed by a concrete mitigation proposal if the evidence supports one."
+    },
+    {
+      "input": "Proposed immediate investigation — edit the scope if needed",
+      "id": "incident_plan",
+      "default": "Inspect dashboards and available logs around the alert and deployment. Compare latency, timeout/error rates and request volume before and after, using equivalent windows and separating endpoints, workloads and deployed versions where telemetry allows. Check resource saturation, queues and downstream timings without assuming a culprit. Look for representative slow and successful requests and existing traces. Report observations, missing telemetry and confidence before recommending a production change.",
+      "rows": 5
+    },
+    {
+      "markdown": "I will obtain telemetry facts by inspecting the available sources. If traces or comparable workload data are unavailable, the useful result is a bounded finding and a proposal to close that evidence gap; we should not manufacture a diagnosis from the alert."
+    },
+    {
+      "multi": "Which conditional mitigation proposals should the investigation prepare?",
+      "id": "mitigation_proposals",
+      "options": [
+        {
+          "value": "Rollback assessment",
+          "description": "Prepare a rollback proposal if comparable requests show a deployment-associated regression; check rollback compatibility and likely recovery."
+        },
+        {
+          "value": "Capacity assessment",
+          "description": "Prepare a scaling proposal if saturation or queue growth explains the delay; assess cost and whether the bottleneck can actually scale."
+        },
+        {
+          "value": "Downstream assessment",
+          "description": "Check whether a dependency contributes to slow requests; prepare a targeted proposal only if current telemetry supports it."
+        }
+      ],
+      "default": ["Rollback assessment", "Capacity assessment"],
+      "Rollback assessment": [
+        {
+          "markdown": "If the regression is concentrated in the new version under comparable traffic, rollback becomes a plausible mitigation. A simultaneous traffic shift or shared dependency slowdown weakens that inference. Before asking for authorization, establish the target version, migration compatibility, expected benefit and how recovery would be measured."
+        },
+        {
+          "input": "Proposed rollback decision rule — editable",
+          "id": "rollback_rule",
+          "default": "Propose rollback only after comparing equivalent workloads across versions or time windows and checking compatibility. Present supporting evidence, remaining uncertainty, the exact rollback action and a monitoring/recovery plan for explicit authorization.",
+          "rows": 3
+        }
+      ],
+      "Capacity assessment": [
+        {
+          "markdown": "If slow requests coincide with saturated resources or growing queues, added capacity may help. It may also add cost without reducing latency if the limit is a database, dependency or serialized operation. Inspect those relationships before proposing a resource count or spend."
+        },
+        {
+          "input": "Proposed capacity decision rule — editable",
+          "id": "capacity_rule",
+          "default": "Identify the saturated component and evidence that additional capacity would relieve it. Return a bounded scaling proposal with estimated cost, expected effect, verification and reversal criteria; request explicit authorization for the exact production change.",
+          "rows": 3
+        }
+      ],
+      "Downstream assessment": [
+        {
+          "markdown": "Compare dependency timings and errors for slow versus successful requests if telemetry exposes them. If that evidence is absent, say so. A previous downstream incident alone does not justify retries, timeout changes or dependency failover; these can increase load or change API behavior."
+        },
+        {
+          "input": "Proposed downstream decision rule — editable",
+          "id": "downstream_rule",
+          "default": "Prepare a targeted mitigation only if current telemetry ties a specific dependency to the latency. Describe the affected requests, proposed action, behavior and load tradeoffs, and verification plan before seeking production-change authorization.",
+          "rows": 3
+        }
+      ],
+      "reveals": [
+        {
+          "markdown": "These selections prepare proposals; they do not authorize rollback, scaling or production settings changes. The next report should distinguish observations from hypotheses and either present a specific action for authorization or explain which evidence is still missing."
+        }
+      ]
+    },
+    {
+      "markdown": "With both rollback and capacity assessment selected, compare their evidence together: increased traffic can coincide with a deployment, while a deployment can also increase work per request. Avoid treating timing alone as proof of either cause. Return the supported explanation and tradeoffs before choosing a mitigation.",
+      "when": "selected(mitigation_proposals, Rollback assessment) && selected(mitigation_proposals, Capacity assessment)"
+    }
+  ]
+}

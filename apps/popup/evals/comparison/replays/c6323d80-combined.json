@@ -1,0 +1,29 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c6323d80",
+  "submissionId": "eval-c6323d80-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_work": [
+      "Measure before changing",
+      "Cache dependency downloads",
+      "Isolate and parallelize integration tests"
+    ],
+    "baseline_plan": "Measure three representative PRs: record install duration per job, integration duration, end-to-end completion time, total billed runner-minutes, and failures/retries. Include a docs-only PR if available. Keep existing coverage and concurrency while collecting the baseline.",
+    "cache_experiment": "Inspect the package manager and runtime, then cache its download store using OS, runtime version and lockfile hash. Keep the existing immutable install. Compare cold and warm runs with the same workload; confirm invalidation after a lockfile change. Report install savings and total runner-minutes before adopting the cache.",
+    "cache_strategy": "Exact keys first",
+    "postgres_isolation": "Not established — inspect first",
+    "isolation_report": "Identify shared mutable state and test-order dependencies; propose one disposable Postgres database and connection URL per worker, including migrations and cleanup; estimate setup overhead and report blockers before changing concurrency.",
+    "execution_scope": "Investigate and return measurements first",
+    "_labels": {
+      "ci_work": "Which opportunities should we work through together?",
+      "baseline_plan": "Proposed baseline — edit the sample and measurements",
+      "cache_experiment": "Proposed cache experiment — edit it",
+      "cache_strategy": "How much cache complexity should the first experiment include?",
+      "postgres_isolation": "What do we know about per-worker database isolation?",
+      "isolation_report": "Proposed investigation output — edit it",
+      "execution_scope": "What is the next step after reviewing these proposals?"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "popup_result",
+  "formId": "eval-83dc732e",
+  "submissionId": "eval-83dc732e-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_steps": [
+      "Measure first",
+      "Reuse dependencies",
+      "Parallelize integration tests"
+    ],
+    "measurement_prs": "",
+    "dependency_plan": "Run a cache experiment first",
+    "postgres_isolation": "Investigate isolation before implementing",
+    "runner_spend": "Estimate and ask before increasing spend",
+    "platform_policy": "Keep Linux, macOS, and Windows on every code PR",
+    "_labels": {
+      "ci_steps": "What should we work on?",
+      "measurement_prs": "Representative PRs to measure (optional)",
+      "dependency_plan": "Dependency reuse approach",
+      "postgres_isolation": "Postgres isolation proposal",
+      "runner_spend": "Additional runner spend",
+      "platform_policy": "Platform coverage for code PRs"
+    }
+  }
+}

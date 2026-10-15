@@ -1,0 +1,122 @@
+{
+  "title": "Choose the next steps to cut CI time",
+  "submit": "Apply this CI plan",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "Each of four jobs repeats a 2-minute dependency install; integration tests take 11 minutes against a shared Postgres database. These are opportunities, not measured savings. Release coverage stays intact. Combine options below; defaults are editable proposals."
+    },
+    {
+      "multi": "What should we work on?",
+      "id": "ci_steps",
+      "options": [
+        {
+          "value": "Measure first",
+          "description": "Establish install and integration timings and check reliability before changing CI."
+        },
+        {
+          "value": "Reuse dependencies",
+          "description": "Try caching to reduce repeated installs; cold misses and cache correctness still need testing."
+        },
+        {
+          "value": "Parallelize integration tests",
+          "description": "Separate Postgres state per shard; faster feedback may cost more runner minutes."
+        },
+        {
+          "value": "Filter docs-only PRs",
+          "description": "Avoid unnecessary matrix runs for proven docs-only changes; keep release checks."
+        }
+      ],
+      "default": ["Measure first"],
+      "Measure first": [
+        {
+          "input": "Representative PRs to measure (optional)",
+          "id": "measurement_prs",
+          "placeholder": "Leave blank for me to pick three representative recent PRs."
+        }
+      ],
+      "Reuse dependencies": [
+        {
+          "select": "Dependency reuse approach",
+          "id": "dependency_plan",
+          "options": [
+            {
+              "value": "Run a cache experiment first",
+              "description": "Compare cold and warm runs; key by OS, runtime, and lockfile before adopting."
+            },
+            {
+              "value": "Implement and validate caching",
+              "description": "Change the workflow now and verify misses, invalidation, and platform-specific behavior."
+            }
+          ],
+          "default": "Run a cache experiment first"
+        }
+      ],
+      "Parallelize integration tests": [
+        {
+          "select": "Postgres isolation proposal",
+          "id": "postgres_isolation",
+          "options": [
+            {
+              "value": "Separate Postgres instance per shard",
+              "description": "Strong isolation, with additional startup and runner overhead."
+            },
+            {
+              "value": "Separate database per shard",
+              "description": "Share an instance; first verify tests do not modify instance-wide state."
+            },
+            {
+              "value": "Investigate isolation before implementing",
+              "description": "Inspect fixtures and shared state before choosing a safe sharding design."
+            }
+          ],
+          "default": "Investigate isolation before implementing"
+        },
+        {
+          "select": "Additional runner spend",
+          "id": "runner_spend",
+          "options": [
+            {
+              "value": "Estimate and ask before increasing spend",
+              "description": "Prepare the sharding plan without authorizing a cost increase."
+            },
+            {
+              "value": "Allow an increase within a limit",
+              "description": "Proceed only if the projected additional monthly cost fits your limit."
+            }
+          ],
+          "default": "Estimate and ask before increasing spend",
+          "Allow an increase within a limit": [
+            {
+              "input": "Maximum additional monthly runner cost, including currency",
+              "id": "runner_cost_limit",
+              "placeholder": "For example, USD 30/month; a blank value requires clarification."
+            }
+          ]
+        }
+      ],
+      "Filter docs-only PRs": [
+        {
+          "input": "Docs-only paths, if you have a preferred definition",
+          "id": "docs_paths",
+          "placeholder": "Leave blank for me to inspect paths and propose conservative filters. Build inputs still run the matrix."
+        }
+      ]
+    },
+    {
+      "select": "Platform coverage for code PRs",
+      "id": "platform_policy",
+      "options": [
+        {
+          "value": "Keep Linux, macOS, and Windows on every code PR",
+          "description": "Preserve early checks for all supported CLI platforms."
+        },
+        {
+          "value": "Linux on PRs; all platforms nightly and on releases",
+          "description": "Explicitly reduce PR coverage; supported-platform regressions may be found later."
+        }
+      ],
+      "default": "Keep Linux, macOS, and Windows on every code PR"
+    }
+  ]
+}

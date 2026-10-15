@@ -1,0 +1,32 @@
+{
+  "type": "popup_result",
+  "formId": "eval-9d5441e6",
+  "submissionId": "eval-9d5441e6-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Who can correct a public memory?",
+      "What intimacy grows through borrowing?"
+    ],
+    "correction_seed": "A ferry worker seeks to add an overlooked colleague's care to a storm-rescue memory. The surviving partner wants recognition but fears public borrowing will turn private tenderness into a performance.",
+    "correction_rule": "Add another account alongside it",
+    "parallel_consequence": "Two neighbors volunteer to compare the accounts for a local discussion. Their disagreement becomes an awkward friendship, and they worry that their summary will erase someone all over again.",
+    "relationship_seed": "Two ordinary borrowers recognize the same borrowed household habit in each other. They begin sharing tea, then wonder whether they are getting to know each other or returning to someone else's kitchen.",
+    "intimacy_tension": "Shared feeling, different meanings",
+    "different_meanings_gesture": "They try making tea a new way together. One finds that freeing; the other misses the inherited ritual and is embarrassed to admit it.",
+    "shared_consequence": "A correction to their shared kitchen memory reveals an unresolved argument beneath the tenderness. They disagree about borrowing the revised account, while trying to protect the affection they have built themselves.",
+    "world_rule": "",
+    "_labels": {
+      "threads": "Which consequences shall we follow?",
+      "correction_seed": "Bend the correction dispute",
+      "correction_rule": "What could a fair correction mean?",
+      "parallel_consequence": "An everyday consequence worth following",
+      "relationship_seed": "Bend the relationship seed",
+      "intimacy_tension": "Which tension feels worth staying with?",
+      "different_meanings_gesture": "A gesture that could repair or deepen the misunderstanding",
+      "shared_consequence": "Bend the shared consequence, or leave the threads separate",
+      "world_rule": "A rule of memory borrowing you want to change or leave open"
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "title": "Explore the archive's consequences",
+  "submit": "Develop these possibilities",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The archive remains a public service open to everyone. Let's follow a few tensions into everyday lives; these are starting points you can bend, not commitments to a plot."
+    },
+    {
+      "multi": "Which threads should we explore together?",
+      "id": "threads",
+      "options": [
+        {
+          "value": "Correcting official memories",
+          "description": "A correction may restore someone's dignity while taking away another person's cherished account."
+        },
+        {
+          "value": "Relationships through borrowing",
+          "description": "Shared memories can bring people closer while making it harder to know whose feelings they are sharing."
+        }
+      ],
+      "default": ["Correcting official memories", "Relationships through borrowing"],
+      "Correcting official memories": [
+        {
+          "multi": "What makes correction complicated?",
+          "id": "correction_tensions",
+          "options": [
+            {
+              "value": "The remembered person gets a voice",
+              "description": "A daughter contests her late mother's account of a rescue: correcting it could honor an overlooked neighbor but unsettle her family."
+            },
+            {
+              "value": "Keep competing versions",
+              "description": "The archive preserves both witnesses to a seawall evacuation; borrowers inherit incompatible loyalties toward the same neighbor."
+            },
+            {
+              "value": "Borrowers help judge corrections",
+              "description": "People who borrowed a memory gain standing to contest it, giving strangers a say in an intimate family dispute."
+            }
+          ],
+          "reveals": [
+            {
+              "input": "What would you bend in these correction possibilities?",
+              "id": "bend_corrections",
+              "placeholder": "A different person, rule, consequence, or unresolved question",
+              "rows": 2
+            }
+          ]
+        }
+      ],
+      "Relationships through borrowing": [
+        {
+          "multi": "Which intimate consequences interest you?",
+          "id": "intimacy_tensions",
+          "options": [
+            {
+              "value": "An affection arrives before its explanation",
+              "description": "Two regular borrowers become fond of each other through a shared memory, then wonder what remains theirs to choose."
+            },
+            {
+              "value": "Understanding changes an old bond",
+              "description": "A partner borrows a difficult day from their spouse's youth and gains compassion, but also habits the spouse hoped to leave behind."
+            },
+            {
+              "value": "A stranger inherits a small obligation",
+              "description": "Someone borrows a fisher's memory and begins visiting the fisher's lonely sibling; the comfort is real, but its source troubles them both."
+            }
+          ],
+          "reveals": [
+            {
+              "input": "What would you bend in these relationship possibilities?",
+              "id": "bend_relationships",
+              "placeholder": "Change the bond, the borrowed feeling, or what each person wants",
+              "rows": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "select": "How might the two threads touch?",
+      "id": "thread_connection",
+      "when": "selected(threads, 'Correcting official memories') && selected(threads, 'Relationships through borrowing')",
+      "options": [
+        {
+          "value": "A correction threatens a borrowed bond",
+          "description": "A truthful revision could change the memory through which two people learned to care for each other."
+        },
+        {
+          "value": "Intimacy creates a conflict of interest",
+          "description": "A borrower asked to weigh a correction has become close to someone whose reputation depends on it."
+        },
+        {
+          "value": "Let them echo without joining",
+          "description": "Explore separate households facing the same question: how much of a shared past can anyone claim?"
+        }
+      ]
+    }
+  ]
+}

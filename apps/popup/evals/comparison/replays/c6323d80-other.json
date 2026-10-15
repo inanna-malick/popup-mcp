@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c6323d80",
+  "submissionId": "eval-c6323d80-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_work": [
+      "Other (please specify)"
+    ],
+    "ci_work_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "execution_scope": "Investigate and return measurements first",
+    "_labels": {
+      "ci_work": "Which opportunities should we work through together?",
+      "ci_work_other_text": "Please specify",
+      "execution_scope": "What is the next step after reviewing these proposals?"
+    }
+  }
+}

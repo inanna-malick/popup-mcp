@@ -1,0 +1,28 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-exploration.json",
+  "submissionId": "eval-f-exploration.json-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Correcting official memories",
+      "Relationships through borrowing"
+    ],
+    "correction_method": "Preserve competing versions",
+    "plural_policy": "Keep both accounts freely available with a visible explanation of the dispute. Offer short borrowing sessions at neighborhood gathering places, so comparing accounts does not require a day off work. Explore whether this helps or makes the disagreement harder to escape.",
+    "bond_question": "They know what they borrowed",
+    "known_bond_experiment": "For a month they borrow no new memories and cook meals neither remembers from the archive. They postpone the shared lease and notice which habits they choose to keep. Leave open whether borrowed tenderness feels more or less theirs afterwards.",
+    "explore_reversal": false,
+    "joint_situation": "Explore the rescue-memory dispute and intimacy between borrowers together. At a neighborhood supper, the dockworker asks the captain's daughter to introduce the competing account, while two borrowers wonder whether experiencing it first would help them listen or reshape their affection for her. Keep the archive public and acting in good faith. Give each person defensible hopes and small personal stakes, and explore several consequences without choosing a final plot or requiring the threads to converge.",
+    "_labels": {
+      "threads": "Which consequences should we explore together?",
+      "correction_method": "What should a correction do to the public memory?",
+      "plural_policy": "Bend the archive's response",
+      "bond_question": "Where is the most interesting uncertainty in their bond?",
+      "known_bond_experiment": "Bend their experiment",
+      "explore_reversal": "Explore whether borrowers can undo changes",
+      "joint_situation": "Bend a shared situation to explore next"
+    }
+  }
+}

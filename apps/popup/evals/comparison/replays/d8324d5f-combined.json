@@ -1,0 +1,30 @@
+{
+  "type": "popup_result",
+  "formId": "eval-d8324d5f",
+  "submissionId": "eval-d8324d5f-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Correcting official memories",
+      "Relationships through borrowing"
+    ],
+    "correction_tensions": [
+      "Borrowers help judge corrections"
+    ],
+    "bend_corrections": "",
+    "intimacy_tensions": [
+      "An affection arrives before its explanation"
+    ],
+    "bend_relationships": "",
+    "thread_connection": "Intimacy creates a conflict of interest",
+    "_labels": {
+      "threads": "Which threads should we explore together?",
+      "correction_tensions": "What makes correction complicated?",
+      "bend_corrections": "What would you bend in these correction possibilities?",
+      "intimacy_tensions": "Which intimate consequences interest you?",
+      "bend_relationships": "What would you bend in these relationship possibilities?",
+      "thread_connection": "How might the two threads touch?"
+    }
+  }
+}
