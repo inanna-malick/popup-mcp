@@ -1,0 +1,663 @@
+{
+  "description": "Continue the conversation in an interactive message. Partially evaluate roughly the next three useful turns: use what is already known to explain the situation, offer consequential proposals, and prepare the follow-ups each plausible answer would invite. The result should do useful thinking with the user, not merely survey preferences. An investigation or an editable proposal is a successful outcome; stop when the next step needs new evidence rather than inventing that evidence or extending an exhaustive questionnaire.\n\nSeparate observations from assumptions. Ground recommendations in the conversation or inspected material; mark unknowns and make proposed wording/plans editable with input defaults. Use markdown/text for substantive analysis, select for mutually exclusive directions and multi for compatible approaches the user may explore together. Put answer-specific continuations under exact option-text keys; each selected multi branch stays visible alongside the others. Prefer reveals for checked or selection-wide continuations, then when for cross-branch interactions. Approximate three turns by consequential depth, not a required number of questions. Defaults are proposals until Submit.\n\nWORKED EXAMPLE: the following CI timings are fictional supplied evidence, not facts about your repository. Notice the analysis, simultaneously explorable changes, editable plans, uncertainty leading to investigation, and joint benchmark proposal. Transfer that structure rather than copying its assumptions:\n{\"submit\":\"Choose the next CI change\",\"elements\":[{\"markdown\":\"Worked example — supplied fictional evidence: every matrix job repeats a 4-minute dependency install; integration tests take 18 minutes and share one database; the matrix covers Linux, macOS and Windows, but the release support policy has not yet been established.\"},{\"markdown\":\"Repeated installs are a plausible quick win. The 18-minute integration job is larger, but its shared database makes naive parallelism unsafe. Dropping platforms trades coverage for speed; I would preserve it until we know which platforms matter.\"},{\"multi\":\"Which changes should we work through together?\",\"id\":\"changes\",\"options\":[{\"value\":\"Cache dependencies\",\"description\":\"Recover repeated install time; key the cache to the lockfile and runtime.\"},{\"value\":\"Parallelize integration tests\",\"description\":\"Attack the longest job after isolating its shared database.\"},{\"value\":\"Reduce platform coverage\",\"description\":\"Reduce matrix cost if the release support policy allows it.\"}],\"default\":[\"Cache dependencies\",\"Parallelize integration tests\"],\"Cache dependencies\":[{\"input\":\"Proposed cache policy — edit assumptions\",\"id\":\"cache_policy\",\"default\":\"Cache the package-manager download store by OS, runtime version and lockfile hash; keep immutable installs and leave the lockfile unchanged.\",\"rows\":3},{\"select\":\"How should a changed lockfile behave?\",\"id\":\"cache_miss\",\"options\":[{\"value\":\"Rebuild the cache\",\"description\":\"A fresh key keeps invalidation simple; first run remains slow.\"},{\"value\":\"Restore a nearby cache\",\"description\":\"May save downloads; verify stale entries cannot bypass an immutable install.\"}],\"default\":\"Rebuild the cache\",\"Restore a nearby cache\":[{\"markdown\":\"I would restore only the download store, never installed dependencies, then compare a cold and warm run. A restore policy should earn its complexity with measured savings.\"},{\"check\":\"Benchmark restore fallback before adopting it\",\"id\":\"benchmark_restore\",\"default\":true}]}],\"Parallelize integration tests\":[{\"select\":\"Can each worker own an isolated test database?\",\"id\":\"db_isolation\",\"options\":[{\"value\":\"Yes, isolate each worker\",\"description\":\"Partition by worker and clean up after each run before increasing concurrency.\"},{\"value\":\"Not established — investigate first\",\"description\":\"Inspect fixtures and migration assumptions before promising faster tests.\"}],\"default\":\"Not established — investigate first\",\"Yes, isolate each worker\":[{\"input\":\"Proposed isolation plan — edit it\",\"id\":\"isolation_plan\",\"default\":\"Create one disposable database per worker, run migrations once per database, and give each worker its own connection URL.\",\"rows\":3},{\"slider\":\"Initial workers to benchmark\",\"id\":\"workers\",\"min\":2,\"max\":8,\"default\":2}],\"Not established — investigate first\":[{\"markdown\":\"The next useful step is to inspect global fixtures, database naming and cleanup, then report whether isolation is feasible. We cannot safely choose a worker count from the timings alone.\"},{\"check\":\"Return an isolation proposal before changing test execution\",\"id\":\"proposal_first\",\"default\":true}]}],\"Reduce platform coverage\":[{\"select\":\"Which support commitment can change?\",\"id\":\"coverage\",\"options\":[{\"value\":\"Keep every release platform\",\"description\":\"Optimize elsewhere; current timings do not establish redundant coverage.\"},{\"value\":\"Reduce pull-request matrix only\",\"description\":\"Keep the full release matrix; choose the smallest useful PR signal.\"}],\"default\":\"Keep every release platform\",\"Reduce pull-request matrix only\":[{\"input\":\"Platform-specific risks that must stay covered\",\"id\":\"platform_risks\",\"placeholder\":\"If unknown, inspect platform-dependent code before selecting exclusions\",\"rows\":2},{\"input\":\"Proposed PR coverage — edit or reject\",\"id\":\"pr_coverage\",\"default\":\"Run the fast representative checks on every PR; run the full supported-platform matrix before release. Verify native and filesystem-sensitive tests before reducing any PR coverage.\",\"rows\":3}]}]},{\"markdown\":\"With caching and test parallelism selected, benchmark them separately before combining them: faster installs should not conceal database contention. Reuse the same workload for cold/warm and one/two-worker comparisons.\",\"when\":\"selected(changes, Cache dependencies) && selected(changes, Parallelize integration tests)\"}]}\n\nClassic widgets: text, markdown, slider, check, input (default/placeholder/rows), select, multi, rank (partial priority order), group and linear page. title is optional; omit redundant headings. Give options decision-relevant descriptions (because is an alias). multi.default accepts an option string or array. Exact option keys hold follow-up arrays; reveals appears while checked or once a selection exists. Conditions use bare ids, selected(id, value), count(id), any/all, comparisons, && || ! and parentheses; quote values containing a closing parenthesis. Hidden values read as unset even with defaults. References must exist; cycles including ancestor/descendant dependencies are rejected. If pages are needed, every top-level element is a page with Back/Next and one final Submit; page.when can skip steps.\n\nKeep notes enabled. Every select/multi supplies Other (please specify) with free text automatically. Notes and unexpected answers can change the problem representation; explicit corrections override conflicting widgets. Ask only what still blocks progress. Use unique ASCII ids; avoid status, button, error, _notes, _labels, _route, __proto__, constructor, prototype and generated <id>_other_text collisions. Option values cannot collide with widget properties. Repair path-specific validation errors and retry. No page.next, conversation nodes, semantic routing, after_submit or intermediate submission exists.\n\nOpening the tool returns awaiting_input with formId and definition, not a decision. Wait for the user message {\"type\":\"popup_result\",\"formId\":\"…\",\"submissionId\":\"…\",\"result\":{…}}. Its terminal classic result is {\"status\":\"completed\",\"button\":\"submit\",\"<id>\":<value>,\"_labels\":{…},\"_notes\":\"…\"} or {\"status\":\"cancelled\"}. A repeated submissionId is duplicate delivery: do not repeat the action. Cancellation stops this question; do not reopen automatically. There is no backend answer storage.\n\nInterpret the submitted evidence: absent keys were hidden or on unvisited pages; input \"\" is blank, select null unchosen, multi/rank [] empty, check false unchecked. Select returns option text; multi/rank return arrays (rank in priority order); slider returns a number; Other adds <id>_other_text. _labels explains ids and _notes adds instructions. Resume the original task from the actual answer, including corrections, without mistaking the opening acknowledgment or an unsubmitted default for agreement.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "maxLength": 100000,
+        "description": "Optional short context heading; omit when the conversation already supplies context."
+      },
+      "submit": {
+        "type": "string",
+        "maxLength": 100000,
+        "description": "Submission label, default Submit. Use a verb matching the requested consequence."
+      },
+      "notes": {
+        "type": "boolean",
+        "description": "Show optional Add a note, default true. Keep enabled to catch unforeseen answers and corrections."
+      },
+      "elements": {
+        "type": "array",
+        "description": "Conversational elements in display order: explain, propose and expose useful continuations. The widget key carries its label.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Static text.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Markdown framing or context.",
+              "properties": {
+                "markdown": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                }
+              },
+              "required": [
+                "markdown"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Numeric slider; min < max, step > 0, default within bounds.",
+              "properties": {
+                "slider": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "step": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Default 1."
+                },
+                "default": {
+                  "type": "number",
+                  "description": "Implicit midpoint snapped to step; explicit in-range values are preserved."
+                }
+              },
+              "required": [
+                "slider",
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Checkbox; checked-branch follow-ups belong in reveals.",
+              "properties": {
+                "check": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "default": {
+                  "type": "boolean",
+                  "description": "Default false."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown while checked."
+                }
+              },
+              "required": [
+                "check"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Free text input.",
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "placeholder": {
+                  "type": "string",
+                  "maxLength": 100000
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Proposed text the user can edit."
+                },
+                "rows": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Multiline height."
+                }
+              },
+              "required": [
+                "input"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Single choice. An exact option-text key holds that answer’s follow-up elements.",
+              "properties": {
+                "select": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Grounded proposal or hypothesis with its consequence, tradeoff or assumption."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "Other (please specify) and its text input are automatic; do not author them."
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Proposed option text, not confirmed until submission."
+                },
+                "style": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "enum": [
+                    "radio",
+                    "dropdown"
+                  ],
+                  "description": "Automatic: radio up to six options, otherwise dropdown."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown once any option is selected."
+                }
+              },
+              "required": [
+                "select",
+                "options"
+              ],
+              "additionalProperties": {
+                "$ref": "#/properties/elements",
+                "description": "Branch key must exactly match an authored option value and not collide with widget properties."
+              }
+            },
+            {
+              "type": "object",
+              "description": "Multiple choice; each selected option can reveal its own follow-ups through an exact option-text key.",
+              "properties": {
+                "multi": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Grounded proposal or hypothesis with its consequence, tradeoff or assumption."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "Other (please specify) and its text input are automatic."
+                },
+                "default": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 100000
+                      }
+                    }
+                  ],
+                  "description": "Proposed option texts; string is accepted as a one-item array."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown once any option is selected."
+                }
+              },
+              "required": [
+                "multi",
+                "options"
+              ],
+              "additionalProperties": {
+                "$ref": "#/properties/elements",
+                "description": "Branch key must exactly match an authored option value and not collide with widget properties."
+              }
+            },
+            {
+              "type": "object",
+              "description": "Click-to-order priorities. Partial rankings are valid; unranked items are omitted.",
+              "properties": {
+                "rank": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Grounded proposal or hypothesis with its consequence, tradeoff or assumption."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "At least two options; no automatic Other."
+                }
+              },
+              "required": [
+                "rank",
+                "options"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Visual grouping of related elements.",
+              "properties": {
+                "group": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "elements": {
+                  "$ref": "#/properties/elements"
+                }
+              },
+              "required": [
+                "group",
+                "elements"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Linear wizard step. Top-level only; all top-level elements must be pages when used. Back/Next, one terminal Submit; when can skip a step. No next edges or semantic routing.",
+              "properties": {
+                "page": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Conversational content: analysis, proposal, question or context appropriate to this element."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "elements": {
+                  "$ref": "#/properties/elements"
+                }
+              },
+              "required": [
+                "page",
+                "elements"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "elements"
+    ],
+    "additionalProperties": false,
+    "examples": [
+      {
+        "submit": "Choose the next CI change",
+        "elements": [
+          {
+            "markdown": "Worked example — supplied fictional evidence: every matrix job repeats a 4-minute dependency install; integration tests take 18 minutes and share one database; the matrix covers Linux, macOS and Windows, but the release support policy has not yet been established."
+          },
+          {
+            "markdown": "Repeated installs are a plausible quick win. The 18-minute integration job is larger, but its shared database makes naive parallelism unsafe. Dropping platforms trades coverage for speed; I would preserve it until we know which platforms matter."
+          },
+          {
+            "multi": "Which changes should we work through together?",
+            "id": "changes",
+            "options": [
+              {
+                "value": "Cache dependencies",
+                "description": "Recover repeated install time; key the cache to the lockfile and runtime."
+              },
+              {
+                "value": "Parallelize integration tests",
+                "description": "Attack the longest job after isolating its shared database."
+              },
+              {
+                "value": "Reduce platform coverage",
+                "description": "Reduce matrix cost if the release support policy allows it."
+              }
+            ],
+            "default": [
+              "Cache dependencies",
+              "Parallelize integration tests"
+            ],
+            "Cache dependencies": [
+              {
+                "input": "Proposed cache policy — edit assumptions",
+                "id": "cache_policy",
+                "default": "Cache the package-manager download store by OS, runtime version and lockfile hash; keep immutable installs and leave the lockfile unchanged.",
+                "rows": 3
+              },
+              {
+                "select": "How should a changed lockfile behave?",
+                "id": "cache_miss",
+                "options": [
+                  {
+                    "value": "Rebuild the cache",
+                    "description": "A fresh key keeps invalidation simple; first run remains slow."
+                  },
+                  {
+                    "value": "Restore a nearby cache",
+                    "description": "May save downloads; verify stale entries cannot bypass an immutable install."
+                  }
+                ],
+                "default": "Rebuild the cache",
+                "Restore a nearby cache": [
+                  {
+                    "markdown": "I would restore only the download store, never installed dependencies, then compare a cold and warm run. A restore policy should earn its complexity with measured savings."
+                  },
+                  {
+                    "check": "Benchmark restore fallback before adopting it",
+                    "id": "benchmark_restore",
+                    "default": true
+                  }
+                ]
+              }
+            ],
+            "Parallelize integration tests": [
+              {
+                "select": "Can each worker own an isolated test database?",
+                "id": "db_isolation",
+                "options": [
+                  {
+                    "value": "Yes, isolate each worker",
+                    "description": "Partition by worker and clean up after each run before increasing concurrency."
+                  },
+                  {
+                    "value": "Not established — investigate first",
+                    "description": "Inspect fixtures and migration assumptions before promising faster tests."
+                  }
+                ],
+                "default": "Not established — investigate first",
+                "Yes, isolate each worker": [
+                  {
+                    "input": "Proposed isolation plan — edit it",
+                    "id": "isolation_plan",
+                    "default": "Create one disposable database per worker, run migrations once per database, and give each worker its own connection URL.",
+                    "rows": 3
+                  },
+                  {
+                    "slider": "Initial workers to benchmark",
+                    "id": "workers",
+                    "min": 2,
+                    "max": 8,
+                    "default": 2
+                  }
+                ],
+                "Not established — investigate first": [
+                  {
+                    "markdown": "The next useful step is to inspect global fixtures, database naming and cleanup, then report whether isolation is feasible. We cannot safely choose a worker count from the timings alone."
+                  },
+                  {
+                    "check": "Return an isolation proposal before changing test execution",
+                    "id": "proposal_first",
+                    "default": true
+                  }
+                ]
+              }
+            ],
+            "Reduce platform coverage": [
+              {
+                "select": "Which support commitment can change?",
+                "id": "coverage",
+                "options": [
+                  {
+                    "value": "Keep every release platform",
+                    "description": "Optimize elsewhere; current timings do not establish redundant coverage."
+                  },
+                  {
+                    "value": "Reduce pull-request matrix only",
+                    "description": "Keep the full release matrix; choose the smallest useful PR signal."
+                  }
+                ],
+                "default": "Keep every release platform",
+                "Reduce pull-request matrix only": [
+                  {
+                    "input": "Platform-specific risks that must stay covered",
+                    "id": "platform_risks",
+                    "placeholder": "If unknown, inspect platform-dependent code before selecting exclusions",
+                    "rows": 2
+                  },
+                  {
+                    "input": "Proposed PR coverage — edit or reject",
+                    "id": "pr_coverage",
+                    "default": "Run the fast representative checks on every PR; run the full supported-platform matrix before release. Verify native and filesystem-sensitive tests before reducing any PR coverage.",
+                    "rows": 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "markdown": "With caching and test parallelism selected, benchmark them separately before combining them: faster installs should not conceal database contention. Reuse the same workload for cold/warm and one/two-worker comparisons.",
+            "when": "selected(changes, Cache dependencies) && selected(changes, Parallelize integration tests)"
+          }
+        ]
+      }
+    ]
+  }
+}

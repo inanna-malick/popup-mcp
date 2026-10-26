@@ -1,0 +1,56 @@
+{
+  "title": "Choose the next incident investigation step",
+  "submit": "Start the read-only investigation",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "We know p95 crossed 10 seconds after a deployment; we do not yet know the cause. I'll inspect the available dashboards and logs, compare traffic and latency before and after the deployment, and look for errors and slow dependencies. The previous downstream incident is a lead to check, not an explanation. This submission authorizes read-only investigation; production changes need separate explicit authorization."
+    },
+    {
+      "select": "How should I investigate?",
+      "id": "investigation_scope",
+      "options": [
+        {
+          "value": "Focused first pass",
+          "description": "Quickly identify affected routes, traffic shifts, deployment timing, and errors; report the strongest leads and evidence gaps."
+        },
+        {
+          "value": "Broader diagnosis",
+          "description": "Also inspect resource saturation and dependency health, and seek traces if available; takes longer but checks more possible causes."
+        }
+      ],
+      "default": "Focused first pass"
+    },
+    {
+      "check": "Prepare mitigation options alongside the investigation",
+      "id": "prepare_mitigations",
+      "default": true,
+      "reveals": [
+        {
+          "multi": "Which options should I assess, without executing them?",
+          "id": "mitigation_candidates",
+          "options": [
+            {
+              "value": "Rollback",
+              "description": "Assess only if comparisons implicate the deployment; check rollback compatibility and expected benefit."
+            },
+            {
+              "value": "Scaling",
+              "description": "Assess if telemetry shows a capacity bottleneck; estimate cost and whether the limiting component can benefit."
+            },
+            {
+              "value": "Production setting changes",
+              "description": "Assess specific changes only when evidence identifies a relevant setting; describe risks and reversal steps."
+            }
+          ],
+          "default": ["Rollback", "Scaling"],
+          "reveals": [
+            {
+              "text": "I'll report the evidence, expected benefit, risks, and remaining uncertainty for applicable options, then seek explicit authorization before changing production."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,610 @@
+{
+  "description": "Open an interactive form to gather enough information for your next useful action. Think of this as dialogue compression: predict likely answers and the consequential follow-up each would invite. Nest that follow-up under the answer; stop where you can act. Use informed defaults as editable proposals, never as evidence the user agreed before Submit. Prefer a compact screen over an exhaustive questionnaire.\n\nUse exact option-as-key branches on select/multi for answer-specific follow-ups: {\"select\":\"Database\",\"id\":\"db\",\"options\":[\"Postgres\",\"SQLite\"],\"Postgres\":[{\"input\":\"Connection string\",\"id\":\"conn\"}]}. Use reveals for checked or selection-wide follow-ups; use when for cross-element dependencies. Hidden answers read as unset even if they have defaults. Conditions use bare ids, selected(id, value), count(id), any/all, comparisons, && || ! and parentheses. Dependency cycles, including ancestor/descendant references, are rejected.\n\nWidgets: text, markdown, slider (min/max/step/default), check, input (placeholder/default/rows), select, multi, rank (partial priority order), group, page. Give choices concise descriptions (because is an alias) that explain tradeoffs. multi.default accepts an option string or array. For long flows, all top-level elements may be linear pages with Back/Next and one final Submit; page.when can skip a step. There are no page.next edges, conversation nodes, semantic routing, or intermediate submissions.\n\nKeep notes enabled; every select/multi already adds Other (please specify) with free text. Unexpected answers and notes are part of the conversation, not noise. Explicit corrections in notes override conflicting selections; if intent remains ambiguous, clarify only what blocks the next action. Name Submit after the consequence. Use globally unique ASCII identifiers for conditions; avoid status, button, error, _notes, _labels, _route, __proto__, constructor, prototype and generated <id>_other_text collisions. Option values must not collide with their widget’s property names. Validation errors include paths: repair the definition and retry before it is shown.\n\nThe initial tool response is awaiting_input: the form is open, not answered. Wait for a user message {\"type\":\"popup_result\",\"formId\":\"…\",\"submissionId\":\"…\",\"result\":{…}}. The classic result is {\"status\":\"completed\",\"button\":\"submit\",\"<id>\":<value>,\"_labels\":{…},\"_notes\":\"…\"} or {\"status\":\"cancelled\"}. Submission is terminal. Treat a repeated submissionId as duplicate delivery; do not repeat the resulting action. Cancellation means stop this question; do not reopen the same form automatically. No backend answer storage is provided.\n\nRead only submitted visible values: absent key means hidden or on an unvisited page; input \"\" means visible but blank; select null means unchosen; multi/rank [] means no selections; check false means unchecked. Select returns option text, multi/rank return arrays (rank in priority order), slider returns a number. Other adds <id>_other_text. _labels explains returned ids; _notes supplies extra instructions. Resume the original task from the actual answer, including surprises and corrections, without pretending the tool’s opening acknowledgment is a decision.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "maxLength": 100000,
+        "description": "Short sentence naming the decision or next action."
+      },
+      "submit": {
+        "type": "string",
+        "maxLength": 100000,
+        "description": "Submission label, default Submit. Use a verb matching the requested consequence."
+      },
+      "notes": {
+        "type": "boolean",
+        "description": "Show optional Add a note, default true. Keep enabled to catch unforeseen answers and corrections."
+      },
+      "elements": {
+        "type": "array",
+        "description": "Elements in display order. The widget key carries its label.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Static text.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Markdown framing or context.",
+              "properties": {
+                "markdown": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                }
+              },
+              "required": [
+                "markdown"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Numeric slider; min < max, step > 0, default within bounds.",
+              "properties": {
+                "slider": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "step": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Default 1."
+                },
+                "default": {
+                  "type": "number",
+                  "description": "Default midpoint."
+                }
+              },
+              "required": [
+                "slider",
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Checkbox; checked-branch follow-ups belong in reveals.",
+              "properties": {
+                "check": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "default": {
+                  "type": "boolean",
+                  "description": "Default false."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown while checked."
+                }
+              },
+              "required": [
+                "check"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Free text input.",
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "placeholder": {
+                  "type": "string",
+                  "maxLength": 100000
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Proposed text the user can edit."
+                },
+                "rows": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Multiline height."
+                }
+              },
+              "required": [
+                "input"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Single choice. An exact option-text key holds that answer’s follow-up elements.",
+              "properties": {
+                "select": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Brief decision-relevant tradeoff."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "Other (please specify) and its text input are automatic; do not author them."
+                },
+                "default": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Proposed option text, not confirmed until submission."
+                },
+                "style": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "enum": [
+                    "radio",
+                    "dropdown"
+                  ],
+                  "description": "Automatic: radio up to six options, otherwise dropdown."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown once any option is selected."
+                }
+              },
+              "required": [
+                "select",
+                "options"
+              ],
+              "additionalProperties": {
+                "$ref": "#/properties/elements",
+                "description": "Branch key must exactly match an authored option value and not collide with widget properties."
+              }
+            },
+            {
+              "type": "object",
+              "description": "Multiple choice; each selected option can reveal its own follow-ups through an exact option-text key.",
+              "properties": {
+                "multi": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Brief decision-relevant tradeoff."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "Other (please specify) and its text input are automatic."
+                },
+                "default": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 100000
+                      }
+                    }
+                  ],
+                  "description": "Proposed option texts; string is accepted as a one-item array."
+                },
+                "reveals": {
+                  "$ref": "#/properties/elements",
+                  "description": "Shown once any option is selected."
+                }
+              },
+              "required": [
+                "multi",
+                "options"
+              ],
+              "additionalProperties": {
+                "$ref": "#/properties/elements",
+                "description": "Branch key must exactly match an authored option value and not collide with widget properties."
+              }
+            },
+            {
+              "type": "object",
+              "description": "Click-to-order priorities. Partial rankings are valid; unranked items are omitted.",
+              "properties": {
+                "rank": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 200,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100000
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string",
+                            "maxLength": 100000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Brief decision-relevant tradeoff."
+                          },
+                          "because": {
+                            "type": "string",
+                            "maxLength": 100000,
+                            "description": "Alias for description."
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "not": {
+                          "required": [
+                            "description",
+                            "because"
+                          ]
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "At least two options; no automatic Other."
+                }
+              },
+              "required": [
+                "rank",
+                "options"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Visual grouping of related elements.",
+              "properties": {
+                "group": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "elements": {
+                  "$ref": "#/properties/elements"
+                }
+              },
+              "required": [
+                "group",
+                "elements"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "description": "Linear wizard step. Top-level only; all top-level elements must be pages when used. Back/Next, one terminal Submit; when can skip a step. No next edges or semantic routing.",
+              "properties": {
+                "page": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Human-facing label or content."
+                },
+                "id": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                  "description": "Globally unique ASCII identifier; otherwise derived from label. Reserved: status, button, error, _notes, _labels, _route, __proto__, constructor, prototype. Avoid collisions with generated <id>_other_text fields."
+                },
+                "when": {
+                  "type": "string",
+                  "maxLength": 100000,
+                  "description": "Visibility over visible values only: bare id tests truthiness; selected(id, value) tests an option; count(id) > N counts selections; any(...)/all(...), &&, ||, !, comparisons and parentheses compose conditions. Negative numbers are allowed. Quote option text containing a closing parenthesis. Hidden values read as unset (false, unselected, count 0). References must exist and dependencies must be acyclic, including ancestor/descendant dependencies."
+                },
+                "elements": {
+                  "$ref": "#/properties/elements"
+                }
+              },
+              "required": [
+                "page",
+                "elements"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "title",
+      "elements"
+    ],
+    "additionalProperties": false,
+    "examples": [
+      {
+        "title": "How should I fix the failing auth tests?",
+        "elements": [
+          {
+            "select": "Approach",
+            "id": "approach",
+            "options": [
+              {
+                "value": "Patch the mock",
+                "description": "Fast; preserves the test boundary."
+              },
+              {
+                "value": "Test containers",
+                "description": "More setup; exercises real integration."
+              }
+            ],
+            "default": "Patch the mock",
+            "Test containers": [
+              {
+                "check": "Also migrate session tests",
+                "id": "sessions"
+              },
+              {
+                "slider": "Time budget (hours)",
+                "id": "budget",
+                "min": 1,
+                "max": 8,
+                "default": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Configure the new service",
+        "elements": [
+          {
+            "select": "Language",
+            "id": "lang",
+            "options": [
+              "Rust",
+              "TypeScript"
+            ],
+            "Rust": [
+              {
+                "select": "Async runtime",
+                "id": "runtime",
+                "options": [
+                  "tokio",
+                  "async-std"
+                ],
+                "default": "tokio"
+              }
+            ],
+            "TypeScript": [
+              {
+                "check": "Strict mode",
+                "id": "strict",
+                "default": true
+              }
+            ]
+          },
+          {
+            "check": "Set up CI",
+            "id": "ci",
+            "default": true,
+            "reveals": [
+              {
+                "multi": "CI jobs",
+                "id": "jobs",
+                "options": [
+                  "test",
+                  "lint",
+                  "release"
+                ],
+                "default": [
+                  "test",
+                  "lint"
+                ]
+              }
+            ]
+          },
+          {
+            "input": "Service name",
+            "id": "name",
+            "default": "my-service"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "popup_result",
+  "formId": "eval-d79ededd",
+  "submissionId": "eval-d79ededd-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "incident_strands": [
+      "Other (please specify)"
+    ],
+    "incident_strands_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "_labels": {
+      "incident_strands": "Which investigation strands should we work through together?",
+      "incident_strands_other_text": "Please specify"
+    }
+  }
+}

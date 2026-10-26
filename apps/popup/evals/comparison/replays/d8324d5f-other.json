@@ -1,0 +1,17 @@
+{
+  "type": "popup_result",
+  "formId": "eval-d8324d5f",
+  "submissionId": "eval-d8324d5f-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Other (please specify)"
+    ],
+    "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment.",
+    "_labels": {
+      "threads": "Which threads should we explore together?",
+      "threads_other_text": "Please specify"
+    }
+  }
+}

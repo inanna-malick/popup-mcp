@@ -1,0 +1,284 @@
+{
+  "title": "What's going on",
+  "submit": "That's the one",
+  "elements": [
+    {
+      "page": "What's going on",
+      "id": "start",
+      "elements": [
+        {
+          "markdown": "Say what is happening in your own words, or pick the closest."
+        },
+        {
+          "select": "Closest",
+          "id": "topic",
+          "options": [
+            {
+              "value": "it's too slow",
+              "description": "something taking too long, being sluggish, or timing out"
+            },
+            {
+              "value": "it does the wrong thing",
+              "description": "incorrect output, a crash, or behaviour that does not match what they expected"
+            },
+            {
+              "value": "I can't get it running",
+              "description": "installing, configuring or starting it up for the first time"
+            },
+            {
+              "value": "I can't tell how it works",
+              "description": "not understanding the tool, missing explanation, or unclear naming"
+            },
+            {
+              "value": "my data looks wrong",
+              "description": "the contents being wrong, missing or stale rather than the program misbehaving"
+            },
+            {
+              "value": "it costs too much",
+              "description": "money, billing, quota or usage limits"
+            },
+            {
+              "value": "I can't get in",
+              "description": "logging in, permissions, keys or being locked out"
+            },
+            {
+              "value": "it doesn't do the thing I need",
+              "description": "the person is describing something the tool does not do at all yet"
+            }
+          ]
+        },
+        {
+          "input": "In your words",
+          "id": "words",
+          "rows": 3
+        }
+      ],
+      "next": [
+        {
+          "to": "perf",
+          "if": "the person is talking about something taking too long, being sluggish, or timing out"
+        },
+        {
+          "to": "bug",
+          "if": "the person is talking about incorrect output, a crash, or behaviour that does not match what they expected"
+        },
+        {
+          "to": "setup",
+          "if": "the person is talking about installing, configuring or starting it up for the first time"
+        },
+        {
+          "to": "docs",
+          "if": "the person is talking about not understanding the tool, missing explanation, or unclear naming"
+        },
+        {
+          "to": "data",
+          "if": "the person is talking about the contents being wrong, missing or stale rather than the program misbehaving"
+        },
+        {
+          "to": "cost",
+          "if": "the person is talking about money, billing, quota or usage limits"
+        },
+        {
+          "to": "access",
+          "if": "the person is talking about logging in, permissions, keys or being locked out"
+        },
+        {
+          "to": "feature",
+          "if": "the person is describing something the tool does not do at all yet"
+        }
+      ]
+    },
+    {
+      "page": "it's too slow",
+      "id": "perf",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "perf_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "perf_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "it does the wrong thing",
+      "id": "bug",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "bug_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "bug_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "I can't get it running",
+      "id": "setup",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "setup_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "setup_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "I can't tell how it works",
+      "id": "docs",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "docs_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "docs_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "my data looks wrong",
+      "id": "data",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "data_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "data_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "it costs too much",
+      "id": "cost",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "cost_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "cost_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "I can't get in",
+      "id": "access",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "access_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "access_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "it doesn't do the thing I need",
+      "id": "feature",
+      "elements": [
+        {
+          "select": "How long has it been like this",
+          "id": "feature_since",
+          "options": [
+            "just started",
+            "a few days",
+            "as long as I can remember"
+          ]
+        },
+        {
+          "select": "How much is it in your way",
+          "id": "feature_bad",
+          "options": [
+            "annoying",
+            "slowing me down",
+            "I can't work"
+          ]
+        }
+      ]
+    }
+  ]
+}

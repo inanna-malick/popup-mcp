@@ -1,0 +1,114 @@
+{
+  "title": "Explore the archive’s intimate and political consequences",
+  "submit": "Develop these possibilities",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "A public archive can be generous and still face impossible choices. Select any possibilities that intrigue you; they can coexist. I’ll explore their consequences and open questions without committing us to a plot. Bend any proposal in the notes."
+    },
+    {
+      "multi": "Which possibilities should we follow?",
+      "id": "possibilities",
+      "options": [
+        {
+          "value": "Correcting a shared memory",
+          "description": "Two neighbors remember a storm evacuation differently. Correcting the public record could restore one person’s dignity while unsettling another’s cherished gratitude."
+        },
+        {
+          "value": "Borrowing someone into a relationship",
+          "description": "A borrower acquires a stranger’s tenderness toward their partner, then develops affection of their own. Neither person can easily separate inheritance from choice."
+        },
+        {
+          "value": "A correction reaches existing borrowers",
+          "description": "An honest correction may alter relationships built on the old memory. Leaving borrowers unchanged respects their autonomy but lets conflicting accounts endure."
+        }
+      ],
+      "default": ["Correcting a shared memory", "Borrowing someone into a relationship"],
+      "Correcting a shared memory": [
+        {
+          "select": "What makes correction difficult?",
+          "id": "correction_tension",
+          "options": [
+            {
+              "value": "Both accounts stay available",
+              "description": "The archive preserves disagreement, but a neighbor wants a clear acknowledgment rather than another footnote."
+            },
+            {
+              "value": "Witnesses deliberate in public",
+              "description": "Everyone can participate, but discussing a civic event exposes a private betrayal."
+            },
+            {
+              "value": "The donor can amend their account",
+              "description": "Control stays with the person who lived it, while others must live with a version they dispute."
+            }
+          ],
+          "default": "Both accounts stay available"
+        }
+      ],
+      "Borrowing someone into a relationship": [
+        {
+          "select": "Which intimate consequence interests you?",
+          "id": "intimacy_tension",
+          "options": [
+            {
+              "value": "Affection arrives before trust",
+              "description": "A borrower feels close to someone they barely know; the other person wants closeness earned in the present."
+            },
+            {
+              "value": "Friends borrow the same afternoon",
+              "description": "They share a new private language, but disagree about whether their growing similarity is a gift or a loss."
+            },
+            {
+              "value": "A borrowed habit feels like home",
+              "description": "Someone adopts a stranger’s small domestic ritual; their household must decide whether to welcome the change."
+            }
+          ],
+          "default": "Affection arrives before trust"
+        }
+      ],
+      "A correction reaches existing borrowers": [
+        {
+          "select": "How could borrowers encounter a correction?",
+          "id": "borrower_correction",
+          "options": [
+            {
+              "value": "An invitation to borrow the amendment",
+              "description": "Participation remains voluntary; accepting may change a bond, while declining may hurt the person seeking acknowledgment."
+            },
+            {
+              "value": "A public annotation without personal change",
+              "description": "Borrowers learn what is disputed while retaining the memory that shaped them."
+            }
+          ],
+          "default": "An invitation to borrow the amendment"
+        }
+      ]
+    },
+    {
+      "select": "How should the two threads meet?",
+      "id": "thread_connection",
+      "when": "selected(possibilities, 'Correcting a shared memory') && selected(possibilities, 'Borrowing someone into a relationship')",
+      "options": [
+        {
+          "value": "The contested memory created the bond",
+          "description": "A correction challenges what brought two people close, without settling whether their present affection is real."
+        },
+        {
+          "value": "A loved one asks for the correction",
+          "description": "Supporting someone’s dignity could change a memory the borrower privately treasures."
+        },
+        {
+          "value": "Keep them alongside each other",
+          "description": "Explore civic disagreement and borrowed intimacy separately before looking for connections."
+        }
+      ],
+      "default": "A loved one asks for the correction"
+    },
+    {
+      "input": "What would you bend, add, or leave unresolved?",
+      "id": "setting_bends",
+      "placeholder": "For example: a different rule for how borrowing changes someone, a quieter consequence, or a question to keep open.",
+      "rows": 2
+    }
+  ]
+}

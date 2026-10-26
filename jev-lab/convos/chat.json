@@ -1,0 +1,70 @@
+{
+  "title": "How's the writing going",
+  "start": "open",
+  "nodes": {
+    "open": {
+      "say": "You said you'd get a draft down this week. How did it go?",
+      "lines": [
+        {
+          "line": "Didn't get to it",
+          "means": "They have not written, or could not start, or avoided it.",
+          "goto": "stuck"
+        },
+        {
+          "line": "Got a good chunk down, it went alright",
+          "means": "They wrote, and it went reasonably well.",
+          "goto": "flowing"
+        },
+        {
+          "line": "Wrote it and I hate it",
+          "means": "They wrote but do not like what came out, or doubt it is any good.",
+          "goto": "doubt"
+        }
+      ],
+      "aside": "Three ways this usually goes: they did not write, they wrote and it went fine, or they wrote and dislike it. The third often hides inside the first."
+    },
+    "stuck": {
+      "say": "That happens. Let's find the smallest next move.",
+      "lines": [
+        {
+          "line": "It's the starting that's hard"
+        },
+        {
+          "line": "I know what to write, I just don't"
+        },
+        {
+          "line": "I don't know what it's about yet"
+        }
+      ]
+    },
+    "flowing": {
+      "say": "Good. Let's protect whatever made that work.",
+      "lines": [
+        {
+          "line": "It was having a clear block of time"
+        },
+        {
+          "line": "It was knowing what came next"
+        },
+        {
+          "line": "Honestly no idea, it just went"
+        }
+      ]
+    },
+    "doubt": {
+      "say": "Written and bad still beats unwritten.",
+      "lines": [
+        {
+          "line": "The prose is clumsy"
+        },
+        {
+          "line": "The argument doesn't hold"
+        },
+        {
+          "line": "It's fine, I'm just sick of it"
+        }
+      ]
+    }
+  },
+  "context": "I am checking in with someone about a writing project. They said last week they would get a draft down. This is a supportive check-in, not an accountability audit."
+}

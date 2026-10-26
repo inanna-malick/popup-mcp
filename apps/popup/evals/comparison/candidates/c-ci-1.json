@@ -1,0 +1,94 @@
+{
+  "submit": "Set the next CI work",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The inspected workflow repeats a 2-minute install in four jobs and runs the integration suite serially for 11 minutes against shared Postgres. Caching could reduce repeated setup; integration parallelism could shorten the longest supplied test phase, but only after database isolation is proven. Four installs account for 8 job-minutes of work, not necessarily 8 minutes of wall-clock delay. We have no cache experiment or flaky-test investigation yet."
+    },
+    {
+      "markdown": "I propose keeping Linux/macOS/Windows release coverage: the CLI has supported users on all three. Production being Linux does not establish that the other platforms are expendable. For PRs, docs-only filtering is a separate opportunity to avoid unnecessary runs while keeping code-change coverage. Runner billing means shorter elapsed time can still cost more if extra workers increase total minutes."
+    },
+    {
+      "multi": "Which opportunities should we work through together?",
+      "id": "ci_work",
+      "options": [
+        {"value": "Measure before changing", "description": "Establish wall-clock time, job-minutes and failures before judging improvements."},
+        {"value": "Cache dependency downloads", "description": "Reduce repeated installs; validate cold and warm behavior without weakening reproducibility."},
+        {"value": "Isolate and parallelize integration tests", "description": "Target the 11-minute suite; first establish independent Postgres state and test reliability."},
+        {"value": "Skip unnecessary docs-only PR jobs", "description": "Avoid the full matrix for proven docs-only changes while preserving code and release coverage."}
+      ],
+      "default": ["Measure before changing", "Cache dependency downloads", "Isolate and parallelize integration tests"],
+      "Measure before changing": [
+        {
+          "input": "Proposed baseline — edit the sample and measurements",
+          "id": "baseline_plan",
+          "default": "Measure three representative PRs: record install duration per job, integration duration, end-to-end completion time, total billed runner-minutes, and failures/retries. Include a docs-only PR if available. Keep existing coverage and concurrency while collecting the baseline.",
+          "rows": 3
+        }
+      ],
+      "Cache dependency downloads": [
+        {
+          "input": "Proposed cache experiment — edit it",
+          "id": "cache_experiment",
+          "default": "Inspect the package manager and runtime, then cache its download store using OS, runtime version and lockfile hash. Keep the existing immutable install. Compare cold and warm runs with the same workload; confirm invalidation after a lockfile change. Report install savings and total runner-minutes before adopting the cache.",
+          "rows": 4
+        },
+        {
+          "select": "How much cache complexity should the first experiment include?",
+          "id": "cache_strategy",
+          "options": [
+            {"value": "Exact keys first", "description": "A changed lockfile gets a cold cache; this provides a simple correctness baseline."},
+            {"value": "Also test fallback restores", "description": "May save downloads after lockfile changes; requires proving the install still validates dependencies."}
+          ],
+          "default": "Exact keys first",
+          "Exact keys first": [{"markdown": "Start with exact-key cold/warm comparisons. If misses erase the benefit, we can investigate fallback restores with measured evidence."}],
+          "Also test fallback restores": [{"markdown": "Restore only the download store, then perform the normal immutable install. Compare fallback restores against exact-key misses and verify changed dependencies are actually installed."}]
+        }
+      ],
+      "Isolate and parallelize integration tests": [
+        {
+          "select": "What do we know about per-worker database isolation?",
+          "id": "postgres_isolation",
+          "options": [
+            {"value": "Not established — inspect first", "description": "Shared Postgres explains serial execution, but does not prove fixtures can run independently."},
+            {"value": "Isolation is feasible", "description": "Use this only if fixtures, migrations and cleanup can support independent worker databases."}
+          ],
+          "default": "Not established — inspect first",
+          "Not established — inspect first": [
+            {"markdown": "Inspect database naming, global fixtures, migration setup, cleanup and any shared services or files. Check recent failures for ordering assumptions. Return an isolation proposal and expected resource needs; do not promise an 11-minute suite will halve with two workers."},
+            {"input": "Proposed investigation output — edit it", "id": "isolation_report", "default": "Identify shared mutable state and test-order dependencies; propose one disposable Postgres database and connection URL per worker, including migrations and cleanup; estimate setup overhead and report blockers before changing concurrency.", "rows": 3}
+          ],
+          "Isolation is feasible": [
+            {"input": "Proposed first parallel experiment — edit it", "id": "parallel_experiment", "default": "Create one disposable database per worker with its own connection URL; run migrations and fixtures independently and guarantee cleanup. Compare one versus two workers on the same workload. Record elapsed time, total runner-minutes and failures/retries, including setup overhead. Increase concurrency only if the results justify it.", "rows": 4},
+            {"markdown": "Two workers are an initial benchmark proposal, not an agreed spend increase. The budget choice below determines whether this experiment can proceed or should remain a proposal."}
+          ]
+        }
+      ],
+      "Skip unnecessary docs-only PR jobs": [
+        {"markdown": "A docs-only PR need not automatically require every platform test, but path filters must account for generated docs, executable examples and build configuration. An incorrectly narrow filter can miss a real code effect."},
+        {"input": "Proposed docs-only rule — edit it", "id": "docs_rule", "default": "Inspect which documentation paths are inert. Run appropriate documentation checks for changes confined to those paths; keep the complete matrix when code, dependencies, examples, generators or build/workflow configuration changes. Preserve the complete release matrix.", "rows": 3},
+        {"check": "Verify mixed-change PRs still trigger the full matrix", "id": "verify_docs_filter", "default": true, "reveals": [{"markdown": "Check docs-only, code-only and mixed changes, plus required-check behavior when jobs are skipped. Adopt filtering only after those cases produce the intended signal."}]}
+      ],
+      "reveals": [
+        {
+          "select": "What is the next step after reviewing these proposals?",
+          "id": "execution_scope",
+          "options": [
+            {"value": "Investigate and return measurements first", "description": "Keep current execution and coverage; inspect unknowns and establish a baseline."},
+            {"value": "Run bounded experiments", "description": "Try the selected changes after resolving their prerequisites and agreeing a spend limit."}
+          ],
+          "default": "Investigate and return measurements first",
+          "Investigate and return measurements first": [{"markdown": "The next deliverable is evidence: timings and billed minutes, cache configuration findings, isolation feasibility for selected work, and docs-filter risks if selected. Use that evidence to choose changes; the proposals above remain editable hypotheses."}],
+          "Run bounded experiments": [
+            {"select": "How should additional runner spend be handled?", "id": "spend_policy", "options": [{"value": "Propose the cost before extra runs", "description": "Some extra spend is acceptable, but no ceiling has been set yet."}, {"value": "Use a limit I specify", "description": "State a budget and stop condition before starting experiments."}], "default": "Propose the cost before extra runs", "Propose the cost before extra runs": [{"markdown": "Estimate the extra runner-minutes for the selected experiments and present that estimate before starting additional runs. Faster completion alone will not establish cost efficiency."}], "Use a limit I specify": [{"input": "Extra runner budget and stop condition", "id": "runner_budget", "placeholder": "For example: at most N additional billed runner-minutes across all experiments; stop if exceeded", "rows": 2}, {"markdown": "If this limit is blank or cannot be evaluated from available billing data, return a cost proposal before running experiments."}]}
+          ]
+        }
+      ]
+    },
+    {
+      "markdown": "When exploring caching and parallel integration together, benchmark each separately before combining them. Use the same representative workload and account for cold/warm caches so install savings do not conceal database contention or test retries. Then compare the combined result against baseline for both elapsed time and billed minutes.",
+      "when": "selected(ci_work, Cache dependency downloads) && selected(ci_work, Isolate and parallelize integration tests)"
+    },
+    {"markdown": "Release coverage remains Linux/macOS/Windows in these proposals. Use Add a note for corrections, different priorities or any explicit change to that commitment; submitting defaults is the point at which your choices become the next work scope."}
+  ]
+}

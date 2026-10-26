@@ -1,0 +1,54 @@
+{
+  "name": "popup-mcp-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "scripts": {
+    "dev": "npm run build && wrangler dev",
+    "preview": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "eval:comparison": "vitest run --config vitest.comparison.config.ts",
+    "test:browser": "playwright test",
+    "visual": "npm run build && node scripts/visual.mjs",
+    "deploy:check": "npm run build && wrangler deploy --dry-run",
+    "deploy": "npm run build && wrangler deploy",
+    "dev:ui": "vite build --watch",
+    "format": "prettier --write src tests evals *.ts *.json *.jsonc *.html",
+    "test:worker": "vitest run --config vitest.worker.config.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/core": "2.3.1",
+    "@modelcontextprotocol/ext-apps": "2.0.3",
+    "@modelcontextprotocol/server": "2.3.1",
+    "agents": "0.28.0",
+    "dompurify": "3.4.16",
+    "marked": "18.1.0",
+    "solid-js": "1.9.17",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261009.1",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vite-plugin-singlefile": "2.3.3",
+    "vite-plugin-solid": "2.11.14",
+    "vitest": "5.0.3",
+    "wrangler": "4.149.0"
+  },
+  "overrides": {
+    "agents": {
+      "@modelcontextprotocol/client": "$@modelcontextprotocol/client",
+      "@modelcontextprotocol/server": "$@modelcontextprotocol/server",
+      "@modelcontextprotocol/sdk": "1.32.1"
+    }
+  }
+}

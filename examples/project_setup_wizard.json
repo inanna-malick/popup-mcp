@@ -1,0 +1,78 @@
+{
+  "title": "Set up the new project",
+  "submit": "Create project",
+  "elements": [
+    {
+      "page": "Basics",
+      "elements": [
+        {
+          "input": "Project name",
+          "id": "name",
+          "default": "my-project"
+        },
+        {
+          "select": "Kind",
+          "id": "kind",
+          "options": [
+            {
+              "value": "CLI tool",
+              "description": "Binary with argument parsing"
+            },
+            {
+              "value": "Web service",
+              "description": "HTTP API with a server framework"
+            },
+            {
+              "value": "Library",
+              "description": "Published crate/package"
+            }
+          ],
+          "default": "CLI tool"
+        }
+      ]
+    },
+    {
+      "page": "Web service details",
+      "when": "selected(kind, Web service)",
+      "elements": [
+        {
+          "select": "Framework",
+          "id": "framework",
+          "options": ["axum", "actix-web"],
+          "default": "axum"
+        },
+        {
+          "slider": "Port",
+          "id": "port",
+          "min": 3000,
+          "max": 9000,
+          "step": 100,
+          "default": 8080
+        }
+      ]
+    },
+    {
+      "page": "Tooling",
+      "elements": [
+        {
+          "multi": "Set up now",
+          "id": "tooling",
+          "options": ["CI workflow", "pre-commit hooks", "release automation"],
+          "default": ["CI workflow"]
+        },
+        {
+          "check": "Initialize git repo",
+          "id": "git",
+          "default": true,
+          "reveals": [
+            {
+              "input": "Remote URL (optional)",
+              "id": "remote",
+              "placeholder": "git@github.com:me/my-project.git"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

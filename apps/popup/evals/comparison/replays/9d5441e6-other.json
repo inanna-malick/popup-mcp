@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-9d5441e6",
+  "submissionId": "eval-9d5441e6-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Other (please specify)"
+    ],
+    "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment.",
+    "world_rule": "",
+    "_labels": {
+      "threads": "Which consequences shall we follow?",
+      "threads_other_text": "Please specify",
+      "world_rule": "A rule of memory borrowing you want to change or leave open"
+    }
+  }
+}

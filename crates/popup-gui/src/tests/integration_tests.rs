@@ -14,38 +14,50 @@ fn test_parse_example_files() {
         .unwrap();
     let examples_dir = workspace_root.join("examples");
 
-    // Test all JSON example files
+    // Collect problems across all files so one bad example doesn't hide the rest
+    let mut problems: Vec<String> = Vec::new();
+
     for entry in fs::read_dir(&examples_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
 
         if path.extension().and_then(|s| s.to_str()) == Some("json") {
             let content = fs::read_to_string(&path).unwrap();
-            let result = parse_popup_json(&content);
+            let popup = match parse_popup_json(&content) {
+                Ok(popup) => popup,
+                Err(e) => {
+                    problems.push(format!("{:?} failed to parse: {}", path, e));
+                    continue;
+                }
+            };
 
-            assert!(
-                result.is_ok(),
-                "Failed to parse {:?}: {:?}",
-                path,
-                result.err()
-            );
+            if popup.title.is_empty() {
+                problems.push(format!("{:?}: empty title", path));
+            }
 
-            let popup = result.unwrap();
-            assert!(
-                !popup.title.is_empty(),
-                "Title should not be empty in {:?}",
-                path
-            );
+            // Every shipped example must pass structural validation of the
+            // render-ready (post-"Other"-injection) definition, matching
+            // what the MCP server and CLI actually check
+            for issue in popup_common::validate_definition(&inject_other_options(popup.clone())) {
+                problems.push(format!("{:?}: {}", path, issue));
+            }
 
             // Create state and verify it initializes correctly
             let state = PopupState::new(&popup);
-            let result = PopupResult::from_state(&state);
+            let active_ids: Vec<String> = state.values.keys().cloned().collect();
+            let result = PopupResult::from_state(&state, &popup, &active_ids);
 
             // Verify JSON serialization works
             let json = serde_json::to_string(&result).unwrap();
             assert!(!json.is_empty());
         }
     }
+
+    assert!(
+        problems.is_empty(),
+        "Example file problems:\n{}",
+        problems.join("\n")
+    );
 }
 
 #[test]
@@ -67,7 +79,7 @@ fn test_popup_state_initialization() {
     assert_eq!(*state.get_number_mut("volume").unwrap(), 75.0);
 
     // Check checkbox initialization
-    assert_eq!(*state.get_boolean_mut("mute").unwrap(), false);
+    assert!(!(*state.get_boolean_mut("mute").unwrap()));
 
     // Check textbox initialization
     assert_eq!(state.get_text_mut("name").unwrap(), "");
@@ -101,7 +113,8 @@ fn test_popup_result_serialization() {
     state.button_clicked = Some("submit".to_string());
 
     // Create result
-    let result = PopupResult::from_state(&state);
+    let active_ids: Vec<String> = state.values.keys().cloned().collect();
+    let result = PopupResult::from_state(&state, &popup, &active_ids);
 
     // Serialize to JSON
     let json_str = serde_json::to_string(&result).unwrap();
@@ -132,9 +145,9 @@ fn test_when_clause_in_json() {
     assert_eq!(popup.elements.len(), 3);
 
     // State should initialize all elements (when clause doesn't affect initialization)
-    assert!(state.values.get("value").is_some());
-    assert!(state.values.get("show").is_some());
-    assert!(state.values.get("shown_text").is_none()); // Text elements don't have state
+    assert!(state.values.contains_key("value"));
+    assert!(state.values.contains_key("show"));
+    assert!(!state.values.contains_key("shown_text")); // Text elements don't have state
 }
 
 #[test]
@@ -161,9 +174,9 @@ fn test_group_in_json() {
     assert_eq!(popup.elements.len(), 1);
 
     // State should initialize nested elements
-    assert!(state.values.get("volume").is_some());
-    assert!(state.values.get("bass").is_some());
-    assert!(state.values.get("surround").is_some());
+    assert!(state.values.contains_key("volume"));
+    assert!(state.values.contains_key("bass"));
+    assert!(state.values.contains_key("surround"));
 }
 
 #[test]
@@ -176,9 +189,7 @@ fn test_auto_other_option() {
         ]
     }"#;
 
-    let popup = parse_popup_json(json)
-        .map(inject_other_options)
-        .unwrap();
+    let popup = parse_popup_json(json).map(inject_other_options).unwrap();
 
     // Verify Multi has "Other" option
     match &popup.elements[0] {
@@ -235,9 +246,9 @@ fn test_auto_other_option() {
     assert_eq!(state.get_multichoice_mut("features").unwrap().len(), 3);
 
     // Select should be initialized correctly
-    assert!(state.values.get("mode").is_some());
+    assert!(state.values.contains_key("mode"));
 
     // Text inputs for "Other" should be initialized
-    assert!(state.values.get("features_other_text").is_some());
-    assert!(state.values.get("mode_other_text").is_some());
+    assert!(state.values.contains_key("features_other_text"));
+    assert!(state.values.contains_key("mode_other_text"));
 }

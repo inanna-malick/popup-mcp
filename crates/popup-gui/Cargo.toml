@@ -20,7 +20,6 @@ popup-common = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, optional = true }
 
 # GUI-specific dependencies
 env_logger = "0.11"
@@ -41,9 +40,9 @@ mcpr = "0.2.3"
 which = "7"
 log = "0.4"
 clap = { version = "4.5", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
 handlebars = "6.3"
 toml = "0.9"
+ureq = { version = "2", features = ["json"] }
 
 [dev-dependencies]
 proptest = "1.0"
@@ -51,4 +50,3 @@ tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 default = []
-async = ["tokio"]

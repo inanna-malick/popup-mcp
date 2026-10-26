@@ -1,0 +1,134 @@
+{
+  "candidates": [
+    {
+      "id": "a3eab08a",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 0
+      },
+      "observations": [
+        "Separates the alert from causal evidence, treats incident history as a hypothesis, and preserves explicit production-change authorization.",
+        "Conditional rollback, capacity and downstream assessments have useful evidence criteria; rollback and capacity can be assessed together with an explicit interaction explanation.",
+        "Default investigation plus default rollback and capacity assessments directly express the combined intent; no production action is authorized.",
+        "Notes, automatic Other and editable investigation scope accommodate the load-test correction.",
+        "Repeated prose and long editable plans/decision rules impose substantial reading and editing cost for decisions already covered by the defaults."
+      ],
+      "combined_answers": {
+        "mitigation_proposals": [
+          "Rollback assessment",
+          "Capacity assessment"
+        ]
+      },
+      "other_answers": {
+        "mitigation_proposals": [
+          "Other (please specify)"
+        ],
+        "mitigation_proposals_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly."
+      }
+    },
+    {
+      "id": "c88079f8",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 2
+      },
+      "observations": [
+        "States the actual evidence and uncertainty, promises telemetry inspection rather than asking for obtainable facts, and keeps production authorization separate.",
+        "Investigation depth changes useful work; mitigation preparation reveals concrete conditional options and can accompany either investigation scope.",
+        "Default focused investigation, enabled preparation and rollback/scaling selections directly express the combined intent.",
+        "Notes and automatic Other can add the load-test traffic correction.",
+        "Compact options and defaults make a productive next step easy to approve, although the opening repeats part of the authorization explanation."
+      ],
+      "combined_answers": {
+        "investigation_scope": "Focused first pass",
+        "prepare_mitigations": true,
+        "mitigation_candidates": [
+          "Rollback",
+          "Scaling"
+        ]
+      },
+      "other_answers": {
+        "investigation_scope": "Other (please specify)",
+        "investigation_scope_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly."
+      }
+    },
+    {
+      "id": "d79ededd",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 1
+      },
+      "observations": [
+        "Carefully separates established latency from causation and missing evidence, and acknowledges read permissions already granted.",
+        "Investigation strands lead to comparison and diagnostic deliverables; mitigation framing gives meaningful conditional priorities without executing changes.",
+        "All three strands compose directly; the comparison informs trace sampling, while the mitigation default compares options after evidence collection.",
+        "Adding the mitigation strand to the defaults directly expresses the combined intent; explicit production authorization remains separate.",
+        "Notes, automatic Other and editable scope support correction; the comparison plan already accounts for scheduled or synthetic traffic without claiming a load test exists.",
+        "Long visible plans and explanatory paragraphs require extra attention, though most add useful diagnostic specifics."
+      ],
+      "combined_answers": {
+        "incident_strands": [
+          "Establish the regression and affected traffic",
+          "Locate time spent and failures",
+          "Prepare conditional mitigation options"
+        ],
+        "mitigation_frame": "Compare options after the initial telemetry review"
+      },
+      "other_answers": {
+        "incident_strands": [
+          "Other (please specify)"
+        ],
+        "incident_strands_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly."
+      }
+    },
+    {
+      "id": "f482a987",
+      "scores": {
+        "context_grounding": 2,
+        "consequential_continuations": 2,
+        "composability": 2,
+        "meaningful_progress": 2,
+        "corrections": 2,
+        "attention_cost": 2
+      },
+      "observations": [
+        "Uses only the alert and deployment timing as established evidence, treats downstream history as a lead, and separates permitted reads from production changes.",
+        "Selectable investigation work covers comparisons, request paths, workload and saturation; conditional mitigation preparation adds concrete evidence-dependent next work.",
+        "Investigation strands combine with each other and with multiple mitigation assessments without conflicting actions.",
+        "Default investigation selections, enabled mitigation preparation and rollback/scaling assessments directly express the combined intent.",
+        "Notes and automatic Other can request separate inspection of scheduled load-test traffic.",
+        "Concise descriptions and useful defaults keep attention cost low; no telemetry facts are asked of the operator."
+      ],
+      "combined_answers": {
+        "investigation": [
+          "Compare deployment and latency",
+          "Inspect errors and request paths",
+          "Break down workload and saturation"
+        ],
+        "prepare_mitigations": true,
+        "mitigation_candidates": [
+          "Rollback",
+          "Scaling"
+        ]
+      },
+      "other_answers": {
+        "investigation": [
+          "Other (please specify)"
+        ],
+        "investigation_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly."
+      }
+    }
+  ]
+}

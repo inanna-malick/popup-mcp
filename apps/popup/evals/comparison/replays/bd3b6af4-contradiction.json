@@ -1,0 +1,21 @@
+{
+  "type": "popup_result",
+  "formId": "eval-bd3b6af4",
+  "submissionId": "eval-bd3b6af4-contradiction",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Batch account queries",
+      "Render fewer table rows"
+    ],
+    "table_approach": "Compare approaches first",
+    "next_step": "Investigate and propose changes",
+    "_labels": {
+      "improvements": "Which improvements should we explore together?",
+      "table_approach": "Which table approach should we investigate?",
+      "next_step": "What should I do next?"
+    },
+    "_notes": "Do the query-plan investigation first. We learned that keyboard users rely on the full table, so don't implement virtualization yet."
+  }
+}

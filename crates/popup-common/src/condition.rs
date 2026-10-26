@@ -47,8 +47,11 @@ pub enum CompareOp {
 }
 
 /// Parse a condition expression string into AST
+///
+/// The full input must parse; trailing garbage is an error rather than
+/// being silently ignored.
 pub fn parse_condition(input: &str) -> Result<ConditionExpr> {
-    let pairs = ConditionParser::parse(Rule::expr, input)
+    let pairs = ConditionParser::parse(Rule::full, input)
         .map_err(|e| anyhow!("Failed to parse condition: {}", e))?;
 
     let pair = pairs
@@ -56,7 +59,37 @@ pub fn parse_condition(input: &str) -> Result<ConditionExpr> {
         .next()
         .ok_or_else(|| anyhow!("Empty condition expression"))?;
 
-    build_ast(pair)
+    // Unwrap full -> expr (skipping EOI)
+    let expr_pair = pair
+        .into_inner()
+        .find(|p| p.as_rule() == Rule::expr)
+        .ok_or_else(|| anyhow!("Empty condition expression"))?;
+
+    build_ast(expr_pair)
+}
+
+/// Collect all field ids referenced by a condition expression.
+///
+/// The second argument of `selected(field, value)` is excluded: bare words
+/// there are treated as literal option values, not references.
+pub fn collect_refs(expr: &ConditionExpr, out: &mut Vec<String>) {
+    match expr {
+        ConditionExpr::Or(exprs) | ConditionExpr::And(exprs) => {
+            exprs.iter().for_each(|e| collect_refs(e, out))
+        }
+        ConditionExpr::Not(inner) => collect_refs(inner, out),
+        ConditionExpr::Compare { left, right, .. } => {
+            collect_refs(left, out);
+            collect_refs(right, out);
+        }
+        ConditionExpr::Ref(id) => out.push(id.clone()),
+        ConditionExpr::Count(inner) => collect_refs(inner, out),
+        ConditionExpr::Selected(field, _value) => collect_refs(field, out),
+        ConditionExpr::Any(exprs) | ConditionExpr::All(exprs) => {
+            exprs.iter().for_each(|e| collect_refs(e, out))
+        }
+        ConditionExpr::Number(_) | ConditionExpr::String(_) | ConditionExpr::Boolean(_) => {}
+    }
 }
 
 fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
@@ -130,12 +163,34 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<ConditionExpr> {
         }
 
         Rule::r#ref => {
-            // V2: bare identifier is a reference (no @ prefix)
-            let id = pair.as_str();
+            // Bare identifier is a reference; strip optional legacy @ prefix
+            let id = pair.as_str().trim_start_matches('@');
             Ok(ConditionExpr::Ref(id.to_string()))
         }
 
         Rule::func => {
+            let inner = pair.into_inner().next().unwrap();
+            build_ast(inner)
+        }
+
+        Rule::selected_func => {
+            // selected(field, value) - value is a literal option text,
+            // quoted or bare (bare values may contain spaces)
+            let mut parts = pair.into_inner();
+            let field = build_ast(parts.next().unwrap())?;
+            let value_pair = parts.next().unwrap().into_inner().next().unwrap();
+            let value = match value_pair.as_rule() {
+                Rule::string => {
+                    let s = value_pair.as_str();
+                    ConditionExpr::String(s[1..s.len() - 1].to_string())
+                }
+                Rule::bare_value => ConditionExpr::String(value_pair.as_str().trim().to_string()),
+                other => return Err(anyhow!("Unexpected selected() value: {:?}", other)),
+            };
+            Ok(ConditionExpr::Selected(Box::new(field), Box::new(value)))
+        }
+
+        Rule::generic_func => {
             let mut parts = pair.into_inner();
             let func_name = parts.next().unwrap().as_str();
 
@@ -280,7 +335,10 @@ fn eval_to_value(expr: &ConditionExpr, state: &HashMap<String, Value>) -> Value 
     }
 }
 
-/// Evaluate expression to string
+/// Evaluate expression to string (used for the value argument of selected()).
+///
+/// A bare identifier that doesn't resolve to a field is treated as a literal
+/// option value, so `selected(mode, Pro)` works without quoting "Pro".
 fn eval_to_string(expr: &ConditionExpr, state: &HashMap<String, Value>) -> String {
     match expr {
         ConditionExpr::String(s) => s.clone(),
@@ -288,8 +346,8 @@ fn eval_to_string(expr: &ConditionExpr, state: &HashMap<String, Value>) -> Strin
         ConditionExpr::Ref(id) => state
             .get(id)
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| id.clone()),
         _ => String::new(),
     }
 }
@@ -346,13 +404,7 @@ fn count_selections(state: &HashMap<String, Value>, id: &str) -> i64 {
         .get(id)
         .map(|v| {
             match v {
-                Value::Bool(b) => {
-                    if *b {
-                        1
-                    } else {
-                        0
-                    }
-                }
+                Value::Bool(b) => *b as i64,
                 Value::Array(arr) => arr
                     .iter()
                     .filter(|v| {
@@ -362,13 +414,7 @@ fn count_selections(state: &HashMap<String, Value>, id: &str) -> i64 {
                             || v.as_i64().map(|n| n > 0).unwrap_or(false)
                     })
                     .count() as i64,
-                Value::Number(n) => {
-                    if n.as_i64().unwrap_or(0) > 0 {
-                        1
-                    } else {
-                        0
-                    }
-                }
+                Value::Number(n) => (n.as_i64().unwrap_or(0) > 0) as i64,
                 _ => 0,
             }
         })
@@ -455,6 +501,102 @@ mod tests {
 
         let ast = parse_condition("false").unwrap();
         assert_eq!(ast, ConditionExpr::Boolean(false));
+
+        // An identifier starting with true/false is a ref, not a boolean
+        let ast = parse_condition("true_believer").unwrap();
+        assert_eq!(ast, ConditionExpr::Ref("true_believer".to_string()));
+    }
+
+    #[test]
+    fn test_parse_negative_numbers() {
+        // Audio levels, temperature offsets, EQ curves: negatives are common
+        let mut state = HashMap::new();
+        state.insert(
+            "lufs".to_string(),
+            Value::Number(serde_json::Number::from_f64(-8.0).unwrap()),
+        );
+
+        assert!(evaluate_condition(
+            &parse_condition("lufs > -9").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("lufs < -10").unwrap(),
+            &state
+        ));
+        assert!(evaluate_condition(
+            &parse_condition("lufs >= -9 && lufs <= -7").unwrap(),
+            &state
+        ));
+    }
+
+    #[test]
+    fn test_parse_at_prefix_accepted() {
+        // Legacy @id syntax still parses to a plain reference
+        let ast = parse_condition("@enabled").unwrap();
+        assert_eq!(ast, ConditionExpr::Ref("enabled".to_string()));
+
+        let ast = parse_condition("@a && !@b").unwrap();
+        match ast {
+            ConditionExpr::And(exprs) => assert_eq!(exprs.len(), 2),
+            _ => panic!("Expected AND"),
+        }
+    }
+
+    #[test]
+    fn test_selected_with_bare_word_value() {
+        // selected(mode, Pro): unquoted value treated as literal option text
+        let mut state = HashMap::new();
+        state.insert("mode".to_string(), Value::String("Pro".to_string()));
+
+        assert!(evaluate_condition(
+            &parse_condition("selected(mode, Pro)").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("selected(mode, Basic)").unwrap(),
+            &state
+        ));
+    }
+
+    #[test]
+    fn test_selected_with_multi_word_bare_value() {
+        // Option texts are usually phrases; no quoting required
+        let mut state = HashMap::new();
+        state.insert(
+            "strategy".to_string(),
+            Value::String("Regenerate from sandbox".to_string()),
+        );
+
+        assert!(evaluate_condition(
+            &parse_condition("selected(strategy, Regenerate from sandbox)").unwrap(),
+            &state
+        ));
+        assert!(!evaluate_condition(
+            &parse_condition("selected(strategy, Patch existing fixtures)").unwrap(),
+            &state
+        ));
+        // Combines with other clauses
+        assert!(evaluate_condition(
+            &parse_condition("selected(strategy, Regenerate from sandbox) && true").unwrap(),
+            &state
+        ));
+        // Apostrophes inside a double-quoted value
+        state.insert(
+            "creds".to_string(),
+            Value::String("I'll provide fresh keys".to_string()),
+        );
+        assert!(evaluate_condition(
+            &parse_condition("selected(creds, \"I'll provide fresh keys\")").unwrap(),
+            &state
+        ));
+    }
+
+    #[test]
+    fn test_trailing_garbage_is_error() {
+        // Previously "enabled && (" silently parsed as just "enabled"
+        assert!(parse_condition("enabled && (").is_err());
+        assert!(parse_condition("count(items) >").is_err());
     }
 
     #[test]

@@ -1,0 +1,29 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f5e9039c",
+  "submissionId": "eval-f5e9039c-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "improvements": [
+      "Measure a baseline",
+      "Cache dependencies",
+      "Isolate and parallelize integration tests"
+    ],
+    "baseline_plan": "Measure three representative PRs using existing runner settings: per-job install and test times, total wall time, billed runner-minutes by platform, and failures or retries. Record commit and workload so later experiments are comparable.",
+    "cache_plan": "Identify the package manager, then cache its download store keyed by OS, runtime version and lockfile hash. Keep the existing reproducible install. Compare a cold run and a warm run, including restore/save overhead and billed minutes, before adopting the cache.",
+    "cache_fallback": "Exact key first",
+    "isolation_scope": "Investigate and return a proposal",
+    "isolation_investigation": "Inspect fixture scope, database naming, migration assumptions, external shared resources and cleanup. Review existing failures without assuming flakiness. Return an isolation design, expected runner usage and a benchmark plan before altering execution.",
+    "spend_boundary": "Measure and propose before increasing spend",
+    "_labels": {
+      "improvements": "Which improvements should we develop together?",
+      "baseline_plan": "Proposed baseline measurement — edit the sample",
+      "cache_plan": "Proposed cache experiment — edit the policy",
+      "cache_fallback": "Should the first experiment include fallback cache restores?",
+      "isolation_scope": "How far should the isolation work go next?",
+      "isolation_investigation": "Proposed investigation",
+      "spend_boundary": "What spend boundary should govern experiments?"
+    }
+  }
+}

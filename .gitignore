@@ -1,1 +1,6 @@
 /target
+.gemini-clipboard/
+
+# jev-lab: raw Jev responses, regenerable and large
+jev-lab/__pycache__/
+jev-lab/cache*.json

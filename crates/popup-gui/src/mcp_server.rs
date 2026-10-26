@@ -21,6 +21,34 @@ fn error(msg: impl std::fmt::Display) -> Value {
     .unwrap()
 }
 
+/// Parse and validate a popup definition before any window is shown.
+///
+/// Validation runs on the post-injection definition (the one that will
+/// actually render) so collisions with injected "<id>_other_text" inputs
+/// are caught. Returning a precise, fixable error here costs the caller one
+/// cheap retry; rendering a silently-broken popup costs a confused human
+/// interaction.
+fn check_definition(tool_args: &Value) -> Result<popup_common::PopupDefinition, Value> {
+    let definition: popup_common::PopupDefinition = serde_json::from_value(tool_args.clone())
+        .map_err(|e| error(format!("Invalid popup definition: {}", e)))?;
+
+    let injected = inject_other_options(definition);
+    let issues = popup_common::validate_definition(&injected);
+    if !issues.is_empty() {
+        let summary = issues
+            .iter()
+            .map(|i| format!("- {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Err(serde_json::json!({
+            "error": format!("Popup definition has {} problem(s); nothing was shown to the user. Fix and retry:\n{}", issues.len(), summary),
+            "issues": issues,
+        }));
+    }
+
+    Ok(injected)
+}
+
 fn spawn_popup_subprocess(json_str: &str) -> Result<Value, String> {
     // Try to find the popup binary:
     // 1. Current executable (self-spawning)
@@ -293,15 +321,23 @@ pub fn run(args: ServerArgs) -> Result<()> {
                             // tool_args IS the popup definition (title, elements, etc.)
                             log::info!("Showing popup with args: {:?}", tool_args);
 
-                            let json_str = serde_json::to_string(&tool_args).unwrap_or_else(|e| {
-                                log::error!("Failed to serialize JSON: {}", e);
-                                "{}".to_string()
-                            });
+                            // Validate before spawning: structural mistakes come
+                            // back as fixable errors, not broken windows
+                            match check_definition(&tool_args) {
+                                Err(validation_error) => validation_error,
+                                Ok(_definition) => {
+                                    let json_str = serde_json::to_string(&tool_args)
+                                        .unwrap_or_else(|e| {
+                                            log::error!("Failed to serialize JSON: {}", e);
+                                            "{}".to_string()
+                                        });
 
-                            // Spawn popup subprocess and get result
-                            match spawn_popup_subprocess(&json_str) {
-                                Ok(popup_result) => popup_result,
-                                Err(e) => error(e),
+                                    // Spawn popup subprocess and get result
+                                    match spawn_popup_subprocess(&json_str) {
+                                        Ok(popup_result) => popup_result,
+                                        Err(e) => error(e),
+                                    }
+                                }
                             }
                         } else {
                             // Check if it's a template tool
@@ -320,23 +356,37 @@ pub fn run(args: ServerArgs) -> Result<()> {
                                 // Instantiate the template
                                 match templates::instantiate_template(template, &params) {
                                     Ok(popup_def) => {
-                                        // Apply "Other" option injection
+                                        // Apply "Other" option injection, then
+                                        // validate the render-ready definition
                                         let transformed_def = inject_other_options(popup_def);
+                                        let issues =
+                                            popup_common::validate_definition(&transformed_def);
+                                        if !issues.is_empty() {
+                                            let summary = issues
+                                                .iter()
+                                                .map(|i| format!("- {}", i))
+                                                .collect::<Vec<_>>()
+                                                .join("\n");
+                                            error(format!(
+                                                "Template '{}' produced an invalid popup:\n{}",
+                                                tool_name, summary
+                                            ))
+                                        } else {
+                                            // Convert popup definition to JSON and run it
+                                            let json_str = serde_json::to_string(&transformed_def)
+                                                .unwrap_or_else(|e| {
+                                                    log::error!(
+                                                        "Failed to serialize popup definition: {}",
+                                                        e
+                                                    );
+                                                    "{}".to_string()
+                                                });
 
-                                        // Convert popup definition to JSON and run it
-                                        let json_str = serde_json::to_string(&transformed_def)
-                                            .unwrap_or_else(|e| {
-                                                log::error!(
-                                                    "Failed to serialize popup definition: {}",
-                                                    e
-                                                );
-                                                "{}".to_string()
-                                            });
-
-                                        // Spawn popup subprocess and get result
-                                        match spawn_popup_subprocess(&json_str) {
-                                            Ok(popup_result) => popup_result,
-                                            Err(e) => error(e),
+                                            // Spawn popup subprocess and get result
+                                            match spawn_popup_subprocess(&json_str) {
+                                                Ok(popup_result) => popup_result,
+                                                Err(e) => error(e),
+                                            }
                                         }
                                     }
                                     Err(e) => {
@@ -355,13 +405,15 @@ pub fn run(args: ServerArgs) -> Result<()> {
                             }
                         };
 
+                        let is_error = result.get("error").is_some();
                         JSONRPCResponse::new(
                             req.id,
                             serde_json::json!({
                                 "content": [{
                                     "type": "text",
                                     "text": serde_json::to_string_pretty(&result)?
-                                }]
+                                }],
+                                "isError": is_error
                             }),
                         )
                     }

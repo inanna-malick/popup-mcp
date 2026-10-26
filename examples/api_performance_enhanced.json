@@ -198,12 +198,12 @@
             {
               "text": "CROSS-REFERENCE: Since you identified specific endpoints under load, check if THOSE endpoints query these growing tables",
               "id": "cross_reference",
-              "when": "selected(traffic_pattern, 'Specific endpoint(s') getting hammered)"
+              "when": "selected(traffic_pattern, 'Specific endpoint(s) getting hammered')"
             },
             {
               "id": "slow_endpoints",
               "placeholder": "/api/search, /api/user/profile, etc.",
-              "when": "selected(traffic_pattern, 'Specific endpoint(s') getting hammered)",
+              "when": "selected(traffic_pattern, 'Specific endpoint(s) getting hammered')",
               "input": "List the specific slow endpoints for correlation:"
             }
           ],

@@ -1,0 +1,135 @@
+{
+  "submit": "Continue exploring",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "A public memory archive makes civic history something citizens can feel—and something that can change them. That creates ambiguity even when the institution acts in good faith: correcting an injustice might unsettle a cherished relationship; borrowing to understand a neighbor might blur whose affection you are feeling. These are possibilities to bend, not established rules or a plot commitment. We haven't decided whether changes can be reversed, how corrections work, or how much borrowers can recognize their own transformation."
+    },
+    {
+      "multi": "Which consequences should we explore together?",
+      "id": "threads",
+      "options": [
+        {
+          "value": "Correcting official memories",
+          "description": "A resident challenges a memory that honors her late father but erases someone else's contribution; everyone has a defensible reason to care."
+        },
+        {
+          "value": "Relationships through borrowing",
+          "description": "Two neighbors borrow the same stranger's memory and grow close, then wonder whether their bond belongs to them."
+        }
+      ],
+      "default": ["Correcting official memories", "Relationships through borrowing"],
+      "Correcting official memories": [
+        {
+          "markdown": "Suppose the city's remembered rescue during a storm credits a boat captain, while a surviving dockworker remembers organizing the evacuation. The captain's daughter runs a tiny repair shop under his name. She can support the correction and still dread losing the version of him that helped her survive grief. The archive's dilemma is whose experience its public authority should endorse—not whether to hide the challenge."
+        },
+        {
+          "select": "What should a correction do to the public memory?",
+          "id": "correction_method",
+          "options": [
+            {
+              "value": "Preserve competing versions",
+              "description": "Let citizens borrow both accounts; pluralism survives, but choosing which account to borrow can become a political signal."
+            },
+            {
+              "value": "Revise the shared account",
+              "description": "A public hearing changes the official memory; recognition becomes clearer, but private grief cannot be settled by a vote."
+            }
+          ],
+          "default": "Preserve competing versions",
+          "Preserve competing versions": [
+            {
+              "markdown": "The daughter borrows the dockworker's account to offer a sincere apology. Afterwards she remembers her father with someone else's disappointment. Keeping both accounts accessible protects disagreement, yet residents with time to borrow several versions may understand the dispute better than people working double shifts. Public access alone needn't produce equal influence."
+            },
+            {
+              "input": "Bend the archive's response",
+              "id": "plural_policy",
+              "default": "Keep both accounts freely available with a visible explanation of the dispute. Offer short borrowing sessions at neighborhood gathering places, so comparing accounts does not require a day off work. Explore whether this helps or makes the disagreement harder to escape.",
+              "rows": 3
+            }
+          ],
+          "Revise the shared account": [
+            {
+              "markdown": "A fair hearing could recognize the dockworker without making the captain worthless. But what happens to previous borrowers? If they retain the old emotional loyalties, the city now has two generations of civic feeling. If a correction reaches them automatically, even a just amendment intrudes on private minds. Neither rule is settled yet."
+            },
+            {
+              "input": "Propose how previous borrowers encounter corrections",
+              "id": "revision_policy",
+              "default": "Notify previous borrowers and offer a free return visit to experience the revised account. Explore a daughter who supports the public correction but postpones her own visit because she fears changing her grief.",
+              "rows": 3
+            }
+          ]
+        }
+      ],
+      "Relationships through borrowing": [
+        {
+          "markdown": "Suppose two neighbors borrow a retired ferry cook's memory of preparing supper for someone she loved. They independently begin setting an extra place at their tables, then notice each other doing it. Their tenderness can be real even if it has a borrowed origin. An intimate conflict: one treasures this new capacity for care; the other misses the solitary life they used to enjoy."
+        },
+        {
+          "select": "Where is the most interesting uncertainty in their bond?",
+          "id": "bond_question",
+          "options": [
+            {
+              "value": "They know what they borrowed",
+              "description": "They can discuss the influence openly, but knowledge does not tell them which feelings to trust."
+            },
+            {
+              "value": "They recognize the connection later",
+              "description": "They already care for each other when they discover a common borrowed source; discovery changes the meaning of ordinary habits."
+            }
+          ],
+          "default": "They know what they borrowed",
+          "They know what they borrowed": [
+            {
+              "markdown": "One asks, 'Would you still invite me if you hadn't borrowed her supper?' The other cannot honestly know. They might agree to spend time together without further borrowing, but that tests how the bond develops, not whether its beginning was pure. A small practical stake: deciding whether to renew a shared kitchen lease."
+            },
+            {
+              "input": "Bend their experiment",
+              "id": "known_bond_experiment",
+              "default": "For a month they borrow no new memories and cook meals neither remembers from the archive. They postpone the shared lease and notice which habits they choose to keep. Leave open whether borrowed tenderness feels more or less theirs afterwards.",
+              "rows": 3
+            }
+          ],
+          "They recognize the connection later": [
+            {
+              "markdown": "At an ordinary public discussion about borrowing, they hear the ferry cook describe her extra place setting. One neighbor feels relief at understanding the impulse; the other feels that a private language has become communal. No deception is needed: the same publicly available memory can be experienced as either companionship or lost exclusivity."
+            },
+            {
+              "input": "Bend the discovery and its consequence",
+              "id": "discovered_bond_scene",
+              "default": "They meet other borrowers who share their supper ritual. One wants to host everyone; the other wants to keep one evening just for the two of them. Explore whether a boundary can preserve intimacy without treating a public memory as private property.",
+              "rows": 3
+            }
+          ]
+        },
+        {
+          "check": "Explore whether borrowers can undo changes",
+          "id": "explore_reversal",
+          "default": false,
+          "reveals": [
+            {
+              "markdown": "Reversibility would turn 'Are these feelings mine?' into 'Which changes do I choose to keep?' If one neighbor reverses a borrowed influence, the other may experience a freely chosen boundary as rejection. We should establish the rule before deciding the emotional outcome."
+            },
+            {
+              "input": "Possible reversal rule",
+              "id": "reversal_rule",
+              "default": "The archive offers a free, voluntary ritual that reverses a selected memory's influence. It cannot promise to erase the consequences of decisions made while changed. Explore how the neighbors negotiate participation and privacy.",
+              "rows": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "markdown": "Together, these threads make correction a relationship question. Perhaps the neighbors' borrowed supper comes from the captain's daughter, and its warmth includes her proud account of the rescue. Learning the dockworker's version might change how they feel toward their living neighbor. They can support accurate civic recognition and still resist reducing her family life to a public verdict. This is one possible connection, not a required convergence.",
+      "when": "selected(threads, Correcting official memories) && selected(threads, Relationships through borrowing)"
+    },
+    {
+      "input": "Bend a shared situation to explore next",
+      "id": "joint_situation",
+      "default": "At a neighborhood supper, the dockworker asks the captain's daughter to help introduce the disputed memory. Two borrowers offer to cook, then disagree about whether borrowing the correction first would help them listen or make the evening feel rehearsed. Explore what each person hopes to protect; leave the outcome open.",
+      "rows": 3,
+      "when": "selected(threads, Correcting official memories) && selected(threads, Relationships through borrowing)"
+    }
+  ]
+}

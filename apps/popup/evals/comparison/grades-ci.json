@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "id": "83dc732e",
+      "scores": {"context_grounding": 2, "consequential_continuations": 2, "composability": 2, "meaningful_progress": 2, "corrections": 2, "attention_cost": 2},
+      "observations": [
+        "Uses the supplied bottlenecks without promising savings; caching and database isolation remain experiments or investigations.",
+        "Caching and parallel integration can be selected together, with separate controls for isolation, spend and supported-platform coverage.",
+        "A measurement-only correction fits the top-level choice and optional PR input; notes and generated Other also support broader corrections.",
+        "Concise branch-specific controls earn their attention cost; the submit label is slightly stronger than the investigation defaults."
+      ],
+      "combined_answers": {
+        "ci_steps": ["Measure first", "Reuse dependencies", "Parallelize integration tests"],
+        "dependency_plan": "Run a cache experiment first",
+        "postgres_isolation": "Investigate isolation before implementing",
+        "runner_spend": "Estimate and ask before increasing spend",
+        "platform_policy": "Keep Linux, macOS, and Windows on every code PR"
+      },
+      "other_answers": {
+        "ci_steps": ["Other (please specify)"],
+        "ci_steps_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits."
+      }
+    },
+    {
+      "id": "c3d34165",
+      "scores": {"context_grounding": 2, "consequential_continuations": 2, "composability": 2, "meaningful_progress": 2, "corrections": 2, "attention_cost": 2},
+      "observations": [
+        "Grounds the opportunities in the workflow and explains later platform-regression detection and billed-minute tradeoffs.",
+        "The multi-select supports caching plus isolated integration without changing the existing platform matrix.",
+        "Design-and-estimate scope handles the unset budget productively; choosing the isolation method is available only in the pilot branch, so qualifying a design-stage alternative needs Other or a note.",
+        "The measurement-only correction can deselect the default cache experiment and specify three representative PRs. Branches stay compact."
+      ],
+      "combined_answers": {
+        "ci_work": ["Measure first", "Experiment with dependency caching", "Isolate and parallelize integration tests"],
+        "parallel_scope": "Design and estimate first"
+      },
+      "other_answers": {
+        "ci_work": ["Other (please specify)"],
+        "ci_work_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits."
+      }
+    },
+    {
+      "id": "c6323d80",
+      "scores": {"context_grounding": 2, "consequential_continuations": 2, "composability": 2, "meaningful_progress": 2, "corrections": 2, "attention_cost": 1},
+      "observations": [
+        "Carefully distinguishes eight install job-minutes from wall time and treats cache effectiveness, isolation feasibility and costs as unknowns.",
+        "Editable baseline, cache and isolation proposals produce concrete investigation work; the combined branch explains how to benchmark changes separately and together.",
+        "Defaults already express the combined intent without weakening platform coverage or asserting isolation feasibility; experiment budget controls are gated behind experiment scope.",
+        "The three-PR measurement correction fits the baseline and investigation defaults, with Other and notes for overrides.",
+        "Long introductions, extensive editable proposal text and repeated explanations of evidence, coverage and budget increase reading cost; the isolation-feasibility question also asks the user to assert a fact the agent can investigate."
+      ],
+      "combined_answers": {
+        "ci_work": ["Measure before changing", "Cache dependency downloads", "Isolate and parallelize integration tests"],
+        "postgres_isolation": "Not established — inspect first",
+        "execution_scope": "Investigate and return measurements first"
+      },
+      "other_answers": {
+        "ci_work": ["Other (please specify)"],
+        "ci_work_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits."
+      }
+    },
+    {
+      "id": "f5e9039c",
+      "scores": {"context_grounding": 2, "consequential_continuations": 2, "composability": 2, "meaningful_progress": 2, "corrections": 2, "attention_cost": 1},
+      "observations": [
+        "Uses the known job-minutes, serial suite and supported-platform obligations while identifying unmeasured cache behavior, reliability and spend.",
+        "Baseline, caching and isolated integration combine naturally; editable investigation or two-worker proposals allow qualification without asserting that databases alone solve all shared state.",
+        "The spend boundary applies to the combined plan and preserves a productive proposal path without inventing a budget. Coverage remains intact unless its explicit exploration branch is chosen.",
+        "The three-PR baseline already supports the correction; selecting only measurement, keeping the spend default and using the correction note can narrow the work clearly.",
+        "Detailed editable proposals add useful specificity but repeat isolation, cost and coverage caveats across prose, option descriptions and controls, making the default view relatively expensive to read."
+      ],
+      "combined_answers": {
+        "improvements": ["Measure a baseline", "Cache dependencies", "Isolate and parallelize integration tests"],
+        "isolation_scope": "Investigate and return a proposal",
+        "spend_boundary": "Measure and propose before increasing spend"
+      },
+      "other_answers": {
+        "improvements": ["Other (please specify)"],
+        "improvements_other_text": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits."
+      }
+    }
+  ]
+}

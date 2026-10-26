@@ -1,0 +1,11 @@
+{"node": "open", "typed": "a little dashboard I can open and click around in", "expect": "l0|l4", "rationale": "browser wording but about data; genuinely between two"}
+{"node": "open", "typed": "a thing that checks a feed every morning and posts for me", "expect": "l1", "rationale": "timer plus nobody watching"}
+{"node": "open", "typed": "other services need to hit it and get JSON back", "expect": "l2", "rationale": "programs not people"}
+{"node": "open", "typed": "honestly just a script I run when I need it", "expect": "l3", "rationale": "terminal, by hand"}
+{"node": "open", "typed": "I've got a pile of CSVs and no idea what's in them", "expect": "l4", "rationale": "data they already have"}
+{"node": "open", "typed": "a web thing, and it also needs to run a nightly job", "expect": "several", "rationale": "two branches genuinely"}
+{"node": "open", "typed": "I want someone to redesign my logo", "expect": "none_fit", "rationale": "off-tree"}
+{"node": "open", "typed": "", "expect": "unclear", "rationale": "nothing said"}
+{"node": "web", "typed": "just me for now but my co-founder joins next month", "expect": "l0", "rationale": "future tense: others will sign in. The old design got this wrong"}
+{"node": "web", "typed": "nobody, it's going on the open internet", "expect": "l2", "rationale": "depth: second turn, plain"}
+{"node": "auth", "typed": "whatever's least work, google or github", "expect": "l0", "rationale": "third turn in, names providers without saying provider"}

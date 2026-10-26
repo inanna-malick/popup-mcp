@@ -106,7 +106,7 @@ impl Theme {
 
         // Standard Solarized border (no opacity hacks)
         let is_light_theme = self.deep_black.r() > 128;
-        let border_width = if is_light_theme { 1.0 } else { 1.0 };
+        let border_width = 1.0;
         visuals.window_stroke = Stroke::new(border_width, self.text_secondary); // base0/base00
         visuals.window_shadow.color = Color32::from_black_alpha(25);
 
@@ -144,7 +144,11 @@ impl Theme {
 
         // Button styling - solid colors
         visuals.widgets.inactive.weak_bg_fill = self.dark_gray;
-        visuals.widgets.hovered.weak_bg_fill = if is_light_theme { self.base2 } else { self.text_secondary };
+        visuals.widgets.hovered.weak_bg_fill = if is_light_theme {
+            self.base2
+        } else {
+            self.text_secondary
+        };
         visuals.widgets.active.weak_bg_fill = self.electric_blue;
 
         // "Sunken" widgets (inputs, combo boxes)

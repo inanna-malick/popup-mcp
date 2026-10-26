@@ -1,0 +1,22 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c3d34165",
+  "submissionId": "eval-c3d34165-contradiction",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_work": [
+      "Measure first",
+      "Experiment with dependency caching",
+      "Isolate and parallelize integration tests"
+    ],
+    "measure_prs": "",
+    "parallel_scope": "Design and estimate first",
+    "_labels": {
+      "ci_work": "What should we work on next?",
+      "measure_prs": "Representative PRs to measure (leave blank for me to choose)",
+      "parallel_scope": "How far should I take the parallel-test work?"
+    },
+    "_notes": "Actually, start by measuring the install and integration timings on three representative PRs. Don't change coverage or spend yet."
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "submit": "Choose the next performance work",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The trace gives us two concrete targets: repeated per-account queries take **620 ms of the 900 ms server response**, then rendering 2,000 table rows takes **350 ms**. I recommend investigating query batching first and exploring a smaller rendered table alongside it. Those timings identify opportunities, not guaranteed savings: we still need the query plan. SQL and frontend changes are available; adding infrastructure is outside the current authorization. Billing must reflect edits immediately, while summary reporting can tolerate up to 30 seconds of lag."
+    },
+    {
+      "multi": "Which improvements should we explore together?",
+      "id": "improvements",
+      "options": [
+        {
+          "value": "Batch the account queries",
+          "description": "Targets the largest measured cost; a query plan must show whether round trips, scans or joins dominate."
+        },
+        {
+          "value": "Render fewer table rows",
+          "description": "Targets the 350 ms browser cost; pagination or virtualization changes navigation and must preserve full-data search."
+        }
+      ],
+      "default": ["Batch the account queries"],
+      "Batch the account queries": [
+        {
+          "markdown": "A set-based query could replace repeated account lookups, but batching can also create a large join or change totals through duplicate rows. I’ll inspect the existing SQL and query plan before choosing a rewrite. Fresh billing reads should remain on the immediate post-edit path; the 30-second allowance applies only to summaries."
+        },
+        {
+          "select": "What should the SQL work produce next?",
+          "id": "sql_next",
+          "options": [
+            {
+              "value": "Investigate the query plan first",
+              "description": "Inspect the repeated SQL, parameter patterns and execution plan; return a justified rewrite proposal before changing behavior."
+            },
+            {
+              "value": "Draft a batching proposal",
+              "description": "Prepare an editable design now, with query-plan validation required before implementation."
+            }
+          ],
+          "default": "Investigate the query plan first",
+          "Investigate the query plan first": [
+            {
+              "input": "Investigation scope — edit if needed",
+              "id": "sql_investigation",
+              "default": "Inspect the per-account queries and their execution plans using representative dashboard parameters. Identify repeated round trips, scans, row counts and join fan-out. Compare candidate set-based SQL with the current query results, including billing immediately after an edit. Report the evidence and proposed SQL change before implementation.",
+              "rows": 4
+            },
+            {
+              "markdown": "The next decision depends on that evidence: repeated cheap queries favor batching; expensive scans or join fan-out need a different SQL design. I won’t assume which case we have."
+            }
+          ],
+          "Draft a batching proposal": [
+            {
+              "input": "Batching proposal — edit if needed",
+              "id": "batch_proposal",
+              "default": "Fetch the required accounts in a set-based query and preserve existing account permissions, totals and ordering. Validate the plan and result equivalence before adopting the rewrite. After a billing edit, refresh the affected billing data immediately; do not apply the summary lag allowance to billing. Use the current infrastructure.",
+              "rows": 4
+            },
+            {
+              "check": "Also investigate whether separating summaries from fresh billing would help",
+              "id": "summary_split",
+              "default": false,
+              "reveals": [
+                {
+                  "markdown": "Separating these reads may let summaries refresh less often without delaying billing, but we have no evidence of an existing cache or a cheap refresh mechanism. First inspect how summaries are produced and updated within the current system."
+                },
+                {
+                  "input": "Summary freshness proposal",
+                  "id": "summary_plan",
+                  "default": "Evaluate a separate summary refresh path using existing infrastructure, with at most 30 seconds of lag. Keep billing updates immediately visible and document how refresh failures are detected. Recommend a mechanism only after inspecting the current data flow.",
+                  "rows": 3
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "Render fewer table rows": [
+        {
+          "markdown": "Reducing mounted rows can reduce rendering work without narrowing the searchable data. Search must run over all 2,000 rows before choosing what to display. Pagination provides explicit page navigation; virtualization keeps scrolling but requires careful focus, keyboard and screen-reader behavior. We have not inspected those interaction requirements yet."
+        },
+        {
+          "select": "Which table approach should we investigate or prototype?",
+          "id": "table_approach",
+          "options": [
+            {
+              "value": "Inspect table interactions first",
+              "description": "Identify keyboard navigation, editing, selection and accessibility constraints before selecting a rendering technique."
+            },
+            {
+              "value": "Prototype pagination",
+              "description": "Limits mounted rows with explicit navigation; users may lose continuous scanning across accounts."
+            },
+            {
+              "value": "Prototype virtualization",
+              "description": "Keeps continuous scrolling with a small mounted window; focus and accessibility need verification."
+            }
+          ],
+          "default": "Inspect table interactions first",
+          "Inspect table interactions first": [
+            {
+              "input": "Interaction investigation",
+              "id": "table_investigation",
+              "default": "Inspect how the table implements search, keyboard navigation, focus, screen-reader semantics, inline edits and selection across rows. Identify which interactions require the full table. Recommend pagination, virtualization or another rendering change only after reviewing those constraints.",
+              "rows": 3
+            }
+          ],
+          "Prototype pagination": [
+            {
+              "input": "Pagination proposal",
+              "id": "pagination_plan",
+              "default": "Prototype 50 rows per page. Apply search and sorting to the complete data set before pagination; show total matches and explicit page controls. Preserve selection across pages and immediately refresh edited billing values. Measure render time and verify keyboard and screen-reader navigation before adoption.",
+              "rows": 4
+            }
+          ],
+          "Prototype virtualization": [
+            {
+              "input": "Virtualization proposal",
+              "id": "virtualization_plan",
+              "default": "Prototype a visible row window with modest overscan. Apply search and sorting to the complete data set before windowing. Preserve row identity, selection and active edit state; keep focused rows usable when scrolling. Verify keyboard and screen-reader workflows and immediate billing updates before adoption.",
+              "rows": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "markdown": "Pursuing both targets should improve different parts of the wait. Benchmark the SQL and table changes separately before measuring them together, so one improvement cannot hide a regression in the other. Search completeness and immediate post-edit billing are acceptance checks for the combined design.",
+      "when": "selected(improvements, Batch the account queries) && selected(improvements, Render fewer table rows)"
+    },
+    {
+      "input": "Joint validation proposal — edit if needed",
+      "id": "joint_validation",
+      "default": "Use the same representative dashboard data to compare the baseline, SQL-only change, table-only change and both together. Measure server query time, response time and browser rendering. Verify full-data search, result equivalence, keyboard navigation and immediately visible billing edits. Stop and revise the proposal if correctness or interaction checks fail.",
+      "rows": 4,
+      "when": "selected(improvements, Batch the account queries) && selected(improvements, Render fewer table rows)"
+    }
+  ]
+}

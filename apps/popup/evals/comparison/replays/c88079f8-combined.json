@@ -1,0 +1,20 @@
+{
+  "type": "popup_result",
+  "formId": "eval-c88079f8",
+  "submissionId": "eval-c88079f8-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "investigation_scope": "Focused first pass",
+    "prepare_mitigations": true,
+    "mitigation_candidates": [
+      "Rollback",
+      "Scaling"
+    ],
+    "_labels": {
+      "investigation_scope": "How should I investigate?",
+      "prepare_mitigations": "Prepare mitigation options alongside the investigation",
+      "mitigation_candidates": "Which options should I assess, without executing them?"
+    }
+  }
+}

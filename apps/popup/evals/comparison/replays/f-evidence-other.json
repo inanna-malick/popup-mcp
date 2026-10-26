@@ -1,0 +1,17 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-evidence.json",
+  "submissionId": "eval-f-evidence.json-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "incident_work": [
+      "Other (please specify)"
+    ],
+    "incident_work_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "_labels": {
+      "incident_work": "What should the read-only investigation produce?",
+      "incident_work_other_text": "Please specify"
+    }
+  }
+}

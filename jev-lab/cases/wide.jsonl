@@ -1,0 +1,13 @@
+{"page": "start", "answers": {"topic": "it's too slow"}, "note": null, "expect": "perf", "rationale": "plain pick, 8-way pool"}
+{"page": "start", "answers": {}, "note": "pages take about fifteen seconds to come up", "expect": "perf", "rationale": "symptom of slowness, no option named"}
+{"page": "start", "answers": {}, "note": "it shows me last week's numbers", "expect": "data", "rationale": "stale contents, not a crash; data vs bug is the discrimination"}
+{"page": "start", "answers": {}, "note": "it just exits with a stack trace when I hit save", "expect": "bug", "rationale": "crash"}
+{"page": "start", "answers": {}, "note": "I've been staring at the install docs for an hour", "expect": "setup|docs", "rationale": "genuinely between two; both defensible"}
+{"page": "start", "answers": {}, "note": "the bill doubled and I don't know what changed", "expect": "cost", "rationale": "money"}
+{"page": "start", "answers": {}, "note": "my key stopped working this morning", "expect": "access", "rationale": "locked out"}
+{"page": "start", "answers": {}, "note": "there's no way to export any of this", "expect": "feature", "rationale": "absent capability"}
+{"page": "start", "answers": {}, "note": "the fourth one", "expect": "docs", "rationale": "pure deixis into an 8-item ordered list"}
+{"page": "start", "answers": {}, "note": "it's slow and it's also showing stale numbers", "expect": "several", "rationale": "two branches"}
+{"page": "start", "answers": {}, "note": "can you recommend a good keyboard", "expect": "none_fit", "rationale": "off-tree"}
+{"page": "start", "answers": {}, "note": null, "expect": "unclear", "rationale": "nothing said"}
+{"page": "start", "answers": {"topic": "it does the wrong thing"}, "note": "scratch that, it's really that I can't even get it installed", "expect": "setup", "rationale": "note corrects across an 8-way pool"}

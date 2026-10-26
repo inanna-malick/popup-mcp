@@ -1,0 +1,67 @@
+{
+  "title": "What should I fix next about the routing?",
+  "start": "open",
+  "nodes": {
+    "open": {
+      "say": "Three things went wrong while building the forward-only routing. My tree is guesswork and missed your answer twice. I cannot see a bad branch until a user hits it: two conditions that overlap look fine in JSON. And authoring eats tokens.",
+      "lines": [
+        {
+          "line": "My branches keep missing what people actually answer",
+          "goto": "coverage"
+        },
+        {
+          "line": "I can't tell when two branches overlap until someone hits it",
+          "goto": "lint"
+        },
+        {
+          "line": "Writing these trees out is too much typing",
+          "goto": "compact"
+        }
+      ],
+      "aside": "The three lines correspond to three real defects I hit today: branches that missed their answer twice, overlapping conditions I could not see, and the token cost of authoring."
+    },
+    "coverage": {
+      "say": "Right. The queue is in, but I still can't tell my branches were thin before shipping them.",
+      "lines": [
+        {
+          "line": "Let the note alone route, with no options at all"
+        },
+        {
+          "line": "Let one line cover several answers explicitly"
+        },
+        {
+          "line": "Log the misses and show me them later"
+        }
+      ]
+    },
+    "lint": {
+      "say": "So: synthesise a state per condition and flag two that fire together.",
+      "lines": [
+        {
+          "line": "Run it at validation, before the window opens"
+        },
+        {
+          "line": "Only when I ask for it"
+        },
+        {
+          "line": "In the test suite against the examples"
+        }
+      ]
+    },
+    "compact": {
+      "say": "Fair. A twenty-node tree is slow to emit.",
+      "lines": [
+        {
+          "line": "A node is one string and the compiler fills the rest"
+        },
+        {
+          "line": "An outline notation compiled to the tree"
+        },
+        {
+          "line": "Leave it, the JSON is fine"
+        }
+      ]
+    }
+  },
+  "context": "I'm building a decision-tree popup tool and asking the person who owns it which of three problems to work on next. They have been reviewing this all afternoon, are direct, and tend to push back on framing before mechanics."
+}

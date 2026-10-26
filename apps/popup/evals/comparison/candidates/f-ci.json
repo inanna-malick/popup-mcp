@@ -1,0 +1,51 @@
+{
+  "submit": "Choose next investigations",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "The repeated installs account for **8 runner-minutes per workflow**, though their effect on elapsed time depends on which jobs overlap. The **11-minute serial integration suite** is a stronger elapsed-time target, but shared Postgres state blocks safe parallel execution today. Docs-only PRs also run the full matrix. I recommend exploring dependency caching and database isolation together, plus a docs-only gate if we can reliably identify those changes. Keep Linux/macOS/Windows release coverage: the CLI has users on all three. Cache benefit, isolation safety and flakiness remain unmeasured; faster CI is not yet a demonstrated result."
+    },
+    {
+      "multi": "Which improvements should we work through together?",
+      "id": "ci_paths",
+      "options": [
+        {"value": "Cache dependency downloads", "description": "Target repeated installs; measure cold and warm runs before claiming savings."},
+        {"value": "Isolate and parallelize integration tests", "description": "Target the longest known suite; extra workers can increase billed minutes."},
+        {"value": "Skip irrelevant checks on docs-only PRs", "description": "Avoid full matrix runs when changes cannot affect code or packaging."},
+        {"value": "Explore a smaller PR platform matrix", "description": "Save runner minutes but delay platform-specific feedback for supported CLI users."}
+      ],
+      "default": ["Cache dependency downloads"],
+      "reveals": [
+        {"markdown": "For each selected path, I’ll first establish a baseline from representative PR runs: elapsed time, billed runner-minutes and failures. Use the branches to choose investigations or edit proposals; submission does not turn an untested proposal into a measured improvement."}
+      ],
+      "Cache dependency downloads": [
+        {"markdown": "A download cache could reduce part of each 2-minute install, but native builds or dependency linking may still dominate. Inspect the package manager, install stages and existing cache behavior before choosing paths."},
+        {"input": "Editable cache experiment", "id": "cache_experiment", "default": "Keep the current dependency resolution and immutable install. Identify the package manager's download cache; key it by OS, runtime and lockfile. Compare cold and warm install time and runner-minutes, checking that dependencies and test results agree.", "rows": 3},
+        {"select": "How should we handle lockfile changes?", "id": "cache_invalidation", "options": [{"value": "Use exact cache keys first", "description": "Simple correctness baseline; lockfile changes incur a cold run."}, {"value": "Investigate fallback restores", "description": "May reuse downloads across lockfile changes; verify package-manager integrity guarantees first."}], "default": "Use exact cache keys first", "Investigate fallback restores": [{"markdown": "I’ll verify whether a restored download cache can contain obsolete packages harmlessly, then compare fallback restores with exact-key runs. Keep installed dependency trees out of the proposal unless their correctness is established."}]}
+      ],
+      "Isolate and parallelize integration tests": [
+        {"markdown": "Independent database state is a prerequisite. Separate databases may suffice, but global fixtures, external resources, migrations or cleanup could still collide. More workers shorten wall time only if setup and contention do not consume the gain; billing is by runner-minute."},
+        {"select": "What should the next isolation step produce?", "id": "isolation_step", "options": [{"value": "Investigate isolation and failures", "description": "Inspect fixtures and recent failures, then return with a supported design and cost estimate."}, {"value": "Draft a two-worker experiment", "description": "Prepare an editable design now; verify isolation and budget before running it."}], "default": "Investigate isolation and failures", "Investigate isolation and failures": [{"markdown": "I’ll trace database names and connection URLs, migrations, shared fixtures, cleanup and non-database resources. I’ll inspect failure history for signs of existing flakes rather than assuming any new failure is caused by parallelism. Stop at a design and estimate if running the experiment needs a spend decision."}], "Draft a two-worker experiment": [{"input": "Editable isolation proposal", "id": "isolation_proposal", "default": "Start with two workers and a disposable database per worker, separate connection URLs, isolated fixtures and cleanup. Verify migrations and any external shared state. Compare the same tests serially and in parallel for elapsed time, total runner-minutes and failures; investigate mismatches before adoption.", "rows": 3}, {"markdown": "Two workers is a proposed starting point, not an established optimum. Verify the runner topology and price before estimating additional spend."}]},
+        {"select": "What spend boundary should govern a parallelism experiment?", "id": "parallel_budget", "options": [{"value": "Estimate costs before choosing a limit", "description": "Continue read-only investigation; return with baseline usage and a bounded experiment proposal."}, {"value": "Set an experiment spending cap", "description": "Provide the maximum additional billed spend you accept before scheduling runs."}], "default": "Estimate costs before choosing a limit", "Estimate costs before choosing a limit": [{"markdown": "I’ll calculate the proposed experiment's additional cost from actual runner pricing and expected setup/runtime. We can then choose a cap; general willingness to spend more does not specify one."}], "Set an experiment spending cap": [{"input": "Maximum additional spend and currency for this experiment", "id": "experiment_cap", "placeholder": "For example: USD 5 total additional spend", "rows": 1}, {"markdown": "A blank cap leaves the limit unresolved. I’ll check the cost estimate against your submitted limit before scheduling any additional paid runs."}]}
+      ],
+      "Skip irrelevant checks on docs-only PRs": [
+        {"markdown": "This can reduce both elapsed time and spend without dropping supported platforms on code changes. The risk is misclassifying changes to generated docs, examples, packaging or workflow configuration as harmless."},
+        {"input": "Editable docs-only gate proposal", "id": "docs_gate", "default": "Inspect documentation generation and packaging dependencies. Restrict the skip to verified prose-only paths; keep relevant docs checks and a required-check result. Run the full PR matrix whenever a change touches code, dependencies, workflows, packaging or ambiguous paths. Preserve the full release matrix.", "rows": 3},
+        {"select": "How should we validate the gate?", "id": "gate_validation", "options": [{"value": "Audit recent PR classifications first", "description": "Estimate avoided runs and catch unsafe path rules before changing execution."}, {"value": "Draft a gate for review", "description": "Prepare the path rules and required-check behavior, with validation against representative PRs."}], "default": "Audit recent PR classifications first", "Audit recent PR classifications first": [{"markdown": "I’ll compare proposed path rules with recent PRs and inspect branch protection requirements. If a docs change can affect shipped behavior, its paths stay on the full matrix."}], "Draft a gate for review": [{"markdown": "The draft will include conservative path rules, an explicit result for required checks and examples of docs-only versus mixed PRs. I’ll leave ambiguous paths on the full matrix."}]}
+      ],
+      "Explore a smaller PR platform matrix": [
+        {"markdown": "Linux production does not remove macOS/Windows CLI obligations. A smaller PR matrix trades earlier cross-platform feedback for lower spend, so I recommend auditing platform-sensitive tests and user commitments before excluding jobs."},
+        {"input": "Editable PR coverage proposal", "id": "pr_matrix_proposal", "default": "Preserve Linux/macOS/Windows release coverage. Investigate native dependencies, filesystem behavior, shell usage and platform-specific tests. Propose narrower PR checks only where the audit supports them, retaining targeted cross-platform checks for risky changes.", "rows": 3},
+        {"markdown": "This branch prepares a proposal. No release coverage reduction is proposed or authorized here."}
+      ]
+    },
+    {
+      "markdown": "**Combined experiment:** establish the baseline, measure caching alone, measure isolated parallel integration tests alone, then test them together. Compare elapsed time, runner-minutes and failures at each step; caching may lower startup cost, while parallel workers may repeat setup and increase spend. Apply the submitted spend boundary to any additional runs, and retain platform coverage while evaluating these changes.",
+      "when": "selected(ci_paths, Cache dependency downloads) && selected(ci_paths, Isolate and parallelize integration tests)"
+    },
+    {
+      "markdown": "If both gating proposals are selected, make the docs-only classification first and the platform decision second for remaining PRs. Evaluate avoided runs separately so the two policies do not double-count savings.",
+      "when": "selected(ci_paths, Skip irrelevant checks on docs-only PRs) && selected(ci_paths, Explore a smaller PR platform matrix)"
+    }
+  ]
+}

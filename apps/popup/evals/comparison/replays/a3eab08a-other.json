@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-a3eab08a",
+  "submissionId": "eval-a3eab08a-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "incident_plan": "Inspect dashboards and available logs around the alert and deployment. Compare latency, timeout/error rates and request volume before and after, using equivalent windows and separating endpoints, workloads and deployed versions where telemetry allows. Check resource saturation, queues and downstream timings without assuming a culprit. Look for representative slow and successful requests and existing traces. Report observations, missing telemetry and confidence before recommending a production change.",
+    "mitigation_proposals": [
+      "Other (please specify)"
+    ],
+    "mitigation_proposals_other_text": "Explore a read-only incident investigation while preparing conditional mitigation options; do not authorize a production change implicitly.",
+    "_labels": {
+      "incident_plan": "Proposed immediate investigation — edit the scope if needed",
+      "mitigation_proposals": "Which conditional mitigation proposals should the investigation prepare?",
+      "mitigation_proposals_other_text": "Please specify"
+    }
+  }
+}

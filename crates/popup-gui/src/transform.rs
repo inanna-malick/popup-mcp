@@ -7,8 +7,8 @@ pub fn inject_other_options(mut def: PopupDefinition) -> PopupDefinition {
     def
 }
 
-/// Recursively process elements vector
-fn inject_other_in_elements(elements: &mut Vec<Element>) {
+/// Recursively process elements slice
+fn inject_other_in_elements(elements: &mut [Element]) {
     for element in elements.iter_mut() {
         inject_other_in_element(element);
     }
@@ -23,15 +23,8 @@ fn inject_other_in_element(element: &mut Element) {
             reveals,
             id,
             ..
-        } => {
-            inject_other_option(options, option_children, id);
-            // Recurse into children
-            for children in option_children.values_mut() {
-                inject_other_in_elements(children);
-            }
-            inject_other_in_elements(reveals);
         }
-        Element::Select {
+        | Element::Select {
             options,
             option_children,
             reveals,
@@ -55,59 +48,90 @@ fn inject_other_in_element(element: &mut Element) {
     }
 }
 
-/// Add "Other" option if not already present (case-insensitive check)
+/// Ensure every select/multi has an "Other" escape hatch with an attached
+/// text input, preserving the documented "<id>_other_text" result contract
+/// even when the author supplied their own "Other" option
 fn inject_other_option(
     options: &mut Vec<OptionValue>,
     option_children: &mut HashMap<String, Vec<Element>>,
     element_id: &str,
 ) {
-    const OTHER_LABEL: &str = "Other (please specify)";
+    const OTHER_LABEL: &str = popup_common::validate::OTHER_LABEL;
 
-    // Check if "Other" already exists (case-insensitive)
-    let has_other = options.iter().any(|opt| {
-        opt.value().eq_ignore_ascii_case("other")
-            || opt.value().eq_ignore_ascii_case(OTHER_LABEL)
-    });
+    let is_other = |value: &str| {
+        value.eq_ignore_ascii_case("other") || value.eq_ignore_ascii_case(OTHER_LABEL)
+    };
 
-    if !has_other {
-        // Add "Other" to options
-        options.push(OptionValue::Simple(OTHER_LABEL.to_string()));
+    // Find an author-supplied "Other" (case-insensitive), else append ours
+    let other_value = match options.iter().find(|opt| is_other(opt.value())) {
+        Some(existing) => existing.value().to_string(),
+        None => {
+            options.push(OptionValue::Simple(OTHER_LABEL.to_string()));
+            OTHER_LABEL.to_string()
+        }
+    };
 
-        // Create text input element
-        let text_input_id = format!("{}_other_text", element_id);
-        let text_input = Element::Input {
-            input: OTHER_LABEL.to_string(),
-            id: text_input_id,
+    // Attach the free-text input unless the author already nested their own
+    // children under that option
+    option_children.entry(other_value).or_insert_with(|| {
+        vec![Element::Input {
+            input: "Please specify".to_string(),
+            id: format!("{}_other_text", element_id),
             placeholder: None,
+            default: None,
             rows: None,
             when: None,
-        };
-
-        // Add to option_children (shown when "Other" is selected)
-        option_children.insert(OTHER_LABEL.to_string(), vec![text_input]);
-    }
+        }]
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn multi(label: &str, id: &str, options: &[&str]) -> Element {
+        Element::Multi {
+            multi: label.to_string(),
+            id: id.to_string(),
+            options: options
+                .iter()
+                .map(|o| OptionValue::Simple(o.to_string()))
+                .collect(),
+            default: vec![],
+            option_children: HashMap::new(),
+            reveals: vec![],
+            when: None,
+        }
+    }
+
+    fn select_with_children(
+        label: &str,
+        id: &str,
+        options: Vec<OptionValue>,
+        option_children: HashMap<String, Vec<Element>>,
+    ) -> Element {
+        Element::Select {
+            select: label.to_string(),
+            id: id.to_string(),
+            options,
+            default: None,
+            style: None,
+            option_children,
+            reveals: vec![],
+            when: None,
+        }
+    }
+
+    fn simple_options(options: &[&str]) -> Vec<OptionValue> {
+        options
+            .iter()
+            .map(|o| OptionValue::Simple(o.to_string()))
+            .collect()
+    }
+
     #[test]
     fn test_inject_other_multi() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Multi {
-                multi: "Features".to_string(),
-                id: "features".to_string(),
-                options: vec![
-                    OptionValue::Simple("A".to_string()),
-                    OptionValue::Simple("B".to_string()),
-                ],
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
-        };
+        let def = PopupDefinition::new("Test", vec![multi("Features", "features", &["A", "B"])]);
 
         let transformed = inject_other_options(def);
 
@@ -127,7 +151,7 @@ mod tests {
                 match &other_children[0] {
                     Element::Input { id, input, .. } => {
                         assert_eq!(id, "features_other_text");
-                        assert_eq!(input, "Other (please specify)");
+                        assert_eq!(input, "Please specify");
                     }
                     _ => panic!("Expected Input element"),
                 }
@@ -138,21 +162,15 @@ mod tests {
 
     #[test]
     fn test_inject_other_select() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Select {
-                select: "Mode".to_string(),
-                id: "mode".to_string(),
-                options: vec![
-                    OptionValue::Simple("X".to_string()),
-                    OptionValue::Simple("Y".to_string()),
-                ],
-                default: None,
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
-        };
+        let def = PopupDefinition::new(
+            "Test",
+            vec![select_with_children(
+                "Mode",
+                "mode",
+                simple_options(&["X", "Y"]),
+                HashMap::new(),
+            )],
+        );
 
         let transformed = inject_other_options(def);
 
@@ -182,28 +200,33 @@ mod tests {
 
     #[test]
     fn test_idempotent_other_exists_lowercase() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Select {
-                select: "Mode".to_string(),
-                id: "mode".to_string(),
-                options: vec![
-                    OptionValue::Simple("A".to_string()),
-                    OptionValue::Simple("other".to_string()), // lowercase
-                ],
-                default: None,
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
-        };
+        let def = PopupDefinition::new(
+            "Test",
+            vec![select_with_children(
+                "Mode",
+                "mode",
+                simple_options(&["A", "other"]),
+                HashMap::new(),
+            )],
+        );
 
         let transformed = inject_other_options(def);
 
         match &transformed.elements[0] {
-            Element::Select { options, .. } => {
-                // Should still be 2 options (not 3)
+            Element::Select {
+                options,
+                option_children,
+                ..
+            } => {
+                // Should still be 2 options (not 3)...
                 assert_eq!(options.len(), 2);
+                // ...but the author-supplied "other" still gets the text
+                // input, preserving the <id>_other_text result contract
+                let children = option_children.get("other").unwrap();
+                match &children[0] {
+                    Element::Input { id, .. } => assert_eq!(id, "mode_other_text"),
+                    _ => panic!("Expected Input element"),
+                }
             }
             _ => panic!("Expected Select element"),
         }
@@ -211,24 +234,21 @@ mod tests {
 
     #[test]
     fn test_idempotent_other_exists_with_description() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Select {
-                select: "Mode".to_string(),
-                id: "mode".to_string(),
-                options: vec![
+        let def = PopupDefinition::new(
+            "Test",
+            vec![select_with_children(
+                "Mode",
+                "mode",
+                vec![
                     OptionValue::Simple("A".to_string()),
                     OptionValue::WithDescription {
                         value: "Other".to_string(),
                         description: "Custom option".to_string(),
                     },
                 ],
-                default: None,
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
-        };
+                HashMap::new(),
+            )],
+        );
 
         let transformed = inject_other_options(def);
 
@@ -243,36 +263,31 @@ mod tests {
 
     #[test]
     fn test_recursive_injection_in_reveals() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Check {
+        let def = PopupDefinition::new(
+            "Test",
+            vec![Element::Check {
                 check: "Enable advanced".to_string(),
                 id: "advanced".to_string(),
                 default: false,
-                reveals: vec![Element::Multi {
-                    multi: "Advanced features".to_string(),
-                    id: "advanced_features".to_string(),
-                    options: vec![OptionValue::Simple("Feature1".to_string())],
-                    option_children: HashMap::new(),
-                    reveals: vec![],
-                    when: None,
-                }],
+                reveals: vec![multi(
+                    "Advanced features",
+                    "advanced_features",
+                    &["Feature1"],
+                )],
                 when: None,
             }],
-        };
+        );
 
         let transformed = inject_other_options(def);
 
         match &transformed.elements[0] {
-            Element::Check { reveals, .. } => {
-                match &reveals[0] {
-                    Element::Multi { options, .. } => {
-                        assert_eq!(options.len(), 2);
-                        assert_eq!(options[1].value(), "Other (please specify)");
-                    }
-                    _ => panic!("Expected Multi element in reveals"),
+            Element::Check { reveals, .. } => match &reveals[0] {
+                Element::Multi { options, .. } => {
+                    assert_eq!(options.len(), 2);
+                    assert_eq!(options[1].value(), "Other (please specify)");
                 }
-            }
+                _ => panic!("Expected Multi element in reveals"),
+            },
             _ => panic!("Expected Check element"),
         }
     }
@@ -282,32 +297,23 @@ mod tests {
         let mut option_children = HashMap::new();
         option_children.insert(
             "Advanced".to_string(),
-            vec![Element::Select {
-                select: "Complexity".to_string(),
-                id: "complexity".to_string(),
-                options: vec![OptionValue::Simple("Low".to_string())],
-                default: None,
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
+            vec![select_with_children(
+                "Complexity",
+                "complexity",
+                simple_options(&["Low"]),
+                HashMap::new(),
+            )],
         );
 
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Select {
-                select: "Mode".to_string(),
-                id: "mode".to_string(),
-                options: vec![
-                    OptionValue::Simple("Simple".to_string()),
-                    OptionValue::Simple("Advanced".to_string()),
-                ],
-                default: None,
+        let def = PopupDefinition::new(
+            "Test",
+            vec![select_with_children(
+                "Mode",
+                "mode",
+                simple_options(&["Simple", "Advanced"]),
                 option_children,
-                reveals: vec![],
-                when: None,
-            }],
-        };
+            )],
+        );
 
         let transformed = inject_other_options(def);
 
@@ -337,35 +343,26 @@ mod tests {
 
     #[test]
     fn test_recursive_injection_in_groups() {
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Group {
+        let def = PopupDefinition::new(
+            "Test",
+            vec![Element::Group {
                 group: "Settings".to_string(),
                 id: Some("settings".to_string()),
-                elements: vec![Element::Multi {
-                    multi: "Options".to_string(),
-                    id: "options".to_string(),
-                    options: vec![OptionValue::Simple("Opt1".to_string())],
-                    option_children: HashMap::new(),
-                    reveals: vec![],
-                    when: None,
-                }],
+                elements: vec![multi("Options", "options", &["Opt1"])],
                 when: None,
             }],
-        };
+        );
 
         let transformed = inject_other_options(def);
 
         match &transformed.elements[0] {
-            Element::Group { elements, .. } => {
-                match &elements[0] {
-                    Element::Multi { options, .. } => {
-                        assert_eq!(options.len(), 2);
-                        assert_eq!(options[1].value(), "Other (please specify)");
-                    }
-                    _ => panic!("Expected Multi element in group"),
+            Element::Group { elements, .. } => match &elements[0] {
+                Element::Multi { options, .. } => {
+                    assert_eq!(options.len(), 2);
+                    assert_eq!(options[1].value(), "Other (please specify)");
                 }
-            }
+                _ => panic!("Expected Multi element in group"),
+            },
             _ => panic!("Expected Group element"),
         }
     }
@@ -376,42 +373,33 @@ mod tests {
         let mut select_option_children = HashMap::new();
         select_option_children.insert(
             "Advanced".to_string(),
-            vec![Element::Multi {
-                multi: "Advanced features".to_string(),
-                id: "advanced_features".to_string(),
-                options: vec![OptionValue::Simple("Feature1".to_string())],
-                option_children: HashMap::new(),
-                reveals: vec![],
-                when: None,
-            }],
+            vec![multi(
+                "Advanced features",
+                "advanced_features",
+                &["Feature1"],
+            )],
         );
 
-        let def = PopupDefinition {
-            title: "Test".to_string(),
-            elements: vec![Element::Group {
+        let def = PopupDefinition::new(
+            "Test",
+            vec![Element::Group {
                 group: "Settings".to_string(),
                 id: Some("settings".to_string()),
                 elements: vec![Element::Check {
                     check: "Enable mode selector".to_string(),
                     id: "enable_mode".to_string(),
                     default: false,
-                    reveals: vec![Element::Select {
-                        select: "Mode".to_string(),
-                        id: "mode".to_string(),
-                        options: vec![
-                            OptionValue::Simple("Simple".to_string()),
-                            OptionValue::Simple("Advanced".to_string()),
-                        ],
-                        default: None,
-                        option_children: select_option_children,
-                        reveals: vec![],
-                        when: None,
-                    }],
+                    reveals: vec![select_with_children(
+                        "Mode",
+                        "mode",
+                        simple_options(&["Simple", "Advanced"]),
+                        select_option_children,
+                    )],
                     when: None,
                 }],
                 when: None,
             }],
-        };
+        );
 
         let transformed = inject_other_options(def);
 

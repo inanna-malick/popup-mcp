@@ -1,0 +1,1606 @@
+{
+  "task": {
+    "id": "ci",
+    "request": "Help me cut CI time. Use popup to work through the useful options with me.",
+    "context": "We have already inspected the workflow. Four jobs each run the same 2-minute dependency install. The integration suite runs serially for 11 minutes because tests share a Postgres database. There is a Linux/macOS/Windows matrix; production runs Linux, but the CLI has supported users on all three. PRs currently run the complete matrix even for docs-only edits. Runner usage is billed by the minute. No flaky-test investigation or cache experiment has been run yet. I can accept some additional spend, but I haven't set a limit. Preserve release coverage unless I explicitly choose otherwise.",
+    "combined_intent": "Combine dependency caching with isolated parallel integration tests; preserve platform coverage. Qualify the budget and isolation proposal where the interaction permits.",
+    "correction": "Actually, start by measuring the install and integration timings on three representative PRs. Don't change coverage or spend yet."
+  },
+  "candidates": [
+    {
+      "id": "83dc732e",
+      "definition": {
+        "title": "Choose the next steps to cut CI time",
+        "submit": "Apply this CI plan",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "Each of four jobs repeats a 2-minute dependency install; integration tests take 11 minutes against a shared Postgres database. These are opportunities, not measured savings. Release coverage stays intact. Combine options below; defaults are editable proposals."
+          },
+          {
+            "multi": "What should we work on?",
+            "id": "ci_steps",
+            "options": [
+              {
+                "value": "Measure first",
+                "description": "Establish install and integration timings and check reliability before changing CI."
+              },
+              {
+                "value": "Reuse dependencies",
+                "description": "Try caching to reduce repeated installs; cold misses and cache correctness still need testing."
+              },
+              {
+                "value": "Parallelize integration tests",
+                "description": "Separate Postgres state per shard; faster feedback may cost more runner minutes."
+              },
+              {
+                "value": "Filter docs-only PRs",
+                "description": "Avoid unnecessary matrix runs for proven docs-only changes; keep release checks."
+              }
+            ],
+            "default": [
+              "Measure first"
+            ],
+            "Measure first": [
+              {
+                "input": "Representative PRs to measure (optional)",
+                "id": "measurement_prs",
+                "placeholder": "Leave blank for me to pick three representative recent PRs."
+              }
+            ],
+            "Reuse dependencies": [
+              {
+                "select": "Dependency reuse approach",
+                "id": "dependency_plan",
+                "options": [
+                  {
+                    "value": "Run a cache experiment first",
+                    "description": "Compare cold and warm runs; key by OS, runtime, and lockfile before adopting."
+                  },
+                  {
+                    "value": "Implement and validate caching",
+                    "description": "Change the workflow now and verify misses, invalidation, and platform-specific behavior."
+                  }
+                ],
+                "default": "Run a cache experiment first"
+              }
+            ],
+            "Parallelize integration tests": [
+              {
+                "select": "Postgres isolation proposal",
+                "id": "postgres_isolation",
+                "options": [
+                  {
+                    "value": "Separate Postgres instance per shard",
+                    "description": "Strong isolation, with additional startup and runner overhead."
+                  },
+                  {
+                    "value": "Separate database per shard",
+                    "description": "Share an instance; first verify tests do not modify instance-wide state."
+                  },
+                  {
+                    "value": "Investigate isolation before implementing",
+                    "description": "Inspect fixtures and shared state before choosing a safe sharding design."
+                  }
+                ],
+                "default": "Investigate isolation before implementing"
+              },
+              {
+                "select": "Additional runner spend",
+                "id": "runner_spend",
+                "options": [
+                  {
+                    "value": "Estimate and ask before increasing spend",
+                    "description": "Prepare the sharding plan without authorizing a cost increase."
+                  },
+                  {
+                    "value": "Allow an increase within a limit",
+                    "description": "Proceed only if the projected additional monthly cost fits your limit."
+                  }
+                ],
+                "default": "Estimate and ask before increasing spend",
+                "Allow an increase within a limit": [
+                  {
+                    "input": "Maximum additional monthly runner cost, including currency",
+                    "id": "runner_cost_limit",
+                    "placeholder": "For example, USD 30/month; a blank value requires clarification."
+                  }
+                ]
+              }
+            ],
+            "Filter docs-only PRs": [
+              {
+                "input": "Docs-only paths, if you have a preferred definition",
+                "id": "docs_paths",
+                "placeholder": "Leave blank for me to inspect paths and propose conservative filters. Build inputs still run the matrix."
+              }
+            ]
+          },
+          {
+            "select": "Platform coverage for code PRs",
+            "id": "platform_policy",
+            "options": [
+              {
+                "value": "Keep Linux, macOS, and Windows on every code PR",
+                "description": "Preserve early checks for all supported CLI platforms."
+              },
+              {
+                "value": "Linux on PRs; all platforms nightly and on releases",
+                "description": "Explicitly reduce PR coverage; supported-platform regressions may be found later."
+              }
+            ],
+            "default": "Keep Linux, macOS, and Windows on every code PR"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "ci_steps",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Measure first",
+              "description": "Establish install and integration timings and check reliability before changing CI."
+            },
+            {
+              "value": "Reuse dependencies",
+              "description": "Try caching to reduce repeated installs; cold misses and cache correctness still need testing."
+            },
+            {
+              "value": "Parallelize integration tests",
+              "description": "Separate Postgres state per shard; faster feedback may cost more runner minutes."
+            },
+            {
+              "value": "Filter docs-only PRs",
+              "description": "Avoid unnecessary matrix runs for proven docs-only changes; keep release checks."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "measurement_prs",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Measure first"
+          }
+        },
+        {
+          "id": "dependency_plan",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Run a cache experiment first",
+              "description": "Compare cold and warm runs; key by OS, runtime, and lockfile before adopting."
+            },
+            {
+              "value": "Implement and validate caching",
+              "description": "Change the workflow now and verify misses, invalidation, and platform-specific behavior."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Reuse dependencies"
+          }
+        },
+        {
+          "id": "dependency_plan_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Reuse dependencies[0]",
+          "gate": {
+            "id": "dependency_plan",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "postgres_isolation",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Separate Postgres instance per shard",
+              "description": "Strong isolation, with additional startup and runner overhead."
+            },
+            {
+              "value": "Separate database per shard",
+              "description": "Share an instance; first verify tests do not modify instance-wide state."
+            },
+            {
+              "value": "Investigate isolation before implementing",
+              "description": "Inspect fixtures and shared state before choosing a safe sharding design."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Parallelize integration tests"
+          }
+        },
+        {
+          "id": "postgres_isolation_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Parallelize integration tests[0]",
+          "gate": {
+            "id": "postgres_isolation",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "runner_spend",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Estimate and ask before increasing spend",
+              "description": "Prepare the sharding plan without authorizing a cost increase."
+            },
+            {
+              "value": "Allow an increase within a limit",
+              "description": "Proceed only if the projected additional monthly cost fits your limit."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Parallelize integration tests"
+          }
+        },
+        {
+          "id": "runner_cost_limit",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Parallelize integration tests[1]",
+          "gate": {
+            "id": "runner_spend",
+            "option": "Allow an increase within a limit"
+          }
+        },
+        {
+          "id": "runner_spend_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Parallelize integration tests[1]",
+          "gate": {
+            "id": "runner_spend",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "docs_paths",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Filter docs-only PRs"
+          }
+        },
+        {
+          "id": "ci_steps_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_steps",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "platform_policy",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Keep Linux, macOS, and Windows on every code PR",
+              "description": "Preserve early checks for all supported CLI platforms."
+            },
+            {
+              "value": "Linux on PRs; all platforms nightly and on releases",
+              "description": "Explicitly reduce PR coverage; supported-platform regressions may be found later."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "platform_policy_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "platform_policy",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "measurement_prs": "",
+        "dependency_plan_other_text": "",
+        "dependency_plan": "Run a cache experiment first",
+        "postgres_isolation_other_text": "",
+        "postgres_isolation": "Investigate isolation before implementing",
+        "runner_cost_limit": "",
+        "runner_spend_other_text": "",
+        "runner_spend": "Estimate and ask before increasing spend",
+        "docs_paths": "",
+        "ci_steps_other_text": "",
+        "ci_steps": [
+          "Measure first"
+        ],
+        "platform_policy_other_text": "",
+        "platform_policy": "Keep Linux, macOS, and Windows on every code PR"
+      }
+    },
+    {
+      "id": "c3d34165",
+      "definition": {
+        "title": "Choose the next steps to cut CI time",
+        "submit": "Start selected CI work",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "Each of four jobs repeats a 2-minute install; integration tests take 11 minutes with a shared Postgres database. These are promising targets, but cache effectiveness and safe parallelism still need evidence. Combine options below; defaults are proposals."
+          },
+          {
+            "multi": "What should we work on next?",
+            "id": "ci_work",
+            "options": [
+              {
+                "value": "Measure first",
+                "description": "Establish install and integration timings before changing the workflow."
+              },
+              {
+                "value": "Experiment with dependency caching",
+                "description": "May reduce the repeated installs; compare cold and warm runs before relying on it."
+              },
+              {
+                "value": "Isolate and parallelize integration tests",
+                "description": "May shorten the 11-minute suite, with isolation work and potentially more billed runner minutes."
+              },
+              {
+                "value": "Skip unnecessary docs-only PR jobs",
+                "description": "Save runner minutes on docs edits while retaining the complete release matrix."
+              },
+              {
+                "value": "Adjust the PR platform matrix",
+                "description": "Reduce routine PR work, with a risk of finding macOS or Windows regressions later."
+              }
+            ],
+            "default": [
+              "Measure first",
+              "Experiment with dependency caching"
+            ],
+            "Measure first": [
+              {
+                "input": "Representative PRs to measure (leave blank for me to choose)",
+                "id": "measure_prs",
+                "placeholder": "For example: docs-only, small code change, integration-heavy change"
+              }
+            ],
+            "Experiment with dependency caching": [
+              {
+                "text": "Compare cold and warm installs, verify dependency-lockfile invalidation, and keep a clean-install fallback."
+              }
+            ],
+            "Isolate and parallelize integration tests": [
+              {
+                "select": "How far should I take the parallel-test work?",
+                "id": "parallel_scope",
+                "options": [
+                  {
+                    "value": "Design and estimate first",
+                    "description": "Inspect shared state and propose per-worker databases without adding runner spend."
+                  },
+                  {
+                    "value": "Run a bounded isolation pilot",
+                    "description": "Try a small shard count with separate Postgres databases and check for state leakage and flaky failures."
+                  }
+                ],
+                "default": "Design and estimate first",
+                "Run a bounded isolation pilot": [
+                  {
+                    "input": "Maximum additional billed runner minutes for the pilot",
+                    "id": "pilot_budget",
+                    "placeholder": "Set a limit before I run the pilot"
+                  },
+                  {
+                    "select": "Proposed isolation",
+                    "id": "db_isolation",
+                    "options": [
+                      {
+                        "value": "Separate database per worker",
+                        "description": "Isolates test data while retaining Postgres behavior."
+                      },
+                      {
+                        "value": "Separate Postgres instance per worker",
+                        "description": "Stronger isolation, with more setup and resource usage."
+                      }
+                    ],
+                    "default": "Separate database per worker"
+                  }
+                ]
+              }
+            ],
+            "Skip unnecessary docs-only PR jobs": [
+              {
+                "text": "Inspect path filters and required-check behavior, retain checks for changes that affect code or builds, and preserve full release coverage."
+              }
+            ],
+            "Adjust the PR platform matrix": [
+              {
+                "select": "PR platform coverage",
+                "id": "pr_platforms",
+                "options": [
+                  {
+                    "value": "Keep all three platforms",
+                    "description": "Continue catching supported CLI platform regressions on every code PR."
+                  },
+                  {
+                    "value": "Linux on every PR; all platforms before merge",
+                    "description": "Faster early feedback, but macOS and Windows failures arrive later."
+                  },
+                  {
+                    "value": "Linux on PRs; all platforms on releases",
+                    "description": "Fewer PR runner minutes, with platform regressions potentially discovered at release time."
+                  }
+                ],
+                "default": "Keep all three platforms"
+              }
+            ]
+          },
+          {
+            "text": "Release coverage remains Linux, macOS, and Windows. Use a note to propose a different scope or override any selection."
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "ci_work",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Measure first",
+              "description": "Establish install and integration timings before changing the workflow."
+            },
+            {
+              "value": "Experiment with dependency caching",
+              "description": "May reduce the repeated installs; compare cold and warm runs before relying on it."
+            },
+            {
+              "value": "Isolate and parallelize integration tests",
+              "description": "May shorten the 11-minute suite, with isolation work and potentially more billed runner minutes."
+            },
+            {
+              "value": "Skip unnecessary docs-only PR jobs",
+              "description": "Save runner minutes on docs edits while retaining the complete release matrix."
+            },
+            {
+              "value": "Adjust the PR platform matrix",
+              "description": "Reduce routine PR work, with a risk of finding macOS or Windows regressions later."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "measure_prs",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Measure first"
+          }
+        },
+        {
+          "id": "parallel_scope",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Design and estimate first",
+              "description": "Inspect shared state and propose per-worker databases without adding runner spend."
+            },
+            {
+              "value": "Run a bounded isolation pilot",
+              "description": "Try a small shard count with separate Postgres databases and check for state leakage and flaky failures."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Isolate and parallelize integration tests"
+          }
+        },
+        {
+          "id": "pilot_budget",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "parallel_scope",
+            "option": "Run a bounded isolation pilot"
+          }
+        },
+        {
+          "id": "db_isolation",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Separate database per worker",
+              "description": "Isolates test data while retaining Postgres behavior."
+            },
+            {
+              "value": "Separate Postgres instance per worker",
+              "description": "Stronger isolation, with more setup and resource usage."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "parallel_scope",
+            "option": "Run a bounded isolation pilot"
+          }
+        },
+        {
+          "id": "db_isolation_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[0].Run a bounded isolation pilot[1]",
+          "gate": {
+            "id": "db_isolation",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "parallel_scope_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "parallel_scope",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "pr_platforms",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Keep all three platforms",
+              "description": "Continue catching supported CLI platform regressions on every code PR."
+            },
+            {
+              "value": "Linux on every PR; all platforms before merge",
+              "description": "Faster early feedback, but macOS and Windows failures arrive later."
+            },
+            {
+              "value": "Linux on PRs; all platforms on releases",
+              "description": "Fewer PR runner minutes, with platform regressions potentially discovered at release time."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Adjust the PR platform matrix"
+          }
+        },
+        {
+          "id": "pr_platforms_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Adjust the PR platform matrix[0]",
+          "gate": {
+            "id": "pr_platforms",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "ci_work_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "measure_prs": "",
+        "pilot_budget": "",
+        "db_isolation_other_text": "",
+        "db_isolation": "Separate database per worker",
+        "parallel_scope_other_text": "",
+        "parallel_scope": "Design and estimate first",
+        "pr_platforms_other_text": "",
+        "pr_platforms": "Keep all three platforms",
+        "ci_work_other_text": "",
+        "ci_work": [
+          "Measure first",
+          "Experiment with dependency caching"
+        ]
+      }
+    },
+    {
+      "id": "c6323d80",
+      "definition": {
+        "submit": "Set the next CI work",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "The inspected workflow repeats a 2-minute install in four jobs and runs the integration suite serially for 11 minutes against shared Postgres. Caching could reduce repeated setup; integration parallelism could shorten the longest supplied test phase, but only after database isolation is proven. Four installs account for 8 job-minutes of work, not necessarily 8 minutes of wall-clock delay. We have no cache experiment or flaky-test investigation yet."
+          },
+          {
+            "markdown": "I propose keeping Linux/macOS/Windows release coverage: the CLI has supported users on all three. Production being Linux does not establish that the other platforms are expendable. For PRs, docs-only filtering is a separate opportunity to avoid unnecessary runs while keeping code-change coverage. Runner billing means shorter elapsed time can still cost more if extra workers increase total minutes."
+          },
+          {
+            "multi": "Which opportunities should we work through together?",
+            "id": "ci_work",
+            "options": [
+              {
+                "value": "Measure before changing",
+                "description": "Establish wall-clock time, job-minutes and failures before judging improvements."
+              },
+              {
+                "value": "Cache dependency downloads",
+                "description": "Reduce repeated installs; validate cold and warm behavior without weakening reproducibility."
+              },
+              {
+                "value": "Isolate and parallelize integration tests",
+                "description": "Target the 11-minute suite; first establish independent Postgres state and test reliability."
+              },
+              {
+                "value": "Skip unnecessary docs-only PR jobs",
+                "description": "Avoid the full matrix for proven docs-only changes while preserving code and release coverage."
+              }
+            ],
+            "default": [
+              "Measure before changing",
+              "Cache dependency downloads",
+              "Isolate and parallelize integration tests"
+            ],
+            "Measure before changing": [
+              {
+                "input": "Proposed baseline — edit the sample and measurements",
+                "id": "baseline_plan",
+                "default": "Measure three representative PRs: record install duration per job, integration duration, end-to-end completion time, total billed runner-minutes, and failures/retries. Include a docs-only PR if available. Keep existing coverage and concurrency while collecting the baseline.",
+                "rows": 3
+              }
+            ],
+            "Cache dependency downloads": [
+              {
+                "input": "Proposed cache experiment — edit it",
+                "id": "cache_experiment",
+                "default": "Inspect the package manager and runtime, then cache its download store using OS, runtime version and lockfile hash. Keep the existing immutable install. Compare cold and warm runs with the same workload; confirm invalidation after a lockfile change. Report install savings and total runner-minutes before adopting the cache.",
+                "rows": 4
+              },
+              {
+                "select": "How much cache complexity should the first experiment include?",
+                "id": "cache_strategy",
+                "options": [
+                  {
+                    "value": "Exact keys first",
+                    "description": "A changed lockfile gets a cold cache; this provides a simple correctness baseline."
+                  },
+                  {
+                    "value": "Also test fallback restores",
+                    "description": "May save downloads after lockfile changes; requires proving the install still validates dependencies."
+                  }
+                ],
+                "default": "Exact keys first",
+                "Exact keys first": [
+                  {
+                    "markdown": "Start with exact-key cold/warm comparisons. If misses erase the benefit, we can investigate fallback restores with measured evidence."
+                  }
+                ],
+                "Also test fallback restores": [
+                  {
+                    "markdown": "Restore only the download store, then perform the normal immutable install. Compare fallback restores against exact-key misses and verify changed dependencies are actually installed."
+                  }
+                ]
+              }
+            ],
+            "Isolate and parallelize integration tests": [
+              {
+                "select": "What do we know about per-worker database isolation?",
+                "id": "postgres_isolation",
+                "options": [
+                  {
+                    "value": "Not established — inspect first",
+                    "description": "Shared Postgres explains serial execution, but does not prove fixtures can run independently."
+                  },
+                  {
+                    "value": "Isolation is feasible",
+                    "description": "Use this only if fixtures, migrations and cleanup can support independent worker databases."
+                  }
+                ],
+                "default": "Not established — inspect first",
+                "Not established — inspect first": [
+                  {
+                    "markdown": "Inspect database naming, global fixtures, migration setup, cleanup and any shared services or files. Check recent failures for ordering assumptions. Return an isolation proposal and expected resource needs; do not promise an 11-minute suite will halve with two workers."
+                  },
+                  {
+                    "input": "Proposed investigation output — edit it",
+                    "id": "isolation_report",
+                    "default": "Identify shared mutable state and test-order dependencies; propose one disposable Postgres database and connection URL per worker, including migrations and cleanup; estimate setup overhead and report blockers before changing concurrency.",
+                    "rows": 3
+                  }
+                ],
+                "Isolation is feasible": [
+                  {
+                    "input": "Proposed first parallel experiment — edit it",
+                    "id": "parallel_experiment",
+                    "default": "Create one disposable database per worker with its own connection URL; run migrations and fixtures independently and guarantee cleanup. Compare one versus two workers on the same workload. Record elapsed time, total runner-minutes and failures/retries, including setup overhead. Increase concurrency only if the results justify it.",
+                    "rows": 4
+                  },
+                  {
+                    "markdown": "Two workers are an initial benchmark proposal, not an agreed spend increase. The budget choice below determines whether this experiment can proceed or should remain a proposal."
+                  }
+                ]
+              }
+            ],
+            "Skip unnecessary docs-only PR jobs": [
+              {
+                "markdown": "A docs-only PR need not automatically require every platform test, but path filters must account for generated docs, executable examples and build configuration. An incorrectly narrow filter can miss a real code effect."
+              },
+              {
+                "input": "Proposed docs-only rule — edit it",
+                "id": "docs_rule",
+                "default": "Inspect which documentation paths are inert. Run appropriate documentation checks for changes confined to those paths; keep the complete matrix when code, dependencies, examples, generators or build/workflow configuration changes. Preserve the complete release matrix.",
+                "rows": 3
+              },
+              {
+                "check": "Verify mixed-change PRs still trigger the full matrix",
+                "id": "verify_docs_filter",
+                "default": true,
+                "reveals": [
+                  {
+                    "markdown": "Check docs-only, code-only and mixed changes, plus required-check behavior when jobs are skipped. Adopt filtering only after those cases produce the intended signal."
+                  }
+                ]
+              }
+            ],
+            "reveals": [
+              {
+                "select": "What is the next step after reviewing these proposals?",
+                "id": "execution_scope",
+                "options": [
+                  {
+                    "value": "Investigate and return measurements first",
+                    "description": "Keep current execution and coverage; inspect unknowns and establish a baseline."
+                  },
+                  {
+                    "value": "Run bounded experiments",
+                    "description": "Try the selected changes after resolving their prerequisites and agreeing a spend limit."
+                  }
+                ],
+                "default": "Investigate and return measurements first",
+                "Investigate and return measurements first": [
+                  {
+                    "markdown": "The next deliverable is evidence: timings and billed minutes, cache configuration findings, isolation feasibility for selected work, and docs-filter risks if selected. Use that evidence to choose changes; the proposals above remain editable hypotheses."
+                  }
+                ],
+                "Run bounded experiments": [
+                  {
+                    "select": "How should additional runner spend be handled?",
+                    "id": "spend_policy",
+                    "options": [
+                      {
+                        "value": "Propose the cost before extra runs",
+                        "description": "Some extra spend is acceptable, but no ceiling has been set yet."
+                      },
+                      {
+                        "value": "Use a limit I specify",
+                        "description": "State a budget and stop condition before starting experiments."
+                      }
+                    ],
+                    "default": "Propose the cost before extra runs",
+                    "Propose the cost before extra runs": [
+                      {
+                        "markdown": "Estimate the extra runner-minutes for the selected experiments and present that estimate before starting additional runs. Faster completion alone will not establish cost efficiency."
+                      }
+                    ],
+                    "Use a limit I specify": [
+                      {
+                        "input": "Extra runner budget and stop condition",
+                        "id": "runner_budget",
+                        "placeholder": "For example: at most N additional billed runner-minutes across all experiments; stop if exceeded",
+                        "rows": 2
+                      },
+                      {
+                        "markdown": "If this limit is blank or cannot be evaluated from available billing data, return a cost proposal before running experiments."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "markdown": "When exploring caching and parallel integration together, benchmark each separately before combining them. Use the same representative workload and account for cold/warm caches so install savings do not conceal database contention or test retries. Then compare the combined result against baseline for both elapsed time and billed minutes.",
+            "when": "selected(ci_work, Cache dependency downloads) && selected(ci_work, Isolate and parallelize integration tests)"
+          },
+          {
+            "markdown": "Release coverage remains Linux/macOS/Windows in these proposals. Use Add a note for corrections, different priorities or any explicit change to that commitment; submitting defaults is the point at which your choices become the next work scope."
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "ci_work",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Measure before changing",
+              "description": "Establish wall-clock time, job-minutes and failures before judging improvements."
+            },
+            {
+              "value": "Cache dependency downloads",
+              "description": "Reduce repeated installs; validate cold and warm behavior without weakening reproducibility."
+            },
+            {
+              "value": "Isolate and parallelize integration tests",
+              "description": "Target the 11-minute suite; first establish independent Postgres state and test reliability."
+            },
+            {
+              "value": "Skip unnecessary docs-only PR jobs",
+              "description": "Avoid the full matrix for proven docs-only changes while preserving code and release coverage."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "baseline_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Measure before changing"
+          }
+        },
+        {
+          "id": "cache_experiment",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Cache dependency downloads"
+          }
+        },
+        {
+          "id": "cache_strategy",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Exact keys first",
+              "description": "A changed lockfile gets a cold cache; this provides a simple correctness baseline."
+            },
+            {
+              "value": "Also test fallback restores",
+              "description": "May save downloads after lockfile changes; requires proving the install still validates dependencies."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Cache dependency downloads"
+          }
+        },
+        {
+          "id": "cache_strategy_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Cache dependency downloads[1]",
+          "gate": {
+            "id": "cache_strategy",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "postgres_isolation",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Not established — inspect first",
+              "description": "Shared Postgres explains serial execution, but does not prove fixtures can run independently."
+            },
+            {
+              "value": "Isolation is feasible",
+              "description": "Use this only if fixtures, migrations and cleanup can support independent worker databases."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Isolate and parallelize integration tests"
+          }
+        },
+        {
+          "id": "isolation_report",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "postgres_isolation",
+            "option": "Not established — inspect first"
+          }
+        },
+        {
+          "id": "parallel_experiment",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "postgres_isolation",
+            "option": "Isolation is feasible"
+          }
+        },
+        {
+          "id": "postgres_isolation_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].Isolate and parallelize integration tests[0]",
+          "gate": {
+            "id": "postgres_isolation",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "docs_rule",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Skip unnecessary docs-only PR jobs"
+          }
+        },
+        {
+          "id": "verify_docs_filter",
+          "kind": "check",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Skip unnecessary docs-only PR jobs"
+          }
+        },
+        {
+          "id": "ci_work_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "execution_scope",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Investigate and return measurements first",
+              "description": "Keep current execution and coverage; inspect unknowns and establish a baseline."
+            },
+            {
+              "value": "Run bounded experiments",
+              "description": "Try the selected changes after resolving their prerequisites and agreeing a spend limit."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2]",
+          "gate": {
+            "id": "ci_work"
+          }
+        },
+        {
+          "id": "spend_policy",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Propose the cost before extra runs",
+              "description": "Some extra spend is acceptable, but no ceiling has been set yet."
+            },
+            {
+              "value": "Use a limit I specify",
+              "description": "State a budget and stop condition before starting experiments."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[2].reveals[0]",
+          "gate": {
+            "id": "execution_scope",
+            "option": "Run bounded experiments"
+          }
+        },
+        {
+          "id": "runner_budget",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].reveals[0].Run bounded experiments[0]",
+          "gate": {
+            "id": "spend_policy",
+            "option": "Use a limit I specify"
+          }
+        },
+        {
+          "id": "spend_policy_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].reveals[0].Run bounded experiments[0]",
+          "gate": {
+            "id": "spend_policy",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "execution_scope_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[2].reveals[0]",
+          "gate": {
+            "id": "execution_scope",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "baseline_plan": "Measure three representative PRs: record install duration per job, integration duration, end-to-end completion time, total billed runner-minutes, and failures/retries. Include a docs-only PR if available. Keep existing coverage and concurrency while collecting the baseline.",
+        "cache_experiment": "Inspect the package manager and runtime, then cache its download store using OS, runtime version and lockfile hash. Keep the existing immutable install. Compare cold and warm runs with the same workload; confirm invalidation after a lockfile change. Report install savings and total runner-minutes before adopting the cache.",
+        "cache_strategy_other_text": "",
+        "cache_strategy": "Exact keys first",
+        "isolation_report": "Identify shared mutable state and test-order dependencies; propose one disposable Postgres database and connection URL per worker, including migrations and cleanup; estimate setup overhead and report blockers before changing concurrency.",
+        "parallel_experiment": "Create one disposable database per worker with its own connection URL; run migrations and fixtures independently and guarantee cleanup. Compare one versus two workers on the same workload. Record elapsed time, total runner-minutes and failures/retries, including setup overhead. Increase concurrency only if the results justify it.",
+        "postgres_isolation_other_text": "",
+        "postgres_isolation": "Not established — inspect first",
+        "docs_rule": "Inspect which documentation paths are inert. Run appropriate documentation checks for changes confined to those paths; keep the complete matrix when code, dependencies, examples, generators or build/workflow configuration changes. Preserve the complete release matrix.",
+        "verify_docs_filter": true,
+        "ci_work_other_text": "",
+        "runner_budget": "",
+        "spend_policy_other_text": "",
+        "spend_policy": "Propose the cost before extra runs",
+        "execution_scope_other_text": "",
+        "execution_scope": "Investigate and return measurements first",
+        "ci_work": [
+          "Measure before changing",
+          "Cache dependency downloads",
+          "Isolate and parallelize integration tests"
+        ]
+      }
+    },
+    {
+      "id": "f5e9039c",
+      "definition": {
+        "submit": "Submit CI investigation and change proposal",
+        "notes": true,
+        "elements": [
+          {
+            "markdown": "Four jobs each repeat a 2-minute install: that is 8 runner-minutes per run, though jobs overlapping means less than 8 minutes of wall-clock savings. The serial integration suite takes 11 minutes and shares Postgres, so parallel execution needs isolation first. All three platforms have supported CLI users; I propose retaining their release coverage. Docs-only PRs currently pay for the complete matrix. Cache behavior, test reliability and an acceptable spend increase are still unmeasured."
+          },
+          {
+            "multi": "Which improvements should we develop together?",
+            "id": "improvements",
+            "options": [
+              {
+                "value": "Measure a baseline",
+                "description": "Establish wall time, runner-minutes and failures before comparing changes."
+              },
+              {
+                "value": "Cache dependencies",
+                "description": "Target repeated installs; actual savings depend on hit rates and cache overhead."
+              },
+              {
+                "value": "Isolate and parallelize integration tests",
+                "description": "Target the 11-minute suite; isolation and worker costs need investigation."
+              },
+              {
+                "value": "Skip irrelevant checks on docs-only PRs",
+                "description": "Avoid unnecessary matrix work while retaining release checks and validating path classification."
+              },
+              {
+                "value": "Review platform coverage",
+                "description": "Explore PR coverage tradeoffs; supported CLI platforms make exclusions consequential."
+              }
+            ],
+            "default": [
+              "Measure a baseline",
+              "Cache dependencies",
+              "Isolate and parallelize integration tests"
+            ],
+            "Measure a baseline": [
+              {
+                "input": "Proposed baseline measurement — edit the sample",
+                "id": "baseline_plan",
+                "default": "Measure three representative PRs using existing runner settings: per-job install and test times, total wall time, billed runner-minutes by platform, and failures or retries. Record commit and workload so later experiments are comparable.",
+                "rows": 3
+              }
+            ],
+            "Cache dependencies": [
+              {
+                "input": "Proposed cache experiment — edit the policy",
+                "id": "cache_plan",
+                "default": "Identify the package manager, then cache its download store keyed by OS, runtime version and lockfile hash. Keep the existing reproducible install. Compare a cold run and a warm run, including restore/save overhead and billed minutes, before adopting the cache.",
+                "rows": 3
+              },
+              {
+                "select": "Should the first experiment include fallback cache restores?",
+                "id": "cache_fallback",
+                "options": [
+                  {
+                    "value": "Exact key first",
+                    "description": "Simpler invalidation; lockfile changes remain cold until a new cache is saved."
+                  },
+                  {
+                    "value": "Compare fallback restores too",
+                    "description": "May recover downloads after lockfile changes; adds validation and experiment work."
+                  }
+                ],
+                "default": "Exact key first",
+                "Compare fallback restores too": [
+                  {
+                    "markdown": "Restore only a compatible download store, then run the same reproducible install. Compare exact-hit, fallback-hit and cold runs; do not count a restored cache as proof of correct dependencies."
+                  },
+                  {
+                    "input": "Fallback acceptance criteria",
+                    "id": "fallback_criteria",
+                    "default": "Adopt only if correctness checks pass and fallback restores reduce measured wall time or billed minutes enough to justify the extra policy.",
+                    "rows": 2
+                  }
+                ]
+              }
+            ],
+            "Isolate and parallelize integration tests": [
+              {
+                "markdown": "A shared database explains the current serial execution, but does not establish that separate databases are sufficient. Global fixtures, migrations, ports and cleanup may also be shared. More workers can reduce wall time while increasing billed minutes; no speedup or cost is established yet."
+              },
+              {
+                "select": "How far should the isolation work go next?",
+                "id": "isolation_scope",
+                "options": [
+                  {
+                    "value": "Investigate and return a proposal",
+                    "description": "Inspect shared state and test reliability before changing execution or runner usage."
+                  },
+                  {
+                    "value": "Prepare an isolated two-worker experiment",
+                    "description": "Develop a small pilot, with execution gated on the spend decision below."
+                  }
+                ],
+                "default": "Investigate and return a proposal",
+                "Investigate and return a proposal": [
+                  {
+                    "input": "Proposed investigation",
+                    "id": "isolation_investigation",
+                    "default": "Inspect fixture scope, database naming, migration assumptions, external shared resources and cleanup. Review existing failures without assuming flakiness. Return an isolation design, expected runner usage and a benchmark plan before altering execution.",
+                    "rows": 3
+                  }
+                ],
+                "Prepare an isolated two-worker experiment": [
+                  {
+                    "input": "Proposed pilot — edit assumptions",
+                    "id": "isolation_pilot",
+                    "default": "Give each of two workers its own disposable Postgres database and connection URL, apply migrations per database, partition tests and clean up even on failure. Verify other shared resources are isolated. Compare serial and two-worker runs on the same workload for correctness, failures, wall time and billed minutes.",
+                    "rows": 4
+                  },
+                  {
+                    "markdown": "If inspection finds unsafe shared state, stop at the isolation proposal. A two-worker pilot is a benchmark candidate, not a promise of halving the 11-minute suite."
+                  }
+                ]
+              }
+            ],
+            "Skip irrelevant checks on docs-only PRs": [
+              {
+                "input": "Proposed docs-only policy — edit the boundaries",
+                "id": "docs_policy",
+                "default": "Retain full release coverage on Linux, macOS and Windows. For PRs that touch only verified documentation paths, run documentation checks and satisfy required-check rules without launching the full code matrix. Treat workflow, dependency, generated-code and executable-example changes as code until inspected.",
+                "rows": 4
+              },
+              {
+                "markdown": "Before implementing, inspect path dependencies and branch protection. Test the classification against representative docs-only and mixed PRs so a path filter cannot hide a required check or omit code affected by documentation tooling."
+              }
+            ],
+            "Review platform coverage": [
+              {
+                "select": "Which coverage proposal should we consider?",
+                "id": "coverage_choice",
+                "options": [
+                  {
+                    "value": "Keep all three code PR and release platforms",
+                    "description": "Preserve supported CLI coverage while pursuing caching and isolation."
+                  },
+                  {
+                    "value": "Investigate a smaller code PR matrix",
+                    "description": "Keep the full release matrix; investigate delayed detection of macOS or Windows regressions."
+                  },
+                  {
+                    "value": "Consider changing release coverage",
+                    "description": "Explicitly explore changing the support commitment; return a proposal before removing checks."
+                  }
+                ],
+                "default": "Keep all three code PR and release platforms",
+                "Investigate a smaller code PR matrix": [
+                  {
+                    "input": "PR coverage investigation",
+                    "id": "pr_matrix_plan",
+                    "default": "Inspect platform-dependent CLI behavior, native dependencies and filesystem tests. Propose representative PR checks plus full supported-platform checks before release, explaining which regressions would be detected later. Do not remove checks during this investigation.",
+                    "rows": 3
+                  }
+                ],
+                "Consider changing release coverage": [
+                  {
+                    "input": "Proposed support change to examine",
+                    "id": "support_change",
+                    "placeholder": "Which platform or support commitment could change, and why?",
+                    "rows": 2
+                  },
+                  {
+                    "markdown": "Production running Linux does not remove the CLI's macOS and Windows obligations. Assess affected users and the support policy, then return the exact coverage change for review before implementing it."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "markdown": "For caching plus integration isolation, measure each change separately before combining them. Use the same workloads so cache savings do not conceal increased database setup or worker costs.",
+            "when": "selected(improvements, Cache dependencies) && selected(improvements, Isolate and parallelize integration tests)"
+          },
+          {
+            "select": "What spend boundary should govern experiments?",
+            "id": "spend_boundary",
+            "options": [
+              {
+                "value": "Measure and propose before increasing spend",
+                "description": "Keep current runner settings; obtain a cost estimate before running additional workers or extra benchmarks."
+              },
+              {
+                "value": "Set a cap for additional experiment spend",
+                "description": "Allow proposed experiments within your written cap after costs can be estimated."
+              }
+            ],
+            "default": "Measure and propose before increasing spend",
+            "Measure and propose before increasing spend": [
+              {
+                "markdown": "The next deliverable is baseline evidence and a scoped proposal. Preparing a cache policy or isolation design does not authorize an increase in runner spend."
+              }
+            ],
+            "Set a cap for additional experiment spend": [
+              {
+                "input": "Additional spend cap and period",
+                "id": "experiment_cap",
+                "placeholder": "For example: at most $5 extra for the entire pilot, including retries",
+                "rows": 2
+              },
+              {
+                "markdown": "A blank or ambiguous cap leaves increased-spend experiments pending. Use actual platform rates and expected runner-minutes to check the cap; stop and return an estimate if those inputs are unavailable."
+              }
+            ]
+          },
+          {
+            "markdown": "These defaults are editable proposals until Submit. Add a note to correct the timings, redefine the next step or constrain the experiment; corrections take precedence over the selected proposals."
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "improvements",
+          "kind": "multi",
+          "options": [
+            {
+              "value": "Measure a baseline",
+              "description": "Establish wall time, runner-minutes and failures before comparing changes."
+            },
+            {
+              "value": "Cache dependencies",
+              "description": "Target repeated installs; actual savings depend on hit rates and cache overhead."
+            },
+            {
+              "value": "Isolate and parallelize integration tests",
+              "description": "Target the 11-minute suite; isolation and worker costs need investigation."
+            },
+            {
+              "value": "Skip irrelevant checks on docs-only PRs",
+              "description": "Avoid unnecessary matrix work while retaining release checks and validating path classification."
+            },
+            {
+              "value": "Review platform coverage",
+              "description": "Explore PR coverage tradeoffs; supported CLI platforms make exclusions consequential."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "baseline_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Measure a baseline"
+          }
+        },
+        {
+          "id": "cache_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Cache dependencies"
+          }
+        },
+        {
+          "id": "cache_fallback",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Exact key first",
+              "description": "Simpler invalidation; lockfile changes remain cold until a new cache is saved."
+            },
+            {
+              "value": "Compare fallback restores too",
+              "description": "May recover downloads after lockfile changes; adds validation and experiment work."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Cache dependencies"
+          }
+        },
+        {
+          "id": "fallback_criteria",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Cache dependencies[1]",
+          "gate": {
+            "id": "cache_fallback",
+            "option": "Compare fallback restores too"
+          }
+        },
+        {
+          "id": "cache_fallback_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Cache dependencies[1]",
+          "gate": {
+            "id": "cache_fallback",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "isolation_scope",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Investigate and return a proposal",
+              "description": "Inspect shared state and test reliability before changing execution or runner usage."
+            },
+            {
+              "value": "Prepare an isolated two-worker experiment",
+              "description": "Develop a small pilot, with execution gated on the spend decision below."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Isolate and parallelize integration tests"
+          }
+        },
+        {
+          "id": "isolation_investigation",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[1]",
+          "gate": {
+            "id": "isolation_scope",
+            "option": "Investigate and return a proposal"
+          }
+        },
+        {
+          "id": "isolation_pilot",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[1]",
+          "gate": {
+            "id": "isolation_scope",
+            "option": "Prepare an isolated two-worker experiment"
+          }
+        },
+        {
+          "id": "isolation_scope_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Isolate and parallelize integration tests[1]",
+          "gate": {
+            "id": "isolation_scope",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "docs_policy",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Skip irrelevant checks on docs-only PRs"
+          }
+        },
+        {
+          "id": "coverage_choice",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Keep all three code PR and release platforms",
+              "description": "Preserve supported CLI coverage while pursuing caching and isolation."
+            },
+            {
+              "value": "Investigate a smaller code PR matrix",
+              "description": "Keep the full release matrix; investigate delayed detection of macOS or Windows regressions."
+            },
+            {
+              "value": "Consider changing release coverage",
+              "description": "Explicitly explore changing the support commitment; return a proposal before removing checks."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Review platform coverage"
+          }
+        },
+        {
+          "id": "pr_matrix_plan",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Review platform coverage[0]",
+          "gate": {
+            "id": "coverage_choice",
+            "option": "Investigate a smaller code PR matrix"
+          }
+        },
+        {
+          "id": "support_change",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Review platform coverage[0]",
+          "gate": {
+            "id": "coverage_choice",
+            "option": "Consider changing release coverage"
+          }
+        },
+        {
+          "id": "coverage_choice_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1].Review platform coverage[0]",
+          "gate": {
+            "id": "coverage_choice",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "improvements_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[1]",
+          "gate": {
+            "id": "improvements",
+            "option": "Other (please specify)"
+          }
+        },
+        {
+          "id": "spend_boundary",
+          "kind": "select",
+          "options": [
+            {
+              "value": "Measure and propose before increasing spend",
+              "description": "Keep current runner settings; obtain a cost estimate before running additional workers or extra benchmarks."
+            },
+            {
+              "value": "Set a cap for additional experiment spend",
+              "description": "Allow proposed experiments within your written cap after costs can be estimated."
+            },
+            {
+              "value": "Other (please specify)"
+            }
+          ]
+        },
+        {
+          "id": "experiment_cap",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[3]",
+          "gate": {
+            "id": "spend_boundary",
+            "option": "Set a cap for additional experiment spend"
+          }
+        },
+        {
+          "id": "spend_boundary_other_text",
+          "kind": "input",
+          "options": [],
+          "parent": "$.elements[3]",
+          "gate": {
+            "id": "spend_boundary",
+            "option": "Other (please specify)"
+          }
+        }
+      ],
+      "defaults": {
+        "baseline_plan": "Measure three representative PRs using existing runner settings: per-job install and test times, total wall time, billed runner-minutes by platform, and failures or retries. Record commit and workload so later experiments are comparable.",
+        "cache_plan": "Identify the package manager, then cache its download store keyed by OS, runtime version and lockfile hash. Keep the existing reproducible install. Compare a cold run and a warm run, including restore/save overhead and billed minutes, before adopting the cache.",
+        "fallback_criteria": "Adopt only if correctness checks pass and fallback restores reduce measured wall time or billed minutes enough to justify the extra policy.",
+        "cache_fallback_other_text": "",
+        "cache_fallback": "Exact key first",
+        "isolation_investigation": "Inspect fixture scope, database naming, migration assumptions, external shared resources and cleanup. Review existing failures without assuming flakiness. Return an isolation design, expected runner usage and a benchmark plan before altering execution.",
+        "isolation_pilot": "Give each of two workers its own disposable Postgres database and connection URL, apply migrations per database, partition tests and clean up even on failure. Verify other shared resources are isolated. Compare serial and two-worker runs on the same workload for correctness, failures, wall time and billed minutes.",
+        "isolation_scope_other_text": "",
+        "isolation_scope": "Investigate and return a proposal",
+        "docs_policy": "Retain full release coverage on Linux, macOS and Windows. For PRs that touch only verified documentation paths, run documentation checks and satisfy required-check rules without launching the full code matrix. Treat workflow, dependency, generated-code and executable-example changes as code until inspected.",
+        "pr_matrix_plan": "Inspect platform-dependent CLI behavior, native dependencies and filesystem tests. Propose representative PR checks plus full supported-platform checks before release, explaining which regressions would be detected later. Do not remove checks during this investigation.",
+        "support_change": "",
+        "coverage_choice_other_text": "",
+        "coverage_choice": "Keep all three code PR and release platforms",
+        "improvements_other_text": "",
+        "improvements": [
+          "Measure a baseline",
+          "Cache dependencies",
+          "Isolate and parallelize integration tests"
+        ],
+        "experiment_cap": "",
+        "spend_boundary_other_text": "",
+        "spend_boundary": "Measure and propose before increasing spend"
+      }
+    }
+  ]
+}

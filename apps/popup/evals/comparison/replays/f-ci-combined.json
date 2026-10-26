@@ -1,0 +1,26 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-ci.json",
+  "submissionId": "eval-f-ci.json-combined",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "ci_paths": [
+      "Cache dependency downloads",
+      "Isolate and parallelize integration tests"
+    ],
+    "cache_experiment": "Keep the current dependency resolution and immutable install. Identify the package manager's download cache; key it by OS, runtime and lockfile. Compare cold and warm install time and runner-minutes, checking that dependencies and test results agree.",
+    "cache_invalidation": "Use exact cache keys first",
+    "isolation_step": "Draft a two-worker experiment",
+    "isolation_proposal": "Propose two workers with a disposable Postgres database per worker, separate connection URLs, isolated fixtures and cleanup. First inspect migrations, global fixtures and external shared resources for collisions. Compare serial and parallel integration tests, then caching alone and the combination, using elapsed time, billed runner-minutes and failures. Preserve Linux/macOS/Windows coverage. Prepare the design before running additional paid experiments.",
+    "parallel_budget": "Estimate costs before choosing a limit",
+    "_labels": {
+      "ci_paths": "Which improvements should we work through together?",
+      "cache_experiment": "Editable cache experiment",
+      "cache_invalidation": "How should we handle lockfile changes?",
+      "isolation_step": "What should the next isolation step produce?",
+      "isolation_proposal": "Editable isolation proposal",
+      "parallel_budget": "What spend boundary should govern a parallelism experiment?"
+    }
+  }
+}

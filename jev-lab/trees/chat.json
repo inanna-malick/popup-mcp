@@ -1,0 +1,76 @@
+{
+  "title": "How's the writing going",
+  "submit": "Alright",
+  "elements": [
+    {
+      "page": "How's it going",
+      "id": "start",
+      "elements": [
+        {
+          "markdown": "You said you'd get a draft down this week. How did it go?"
+        },
+        {
+          "input": "Tell me",
+          "id": "words",
+          "rows": 4
+        }
+      ],
+      "next": [
+        {
+          "to": "stuck",
+          "if": "the person is describing not having written, or not being able to start, or avoiding it"
+        },
+        {
+          "to": "flowing",
+          "if": "the person is describing having written, and it going reasonably well"
+        },
+        {
+          "to": "doubt",
+          "if": "the person is describing having written but not liking what came out, or doubting it is any good"
+        }
+      ]
+    },
+    {
+      "page": "When it won't start",
+      "id": "stuck",
+      "elements": [
+        {
+          "markdown": "That happens. Let's find the smallest next move."
+        },
+        {
+          "input": "What's actually in the way",
+          "id": "stuck_why",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "page": "Keeping it going",
+      "id": "flowing",
+      "elements": [
+        {
+          "markdown": "Good. Let's protect whatever made that work."
+        },
+        {
+          "input": "What made this week different",
+          "id": "flow_why",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "page": "When you don't like it",
+      "id": "doubt",
+      "elements": [
+        {
+          "markdown": "Written and bad still beats unwritten."
+        },
+        {
+          "input": "What don't you like about it",
+          "id": "doubt_why",
+          "rows": 3
+        }
+      ]
+    }
+  ]
+}

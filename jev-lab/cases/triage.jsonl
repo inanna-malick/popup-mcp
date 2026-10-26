@@ -1,0 +1,15 @@
+{"page": "start", "answers": {"which": "my branches miss the real answer"}, "note": null, "expect": "coverage", "rationale": "plain pick, no note to complicate it"}
+{"page": "start", "answers": {"which": "overlapping branches I can't see"}, "note": null, "expect": "lint", "rationale": "plain pick; the option whose text is furthest from its condition"}
+{"page": "start", "answers": {"which": "authoring costs too many tokens"}, "note": null, "expect": "compact", "rationale": "plain pick"}
+{"page": "start", "answers": {"which": "my branches miss the real answer"}, "note": "actually no, what bugs me is I can't tell when two branches overlap", "expect": "lint", "rationale": "note takes back the selection and names the other branch"}
+{"page": "start", "answers": {}, "note": "the second one you listed", "expect": "lint", "rationale": "deixis into the ordered framing; second point is the overlap one"}
+{"page": "start", "answers": {}, "note": "that last thing you mentioned, the tokens one", "expect": "compact", "rationale": "deixis plus a content word"}
+{"page": "start", "answers": {}, "note": "the bit about them looking fine in JSON", "expect": "lint", "rationale": "quotes the framing rather than any option text"}
+{"page": "start", "answers": {}, "note": "it keeps sending me down the wrong page and I can't see why", "expect": "lint|coverage", "rationale": "symptom, not a named branch; either reading is defensible"}
+{"page": "start", "answers": {}, "note": "all of them really, the coverage and the overlap and the typing", "expect": "several", "rationale": "names all three; the case that handed back twice in real use"}
+{"page": "start", "answers": {}, "note": "not the typing thing, the other two", "expect": "several", "rationale": "negation over the pool; known literal-reader weakness"}
+{"page": "start", "answers": {}, "note": "can we make the window remember its size", "expect": "none_fit", "rationale": "plausible request, no branch covers it"}
+{"page": "start", "answers": {}, "note": null, "expect": "unclear", "rationale": "nothing said at all"}
+{"page": "start", "answers": {"which": "authoring costs too many tokens"}, "note": "ignore that, I mis-clicked", "expect": "unclear", "rationale": "undo should fire; nothing else should", "actions": ["undo"]}
+{"page": "start", "answers": {"which": "overlapping branches I can't see"}, "note": "run it only when I ask, and just warn me rather than refusing the popup", "expect": "lint", "rationale": "already answered the lint page's two questions; confirm should fire", "actions": ["confirm"]}
+{"page": "start", "answers": {"which": "overlapping branches I can't see"}, "note": "yeah probably that", "expect": "lint", "rationale": "hedged agreement with the selection; no modal action should fire", "not_actions": ["undo", "expand", "narrow", "confirm"]}

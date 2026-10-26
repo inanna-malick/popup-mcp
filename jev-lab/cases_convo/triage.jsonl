@@ -1,0 +1,12 @@
+{"node": "open", "typed": "my branches keep missing what people actually answer", "expect": "l0", "rationale": "near-verbatim restatement of the first line"}
+{"node": "open", "typed": "I can never tell when two of them overlap until it's too late", "expect": "l1", "rationale": "paraphrase of the second line"}
+{"node": "open", "typed": "these things take forever to write out", "expect": "l2", "rationale": "paraphrase of the third"}
+{"node": "open", "typed": "the second one you listed", "expect": "l1", "rationale": "deixis into the ordered lines"}
+{"node": "open", "typed": "that last thing, the typing one", "expect": "l2", "rationale": "deixis plus a content word"}
+{"node": "open", "typed": "the bit about them looking fine in JSON", "expect": "l1", "rationale": "quotes what I said rather than any line"}
+{"node": "open", "typed": "it keeps sending me down the wrong page and I can't see why", "expect": "l1|l0", "rationale": "symptom, not a line; either reading defensible"}
+{"node": "open", "typed": "all of them really, the coverage and the overlap and the typing", "expect": "several", "rationale": "names all three"}
+{"node": "open", "typed": "not the typing thing, the other two", "expect": "several", "rationale": "negation over the pool; known literal-reader weakness"}
+{"node": "open", "typed": "can we make the window remember its size", "expect": "none_fit", "rationale": "plausible, off-tree"}
+{"node": "open", "typed": "", "expect": "unclear", "rationale": "nothing said"}
+{"node": "open", "typed": "hm", "expect": "unclear", "rationale": "said something, but nothing to place"}

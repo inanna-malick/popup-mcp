@@ -1,0 +1,23 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-evidence.json",
+  "submissionId": "eval-f-evidence.json-contradiction",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "incident_work": [
+      "Identify where time is being spent",
+      "Prepare conditional mitigation choices"
+    ],
+    "telemetry_plan": "Inspect dashboards and logs read-only around the deployment. Separate routes, workload sources and traffic changes, compare equivalent requests before and after where possible, and inspect available traces, errors, database waits, downstream timing and resource saturation. Return observations, competing explanations, evidence gaps and the next discriminating check. In parallel, prepare mitigation options conditional on these findings. Do not execute any production change.",
+    "findings_checkpoint": "After the initial telemetry pass",
+    "mitigation_criteria": "Prepare conditional mitigation choices supported by the investigation: rollback only after checking deployment-linked regression and prior-version compatibility; scaling only after checking saturation and dependency headroom; downstream alternatives only with evidence and a safe fallback. Include risks, known costs, readiness gaps and recovery checks. Present the exact proposed production action for separate explicit authorization; this submission authorizes only read-only investigation and preparation.",
+    "_labels": {
+      "incident_work": "What should the read-only investigation produce?",
+      "telemetry_plan": "Investigation plan — edit the scope if needed",
+      "findings_checkpoint": "When should I bring back the first findings?",
+      "mitigation_criteria": "Mitigation brief — edit the decision criteria"
+    },
+    "_notes": "There is a scheduled load test in progress; inspect its traffic separately before attributing the regression to the deployment."
+  }
+}

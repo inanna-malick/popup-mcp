@@ -1,0 +1,11 @@
+{"node": "open", "typed": "pages take about fifteen seconds to come up", "expect": "l0", "rationale": "symptom of slowness across an eight-way pool"}
+{"node": "open", "typed": "it shows me last week's numbers", "expect": "l4", "rationale": "stale contents, not a crash; data vs bug is the discrimination"}
+{"node": "open", "typed": "it just exits with a stack trace when I hit save", "expect": "l1", "rationale": "crash"}
+{"node": "open", "typed": "I've been staring at the install docs for an hour", "expect": "l2|l3", "rationale": "between two, both defensible"}
+{"node": "open", "typed": "the bill doubled and I don't know what changed", "expect": "l5", "rationale": "money"}
+{"node": "open", "typed": "my key stopped working this morning", "expect": "l6", "rationale": "locked out"}
+{"node": "open", "typed": "there's no way to export any of this", "expect": "l7", "rationale": "absent capability"}
+{"node": "open", "typed": "the fourth one", "expect": "l3", "rationale": "pure deixis into an eight-item list"}
+{"node": "open", "typed": "it's slow and it's also showing stale numbers", "expect": "several", "rationale": "two"}
+{"node": "open", "typed": "can you recommend a good keyboard", "expect": "none_fit", "rationale": "off-tree"}
+{"node": "open", "typed": "", "expect": "unclear", "rationale": "nothing said"}

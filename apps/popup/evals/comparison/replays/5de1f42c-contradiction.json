@@ -1,0 +1,29 @@
+{
+  "type": "popup_result",
+  "formId": "eval-5de1f42c",
+  "submissionId": "eval-5de1f42c-contradiction",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Correcting an official memory",
+      "Relationships formed through borrowing"
+    ],
+    "correction_rule": "Keep versions side by side",
+    "catalog_rule": "Anyone may propose an accompanying memory. Archive staff explain the relationship between accounts in public, and let borrowers choose which versions to experience rather than silently merging them.",
+    "intimacy_tension": "Borrowers grow closer to each other",
+    "borrower_scene": "At supper, one neighbor asks to make a meal neither of them remembers. The other hears a wish for a shared future, and also a possible rejection of the memory that brought them together.",
+    "open_rule": "",
+    "joint_seed": "After a public discussion of the flood accounts, two neighbors cook together. One wants to borrow the newly added memory together; the other asks for time. Explore how both requests can be acts of care, and what the archive can offer without deciding for them.",
+    "_labels": {
+      "threads": "Which consequences shall we unfold together?",
+      "correction_rule": "What does a correction do to the available memory?",
+      "catalog_rule": "Bend the proposed catalog rule",
+      "intimacy_tension": "Where does the tenderness become difficult?",
+      "borrower_scene": "Bend this intimate consequence",
+      "open_rule": "An unresolved rule you want to test, rather than settle yet",
+      "joint_seed": "Bend the shared experiment — this is a scene seed, not a plot commitment"
+    },
+    "_notes": "Make memory changes reversible through a public ritual, and explore how that changes intimacy. Keep the archive genuinely public and benevolent."
+  }
+}

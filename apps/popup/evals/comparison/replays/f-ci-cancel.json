@@ -1,0 +1,8 @@
+{
+  "type": "popup_result",
+  "formId": "eval-f-ci.json",
+  "submissionId": "eval-f-ci.json-cancel",
+  "result": {
+    "status": "cancelled"
+  }
+}

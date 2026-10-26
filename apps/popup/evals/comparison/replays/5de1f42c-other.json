@@ -1,0 +1,19 @@
+{
+  "type": "popup_result",
+  "formId": "eval-5de1f42c",
+  "submissionId": "eval-5de1f42c-other",
+  "result": {
+    "status": "completed",
+    "button": "submit",
+    "threads": [
+      "Other (please specify)"
+    ],
+    "threads_other_text": "Explore disputes about correcting official memories and intimacy between borrowers together, with morally ambiguous consequences and no final plot commitment.",
+    "open_rule": "",
+    "_labels": {
+      "threads": "Which consequences shall we unfold together?",
+      "threads_other_text": "Please specify",
+      "open_rule": "An unresolved rule you want to test, rather than settle yet"
+    }
+  }
+}

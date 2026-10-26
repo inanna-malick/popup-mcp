@@ -1,0 +1,88 @@
+{
+  "title": "How should I handle the failing payment-webhook tests?",
+  "submit": "Go with this plan",
+  "elements": [
+    {
+      "markdown": "**Context:** 4 tests in `webhook_handler_test` fail after the Stripe API version bump. The mock fixtures predate the new event schema. I can patch the fixtures or regenerate them from live sandbox events."
+    },
+    {
+      "select": "Fix strategy",
+      "id": "strategy",
+      "options": [
+        {
+          "value": "Patch existing fixtures",
+          "description": "~20 min. Keeps current test structure, but fixtures drift further from real payloads."
+        },
+        {
+          "value": "Regenerate from sandbox",
+          "description": "~1 hour. Fixtures match production exactly; needs sandbox API keys."
+        },
+        {
+          "value": "Skip and pin old API version",
+          "description": "5 min now, blocks the upgrade until someone revisits."
+        }
+      ],
+      "default": "Regenerate from sandbox",
+      "Patch existing fixtures": [
+        {
+          "check": "Add a schema-drift test so this can't silently happen again",
+          "id": "drift_test",
+          "default": true
+        }
+      ],
+      "Regenerate from sandbox": [
+        {
+          "select": "Sandbox credentials",
+          "id": "creds",
+          "options": [
+            "Use the keys in .env.test",
+            "I'll provide fresh keys"
+          ],
+          "default": "Use the keys in .env.test",
+          "I'll provide fresh keys": [
+            {
+              "input": "Sandbox secret key",
+              "id": "sandbox_key",
+              "placeholder": "sk_test_..."
+            }
+          ]
+        },
+        {
+          "check": "Also regenerate the refund-flow fixtures while I'm at it",
+          "id": "refund_fixtures",
+          "default": false,
+          "reveals": [
+            {
+              "slider": "Extra time budget (minutes)",
+              "id": "extra_budget",
+              "min": 10,
+              "max": 60,
+              "step": 10,
+              "default": 30
+            }
+          ]
+        }
+      ],
+      "Skip and pin old API version": [
+        {
+          "input": "Ticket to track the deferred upgrade",
+          "id": "ticket",
+          "default": "PAY-000",
+          "placeholder": "PAY-1234"
+        }
+      ]
+    },
+    {
+      "multi": "While tests are open, also check",
+      "id": "extras",
+      "options": [
+        "Flaky retry test on CI",
+        "Deprecation warnings in test output"
+      ]
+    },
+    {
+      "text": "Heads up: regenerating without sandbox keys in .env.test will fail fast.",
+      "when": "selected(creds, \"I'll provide fresh keys\")"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "title": "Choose the next steps to cut CI time",
+  "submit": "Start selected CI work",
+  "notes": true,
+  "elements": [
+    {
+      "markdown": "Each of four jobs repeats a 2-minute install; integration tests take 11 minutes with a shared Postgres database. These are promising targets, but cache effectiveness and safe parallelism still need evidence. Combine options below; defaults are proposals."
+    },
+    {
+      "multi": "What should we work on next?",
+      "id": "ci_work",
+      "options": [
+        {"value": "Measure first", "description": "Establish install and integration timings before changing the workflow."},
+        {"value": "Experiment with dependency caching", "description": "May reduce the repeated installs; compare cold and warm runs before relying on it."},
+        {"value": "Isolate and parallelize integration tests", "description": "May shorten the 11-minute suite, with isolation work and potentially more billed runner minutes."},
+        {"value": "Skip unnecessary docs-only PR jobs", "description": "Save runner minutes on docs edits while retaining the complete release matrix."},
+        {"value": "Adjust the PR platform matrix", "description": "Reduce routine PR work, with a risk of finding macOS or Windows regressions later."}
+      ],
+      "default": ["Measure first", "Experiment with dependency caching"],
+      "Measure first": [
+        {"input": "Representative PRs to measure (leave blank for me to choose)", "id": "measure_prs", "placeholder": "For example: docs-only, small code change, integration-heavy change"}
+      ],
+      "Experiment with dependency caching": [
+        {"text": "Compare cold and warm installs, verify dependency-lockfile invalidation, and keep a clean-install fallback."}
+      ],
+      "Isolate and parallelize integration tests": [
+        {
+          "select": "How far should I take the parallel-test work?",
+          "id": "parallel_scope",
+          "options": [
+            {"value": "Design and estimate first", "description": "Inspect shared state and propose per-worker databases without adding runner spend."},
+            {"value": "Run a bounded isolation pilot", "description": "Try a small shard count with separate Postgres databases and check for state leakage and flaky failures."}
+          ],
+          "default": "Design and estimate first",
+          "Run a bounded isolation pilot": [
+            {"input": "Maximum additional billed runner minutes for the pilot", "id": "pilot_budget", "placeholder": "Set a limit before I run the pilot"},
+            {"select": "Proposed isolation", "id": "db_isolation", "options": [{"value": "Separate database per worker", "description": "Isolates test data while retaining Postgres behavior."}, {"value": "Separate Postgres instance per worker", "description": "Stronger isolation, with more setup and resource usage."}], "default": "Separate database per worker"}
+          ]
+        }
+      ],
+      "Skip unnecessary docs-only PR jobs": [
+        {"text": "Inspect path filters and required-check behavior, retain checks for changes that affect code or builds, and preserve full release coverage."}
+      ],
+      "Adjust the PR platform matrix": [
+        {"select": "PR platform coverage", "id": "pr_platforms", "options": [{"value": "Keep all three platforms", "description": "Continue catching supported CLI platform regressions on every code PR."}, {"value": "Linux on every PR; all platforms before merge", "description": "Faster early feedback, but macOS and Windows failures arrive later."}, {"value": "Linux on PRs; all platforms on releases", "description": "Fewer PR runner minutes, with platform regressions potentially discovered at release time."}], "default": "Keep all three platforms"}
+      ]
+    },
+    {"text": "Release coverage remains Linux, macOS, and Windows. Use a note to propose a different scope or override any selection."}
+  ]
+}
