@@ -297,9 +297,12 @@ pub fn generate_tool_schema(template: &Template) -> Value {
         properties.insert(name.clone(), Value::Object(prop));
 
         if param.required {
-            required.push(Value::String(name.clone()));
+            required.push(name.clone());
         }
     }
+
+    // HashMap iteration is randomized; keep tool schemas stable across processes.
+    required.sort_unstable();
 
     serde_json::json!({
         "type": "object",
@@ -311,6 +314,31 @@ pub fn generate_tool_schema(template: &Template) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_required_parameters_have_stable_order() {
+        // Rebuild the map to exercise independent randomized iteration orders.
+        for _ in 0..32 {
+            let template: Template = serde_json::from_value(serde_json::json!({
+                "name": "example",
+                "description": "Example template",
+                "file": "example.json",
+                "params": {
+                    "zebra": {"type": "string", "required": true},
+                    "optional": {"type": "string"},
+                    "alpha": {"type": "number", "required": true},
+                    "middle": {"type": "boolean", "required": true}
+                }
+            }))
+            .unwrap();
+            let schema = generate_tool_schema(&template);
+            assert_eq!(
+                schema["required"],
+                serde_json::json!(["alpha", "middle", "zebra"])
+            );
+            assert!(schema["properties"].get("optional").is_some());
+        }
+    }
 
     #[test]
     fn test_extract_variables() {
