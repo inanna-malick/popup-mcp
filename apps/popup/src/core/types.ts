@@ -65,6 +65,8 @@ export type PopupResult =
       _labels: Record<string, string>;
       _notes?: string;
       _option_labels?: Record<string, Record<string, string>>;
+      /** Visible fields submitted with the authored default, never changed by the user. */
+      _defaulted?: string[];
     } & Record<string, unknown>);
 export interface ValidationIssue {
   path: string;

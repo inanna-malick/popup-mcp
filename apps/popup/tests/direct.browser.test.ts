@@ -98,7 +98,7 @@ test("ranking moves retain focus and submit visual order", async ({ page }) => {
   await expect(app.locator(".rank-row > .rank")).toHaveText([
     "1Speed",
     "2Safety",
-    "–Cost",
+    "+Cost",
   ]);
   await speed.press("Alt+ArrowDown");
   await expect(speed).toBeFocused();

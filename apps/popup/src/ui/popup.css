@@ -201,6 +201,12 @@ fieldset {
   .choices-branches {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  /* An odd last option would sit beside an empty cell; Other always takes its own row. */
+  .choices-branches
+    > .option:not(.option-other):nth-last-child(2):nth-child(odd),
+  .choices-branches > .option:not(.option-other):last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 @container (min-width: 440px) {
   .choices-compact {
@@ -561,12 +567,20 @@ output {
 }
 .rank-number {
   flex: none;
+  box-sizing: border-box;
   width: 21px;
+  height: 21px;
+  border: 1px solid transparent;
   border-radius: 2px;
   text-align: center;
-  font: 500 12px/21px var(--popup-mono);
+  font: 500 12px/19px var(--popup-mono);
   font-variant-numeric: tabular-nums;
   color: var(--popup-secondary);
+}
+/* An unranked item shows an empty slot, so it reads as a place to put a priority, not a bullet. */
+.rank:not([aria-pressed="true"]) .rank-number {
+  border-color: var(--popup-control-line);
+  border-style: dashed;
 }
 .field-rank .option > .description,
 .field-rank .option > .recommendation {
@@ -618,6 +632,18 @@ button.quiet {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--popup-line);
+}
+.bounded .popup {
+  box-sizing: border-box;
+  max-height: var(--popup-max-height);
+  overflow-y: auto;
+}
+.bounded .actions {
+  position: sticky;
+  bottom: -14px; /* Sit on the container's bottom padding, flush with its edge. */
+  z-index: 1;
+  padding-bottom: 14px;
+  background: var(--popup-canvas);
 }
 .actions > :first-child {
   margin-right: auto;
@@ -766,6 +792,10 @@ pre {
   border-top: 1px solid var(--popup-line);
 }
 .summary dt,
+.summary .default-tag {
+  color: var(--popup-muted, currentColor);
+  opacity: 0.75;
+}
 .summary dd {
   margin: 0;
   padding: 8px 0;
